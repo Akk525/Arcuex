@@ -6,7 +6,8 @@ node_modules
 dist
 .next
 out
-coverage
+**/coverage/
+!apps/web/src/**/coverage/
 *.tsbuildinfo
 
 # local sqlite
