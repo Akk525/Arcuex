@@ -1,0 +1,34 @@
+name: Feature
+description: Small scoped feature work
+title: "feat: "
+labels: ["priority:p2", "component:docs"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is missing or painful?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checklist that defines done
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Test commands
+      value: |
+        pnpm test
+        pnpm typecheck
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Out of scope
+    validations:
+      required: false
