@@ -13,4 +13,6 @@
 | [research/](research/) | External references |
 | [working-notes/](working-notes/) | Dated engineering notes |
 
-Potential future integrations (not implemented): Circle Gateway, CCTP, Blockaid, Memora, Gemini, ElevenLabs, Grok, databases, insurance contracts.
+Also see [architecture/trust-boundaries.md](architecture/trust-boundaries.md).
+
+Potential future integrations (not implemented): Circle Gateway, CCTP, Blockaid, Memora, Gemini, ElevenLabs, Grok, Solidity insurance contracts.

@@ -2,10 +2,11 @@
 
 ## Scope
 
-Minimal developer dashboard for Arc Testnet connectivity, injected EVM wallets,
-balances, one user-approved test transaction, and QuickNode RPC status.
+Developer dashboard for Arc Testnet connectivity, injected EVM wallets,
+balances, one user-approved test transaction, QuickNode RPC status, and
+**synthetic** Coverage / Claims / Capital panels backed by SQLite API routes.
 
-No marketing landing page. No insurance product UI. No private-key collection.
+No marketing landing page. No private-key collection. No real insurance issuance UI.
 
 ## UI rules
 

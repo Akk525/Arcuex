@@ -9,6 +9,11 @@ out
 coverage
 *.tsbuildinfo
 
+# local sqlite
+.data
+*.sqlite
+*.sqlite-journal
+
 # env / secrets
 .env
 .env.local

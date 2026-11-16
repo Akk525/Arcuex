@@ -12,6 +12,9 @@
   },
   "dependencies": {
     "@arcuex/chain": "workspace:*",
+    "@arcuex/domain": "workspace:*",
+    "@arcuex/insurance": "workspace:*",
+    "@arcuex/persistence": "workspace:*",
     "@arcuex/quicknode": "workspace:*",
     "@tanstack/react-query": "^5.69.0",
     "next": "^15.2.3",

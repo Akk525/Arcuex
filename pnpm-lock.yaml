@@ -38,6 +38,15 @@ importers:
       '@arcuex/chain':
         specifier: workspace:*
         version: link:../../packages/chain
+      '@arcuex/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@arcuex/insurance':
+        specifier: workspace:*
+        version: link:../../packages/insurance
+      '@arcuex/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
       '@arcuex/quicknode':
         specifier: workspace:*
         version: link:../../packages/quicknode

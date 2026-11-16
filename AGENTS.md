@@ -3,21 +3,24 @@
 ## Purpose and current scope
 
 Arcuex explores programmable financial protection for autonomous AI agents.
-This repository is an infrastructure foundation only: Arc Testnet connectivity,
-browser wallet flows, QuickNode RPC queries, and a minimal developer dashboard.
+Current scope: Arc Testnet connectivity, browser wallets, QuickNode RPC, and a
+**policy-agnostic synthetic insurance core** (domain, SQLite persistence,
+quote-to-bind, claims pipeline, capital ledger, dashboard views).
 
-Do not build insurance products, Circle Gateway/CCTP adapters, Blockaid,
-Memora, AI model providers, databases, or smart contracts unless a tracked issue
-explicitly expands scope.
+Do not add Circle Gateway/CCTP, Blockaid, Memora, AI model providers, Solidity
+contracts, or mainnet issuance unless a tracked issue expands scope.
 
 ## Repository organization
 
 | Path | Role |
 | --- | --- |
-| `apps/web` | Next.js developer dashboard (wallet, network, transactions) |
-| `packages/chain` | Typed Arc network config, read clients, explorer helpers |
-| `packages/quicknode` | QuickNode RPC client, retries, typed errors |
-| `docs/` | Architecture, integrations, development, research, working notes |
+| `apps/web` | Next.js dashboard (live Arc/wallet + synthetic coverage/claims/capital) |
+| `packages/chain` | Arc network config + clients |
+| `packages/quicknode` | QuickNode RPC client |
+| `packages/domain` | Insurance entities, money, state machines, capital math |
+| `packages/persistence` | SQLite migrations + repositories |
+| `packages/insurance` | Quote-to-bind, claims, capital services |
+| `docs/` | Architecture, integrations, development notes |
 | `.github/` | CI, issue/PR templates |
 
 Scoped `AGENTS.md` files under `apps/` and `packages/` override root guidance
@@ -28,7 +31,7 @@ for that package. Keep temporary notes in `docs/working-notes/`, not here.
 ```bash
 pnpm install
 pnpm dev                 # apps/web on http://localhost:3000
-pnpm test                # vitest across packages
+pnpm test
 pnpm lint
 pnpm typecheck
 pnpm build
@@ -41,15 +44,18 @@ Use `pnpm` only. Node.js 20+.
 - TypeScript strict mode; prefer small pure modules with clear exports.
 - Conventional commits (`feat:`, `fix:`, `docs:`, `chore:`, `test:`).
 - Prefer logically small commits that leave `pnpm test` and `pnpm typecheck` green.
-- Never commit secrets, private keys, or `.env` files.
+- Never commit secrets, private keys, or `.env` / `.data/*.sqlite` files.
 - No speculative empty adapters or unused integration stubs.
+- Keep insurance wedge-agnostic; label synthetic underwriting explicitly.
+- AI majority votes must never authorize payouts.
 
 ## Security and wallets
 
 - Never collect, store, log, or transmit private keys or seed phrases.
-- All transfers require explicit user wallet approval.
-- Default to Arc Testnet (`5042002`). Do not send mainnet transactions from this foundation.
+- All on-chain transfers require explicit user wallet approval.
+- Default to Arc Testnet (`5042002`). No mainnet insurance issuance.
 - Treat RPC URLs with API keys as secrets; prefer server-side or env-based config.
+- Synthetic ledger data is not a financial-event proof.
 
 ## Documentation rules
 
@@ -57,21 +63,21 @@ Use `pnpm` only. Node.js 20+.
 - Mark unavailable provider features as incomplete with the exact blocker.
 - Do not claim QuickNode Streams bounty completion from RPC usage alone.
 - Update README and relevant `docs/` pages when behavior changes.
+- Distinguish **live Arc data** from **synthetic demo ledger** data in UI and docs.
 
 ## Definition of done
 
 A change is done when:
 
 1. A developer can clone, `pnpm install`, and `pnpm dev`.
-2. The dashboard shows live Arc Testnet connectivity (chain ID + block).
-3. Injected EVM wallets connect, switch to Arc Testnet, and show balances.
-4. An explicitly approved testnet transaction reports hash/receipt/errors.
-5. QuickNode RPC queries return real Arc data (or fail with typed errors).
-6. Tests/CI relevant to the change pass.
-7. Integration claims are verified against live RPC or documented as blocked.
+2. Live panels show Arc Testnet connectivity and wallet flows.
+3. Synthetic coverage quote → bind → claim demo works against SQLite.
+4. Capital accounting tests (conservation/solvency) pass.
+5. Tests/CI relevant to the change pass.
+6. Integration claims are verified or documented as blocked.
 
 ## Verify before claiming functionality
 
-Before stating that Arc, wallet, or QuickNode features work, run the relevant
-read against a live endpoint (or a recorded test with mocked transport for unit
-logic) and record the result. Do not invent network parameters.
+Before stating that Arc, wallet, QuickNode, or insurance features work, run the
+relevant tests/live checks and record results. Do not invent network parameters
+or production pricing.
