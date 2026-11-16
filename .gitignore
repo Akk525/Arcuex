@@ -1,0 +1,29 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# builds
+dist
+.next
+out
+coverage
+*.tsbuildinfo
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# tooling
+.DS_Store
+*.log
+.turbo
+.vercel
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# test
+playwright-report
+test-results
