@@ -177,7 +177,12 @@ export function validateRuntimeEnvironment(env: Record<string, string | undefine
 
   for (const [key, v] of Object.entries(env)) {
     if (!v) continue;
-    if (enforced && /^NEXT_PUBLIC_.*(?:RPC|TOKEN|SECRET|PRIVATE|PASSWORD|API_KEY)/.test(key)) {
+    // Allow public browser RPC endpoints; still forbid secrets in NEXT_PUBLIC_*.
+    if (
+      enforced &&
+      /^NEXT_PUBLIC_/.test(key) &&
+      /(?:TOKEN|SECRET|PRIVATE|PASSWORD|API_KEY)/.test(key)
+    ) {
       errors.push(key);
     }
     if (enforced && /(?:PRIVATE_KEY|SEED_PHRASE|MNEMONIC)$/.test(key)) {

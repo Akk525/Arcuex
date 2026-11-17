@@ -69,6 +69,22 @@ describe('validateRuntimeEnvironment', () => {
     ).toThrow(/PRIVATE_KEY/);
   });
 
+  it('allows public browser RPC URLs while rejecting NEXT_PUBLIC secrets', () => {
+    expect(() =>
+      validateRuntimeEnvironment(
+        basePublicBeta({
+          NEXT_PUBLIC_ARC_RPC_URL: 'https://rpc.testnet.arc.io',
+          NEXT_PUBLIC_QUICKNODE_RPC_URL: 'https://rpc.quicknode.testnet.arc.io',
+        }),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateRuntimeEnvironment(
+        basePublicBeta({ NEXT_PUBLIC_CLAIMS_AUTHORITY_API_TOKEN: hex64 }),
+      ),
+    ).toThrow(/NEXT_PUBLIC_CLAIMS_AUTHORITY_API_TOKEN/);
+  });
+
   it('allows local-test http origin for smoke drills', () => {
     const cfg = validateRuntimeEnvironment(
       basePublicBeta({
