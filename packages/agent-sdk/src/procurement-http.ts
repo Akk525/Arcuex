@@ -8,7 +8,7 @@ import type { PreparedTx } from '@arcuex/onchain';
 
 /** Remote agent workflow. The caller supplies a signing callback; keys never enter this client. */
 export class ProcurementHttpClient {
-  private token?: string;
+  private cookie?: string;
   constructor(
     readonly endpoint: string,
     readonly request: typeof fetch = fetch,
@@ -20,13 +20,16 @@ export class ProcurementHttpClient {
   }
   async call<T>(action: string, input: Record<string, unknown> = {}): Promise<T> {
     const response = await this.request(this.endpoint, {
+      credentials: 'include',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+        ...(this.cookie ? { Cookie: this.cookie } : {}),
       },
       body: JSON.stringify({ ...input, action }),
     });
+    const cookie = response.headers.get('set-cookie');
+    if (cookie) this.cookie = cookie.split(';')[0];
     const body = (await response.json()) as {
       error?: { code?: string; message?: string };
       result: T;
@@ -39,11 +42,10 @@ export class ProcurementHttpClient {
   }
   async signIn(address: string, signMessage: (message: string) => Promise<string>) {
     const challenge = await this.call<{ id: string; message: string }>('challenge', { address });
-    const session = await this.call<{ token: string; address: string; expiresAt: number }>(
-      'authenticate',
-      { id: challenge.id, signature: await signMessage(challenge.message) },
-    );
-    this.token = session.token;
+    const session = await this.call<{ address: string; expiresAt: string }>('authenticate', {
+      id: challenge.id,
+      signature: await signMessage(challenge.message),
+    });
     return { address: session.address, expiresAt: session.expiresAt };
   }
   register(input: {

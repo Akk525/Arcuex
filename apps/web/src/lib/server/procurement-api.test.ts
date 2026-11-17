@@ -66,7 +66,7 @@ it('runs authenticated registration, quote, acceptance and idempotent preparatio
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(token ? { Cookie: token } : {}),
         },
         body: JSON.stringify(body),
       }),
@@ -74,13 +74,13 @@ it('runs authenticated registration, quote, acceptance and idempotent preparatio
     );
   }
   const challenge = await (await post('auth/challenge', { address: account.address })).json();
-  const session = await (
-    await post('auth/verify', {
-      id: challenge.id,
-      signature: await account.signMessage({ message: challenge.message }),
-    })
-  ).json();
-  const token = session.token;
+  const verified = await post('auth/verify', {
+    id: challenge.id,
+    signature: await account.signMessage({ message: challenge.message }),
+  });
+  const token = verified.headers.get('set-cookie')!.split(';')[0]!;
+  expect(verified.headers.get('set-cookie')).toContain('HttpOnly');
+  expect(await verified.json()).not.toHaveProperty('token');
   const agent = await (
     await post(
       'agents',
@@ -129,7 +129,7 @@ it('runs authenticated registration, quote, acceptance and idempotent preparatio
   expect(first.policy.bindTx).toBeNull();
   const list = await handle(
     new Request('http://localhost/api/procurement/policies', {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Cookie: token },
     }),
     'policies',
   );

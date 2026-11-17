@@ -145,6 +145,14 @@ export function PoliciesPanel({ id }: { id?: string }) {
               Bind receipt: {p.bindTx}
             </a>
           )}
+          {id && p.state === 'confirmed' && (
+            <Link
+              className="inline-block rounded-md bg-zinc-900 px-4 py-2 text-sm text-white"
+              href={`/claims/new?policyId=${p.terms.policyId}`}
+            >
+              Submit a synthetic claim
+            </Link>
+          )}
           {id && (
             <>
               <p className="break-all text-sm">Beneficiary: {p.terms.beneficiary}</p>

@@ -42,28 +42,6 @@ beforeEach(() => {
   service = new ProcurementService(new ProcurementStore(openDatabase()), pool, usdc, () => now);
 });
 describe('authenticated procurement', () => {
-  it('authenticates a wallet signature and consumes its nonce', async () => {
-    const c = service.challenge(who, 'https://arcuex.example');
-    const signature = await owner.signMessage({ message: c.message });
-    const session = await service.authenticate(c.id, signature);
-    expect(service.identity(session.token)).toBe(who);
-    await expect(service.authenticate(c.id, signature)).rejects.toThrow('expired or already used');
-    now += 3601;
-    expect(() => service.identity(session.token)).toThrow('Session expired');
-  });
-  it('rejects spoofed owner, altered message and expired challenges', async () => {
-    const c = service.challenge(who, 'https://arcuex.example');
-    await expect(
-      service.authenticate(c.id, await agentWallet.signMessage({ message: c.message })),
-    ).rejects.toThrow('does not match');
-    await expect(
-      service.authenticate(c.id, await owner.signMessage({ message: `${c.message} altered` })),
-    ).rejects.toThrow('does not match');
-    now += 301;
-    await expect(
-      service.authenticate(c.id, await owner.signMessage({ message: c.message })),
-    ).rejects.toThrow('expired');
-  });
   it('validates registration and enforces ownership for delegation', () => {
     expect(() => service.register(who, { idempotencyKey: 'bad', signer: '0x0' })).toThrow();
     const a = register();

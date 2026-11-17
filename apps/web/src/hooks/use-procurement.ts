@@ -10,39 +10,36 @@ export function useProcurement() {
   async function api<T>(path: string, body?: unknown): Promise<T> {
     if (wallet.uiStatus !== 'ready' || !wallet.address)
       throw new Error('Connect your wallet on Arc Testnet first.');
-    const key = `arcuex-session:${wallet.address.toLowerCase()}`;
-    let token = sessionStorage.getItem(key);
-    async function send(path: string, body?: unknown, auth?: string) {
+    async function send(path: string, body?: unknown) {
       const response = await fetch(`/api/procurement/${path}`, {
         method: body === undefined ? 'GET' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(auth ? { Authorization: `Bearer ${auth}` } : {}),
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'x-arcuex-wallet': wallet.address! },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
       const json = await response.json();
-      if (!response.ok) {
-        if (response.status === 401) sessionStorage.removeItem(key);
-        throw new Error(json.error ?? 'Request failed');
-      }
+      if (!response.ok) throw new Error(json.error ?? 'Request failed');
       return json;
     }
-    if (!token) {
+    const identityResponse = await fetch('/api/claims/auth/session', { credentials: 'include' });
+    const identity = await identityResponse.json();
+    if (
+      !identityResponse.ok ||
+      identity.wallet?.toLowerCase() !== wallet.address.toLowerCase() ||
+      identity.role !== 'claimant'
+    ) {
       const challenge = await send('auth/challenge', { address: wallet.address });
       const signature = await signMessageAsync({
         message: challenge.message,
         account: wallet.address,
       });
-      const session = await send('auth/verify', { id: challenge.id, signature });
-      token = session.token as string;
-      sessionStorage.setItem(key, token);
+      await send('auth/verify', { id: challenge.id, signature });
     }
     const payload =
       body && typeof body === 'object' && ['agents', 'delegations', 'quotes'].includes(path)
         ? { idempotencyKey: crypto.randomUUID(), ...body }
         : body;
-    return send(path, payload, token);
+    return send(path, payload);
   }
   async function run(action: () => Promise<void>) {
     setBusy(true);

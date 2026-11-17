@@ -2,7 +2,14 @@ import { NextResponse } from 'next/server';
 import { PROCUREMENT_PRODUCT } from '@arcuex/domain';
 import { ProcurementStore } from '@arcuex/persistence';
 import { ARC_USDC_ERC20_ADDRESS } from '@arcuex/chain';
-import { getDb } from '@/lib/server/db';
+import { authenticateClaimsRequest } from './claims-auth';
+import {
+  issueClaimsNonce,
+  verifyWalletAndCreateSession,
+  claimsSessionCookieOptions,
+  CLAIMS_SESSION_COOKIE,
+} from './claims-session';
+import { getRepo, getDb } from '@/lib/server/db';
 import { ProcurementService, ProcurementError, check, text } from '@/lib/server/procurement';
 import {
   preflight,
@@ -38,23 +45,38 @@ export async function handle(request: Request, path: string) {
       throw new ProcurementError('INVALID_JSON', 'Expected JSON object');
     }
     check(b && typeof b === 'object' && !Array.isArray(b), 'JSON object required');
-    if (request.method === 'POST' && path === 'auth/challenge')
-      return NextResponse.json(svc.challenge(b.address, origin), {
-        headers: { 'Cache-Control': 'no-store' },
-      });
-    if (request.method === 'POST' && path === 'auth/verify') {
-      check(
-        typeof b.signature === 'string' && /^0x[0-9a-fA-F]{130}$/.test(b.signature),
-        '65-byte EOA wallet signature required',
-      );
+    if (request.method === 'POST' && path === 'auth/challenge') {
+      check(typeof b.address === 'string', 'Wallet address required');
+      const c = issueClaimsNonce(getRepo(), b.address, origin);
       return NextResponse.json(
-        await svc.authenticate(text(b.id, 'Challenge ID'), b.signature as `0x${string}`),
+        { id: c.nonce, message: c.message, expiresAt: c.expiresAt },
         { headers: { 'Cache-Control': 'no-store' } },
       );
     }
-    const principal = svc.identity(
-      request.headers.get('authorization')?.replace(/^Bearer /, '') ?? undefined,
-    );
+    if (request.method === 'POST' && path === 'auth/verify') {
+      const nonce = text(b.id, 'Nonce'),
+        record = getRepo().getClaimsAuthNonce(nonce);
+      check(record && typeof b.signature === 'string', 'Invalid nonce/signature');
+      const session = await verifyWalletAndCreateSession(getRepo(), {
+        wallet: record.walletAddress,
+        nonce,
+        signature: b.signature as `0x${string}`,
+      });
+      const response = NextResponse.json(
+        { address: session.principal.walletAddress, expiresAt: session.expiresAt },
+        { headers: { 'Cache-Control': 'no-store' } },
+      );
+      response.cookies.set(
+        CLAIMS_SESSION_COOKIE,
+        session.sessionId,
+        claimsSessionCookieOptions(session.expiresAt),
+      );
+      return response;
+    }
+    const auth = authenticateClaimsRequest(request, ['claimant']);
+    if (!auth.ok) throw new ProcurementError('UNAUTHORIZED', auth.error, auth.status);
+    check(auth.principal.walletAddress, 'Wallet-authenticated session required');
+    const principal = auth.principal.walletAddress.toLowerCase();
     let result: unknown;
     if (request.method === 'GET') {
       if (path === 'list') result = svc.list(principal);

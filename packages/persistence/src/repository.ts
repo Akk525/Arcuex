@@ -20,8 +20,17 @@ import {
 } from '@arcuex/domain';
 
 import { createHash } from 'node:crypto';
+import { ProcurementStore } from './procurement';
 import type { SqliteDb } from './db';
 import { withTransaction } from './db';
+import {
+  mapPersistedClaimsCase,
+  mapPersistedClaimsCaseEvent,
+  mapPersistedEvidenceManifest,
+  type PersistedClaimsCase,
+  type PersistedClaimsCaseEvent,
+  type PersistedEvidenceManifest,
+} from './claims-case-persistence';
 import {
   mapAgent,
   mapAudit,
@@ -144,9 +153,7 @@ export class InsuranceRepository {
   }
 
   getProductByCode(code: string): CoverageProduct | null {
-    const row = this.db
-      .prepare(`SELECT * FROM coverage_products WHERE code = ?`)
-      .get(code);
+    const row = this.db.prepare(`SELECT * FROM coverage_products WHERE code = ?`).get(code);
     return row ? mapProduct(row as Record<string, unknown>) : null;
   }
 
@@ -158,9 +165,7 @@ export class InsuranceRepository {
   }
 
   getQuoteByIdempotencyKey(key: string): Quote | null {
-    const row = this.db
-      .prepare(`SELECT * FROM quotes WHERE idempotency_key = ?`)
-      .get(key);
+    const row = this.db.prepare(`SELECT * FROM quotes WHERE idempotency_key = ?`).get(key);
     return row ? mapQuote(row as Record<string, unknown>) : null;
   }
 
@@ -206,9 +211,7 @@ export class InsuranceRepository {
   }
 
   getPolicyByQuoteId(quoteId: string): Policy | null {
-    const row = this.db
-      .prepare(`SELECT * FROM policies WHERE quote_id = ?`)
-      .get(quoteId);
+    const row = this.db.prepare(`SELECT * FROM policies WHERE quote_id = ?`).get(quoteId);
     return row ? mapPolicy(row as Record<string, unknown>) : null;
   }
 
@@ -286,9 +289,7 @@ export class InsuranceRepository {
   }
 
   getClaimByIdempotencyKey(key: string): Claim | null {
-    const row = this.db
-      .prepare(`SELECT * FROM claims WHERE idempotency_key = ?`)
-      .get(key);
+    const row = this.db.prepare(`SELECT * FROM claims WHERE idempotency_key = ?`).get(key);
     return row ? mapClaim(row as Record<string, unknown>) : null;
   }
 
@@ -360,17 +361,13 @@ export class InsuranceRepository {
 
   listActiveReservations(poolId: string): CapitalReservation[] {
     return this.db
-      .prepare(
-        `SELECT * FROM capital_reservations WHERE pool_id = ? AND status = 'reserved'`,
-      )
+      .prepare(`SELECT * FROM capital_reservations WHERE pool_id = ? AND status = 'reserved'`)
       .all(poolId)
       .map((row) => mapReservation(row as Record<string, unknown>));
   }
 
   getSettlementByIdempotencyKey(key: string): Settlement | null {
-    const row = this.db
-      .prepare(`SELECT * FROM settlements WHERE idempotency_key = ?`)
-      .get(key);
+    const row = this.db.prepare(`SELECT * FROM settlements WHERE idempotency_key = ?`).get(key);
     return row ? mapSettlement(row as Record<string, unknown>) : null;
   }
 
@@ -392,6 +389,20 @@ export class InsuranceRepository {
       .prepare(`SELECT * FROM settlements ORDER BY created_at DESC LIMIT ?`)
       .all(limit)
       .map((row) => mapSettlement(row as Record<string, unknown>));
+  }
+
+  listPolicyholders(limit = 100): Policyholder[] {
+    return this.db
+      .prepare(`SELECT * FROM policyholders ORDER BY created_at DESC LIMIT ?`)
+      .all(limit)
+      .map((row) => mapPolicyholder(row as Record<string, unknown>));
+  }
+
+  getPolicyholderByWallet(wallet: string): Policyholder | null {
+    const row = this.db
+      .prepare(`SELECT * FROM policyholders WHERE lower(wallet_address) = lower(?) LIMIT 1`)
+      .get(wallet);
+    return row ? mapPolicyholder(row as Record<string, unknown>) : null;
   }
 
   getPolicyholder(id: string): Policyholder | null {
@@ -534,7 +545,13 @@ export class InsuranceRepository {
              updated_at = ?
          WHERE idempotency_key = ?`,
       )
-      .run(patch.txHash ?? null, patch.status, patch.errorMessage ?? null, patch.nowIso, idempotencyKey);
+      .run(
+        patch.txHash ?? null,
+        patch.status,
+        patch.errorMessage ?? null,
+        patch.nowIso,
+        idempotencyKey,
+      );
   }
 
   saveOnchainPolicyLink(input: {
@@ -651,9 +668,7 @@ export class InsuranceRepository {
 
   markStreamsProcessed(dedupeKey: string, processedAt: string): void {
     this.db
-      .prepare(
-        `UPDATE streams_inbox SET processed = 1, processed_at = ? WHERE dedupe_key = ?`,
-      )
+      .prepare(`UPDATE streams_inbox SET processed = 1, processed_at = ? WHERE dedupe_key = ?`)
       .run(processedAt, dedupeKey);
   }
 
@@ -668,9 +683,7 @@ export class InsuranceRepository {
   }> {
     return (
       this.db
-        .prepare(
-          `SELECT * FROM streams_inbox ORDER BY received_at DESC LIMIT ?`,
-        )
+        .prepare(`SELECT * FROM streams_inbox ORDER BY received_at DESC LIMIT ?`)
         .all(limit) as Record<string, unknown>[]
     ).map((row) => ({
       id: String(row.id),
@@ -681,6 +694,447 @@ export class InsuranceRepository {
       processed: Number(row.processed) === 1,
       receivedAt: String(row.received_at),
     }));
+  }
+
+  listClaimsPolicyIds(): string[] {
+    return (
+      this.db
+        .prepare('SELECT id FROM policies UNION SELECT id FROM procurement_policies')
+        .all() as { id: string }[]
+    ).map((r) => r.id);
+  }
+  getProcurementPolicy(id: string) {
+    return new ProcurementStore(this.db).policy(id);
+  }
+  claimsPolicyContext(id: string) {
+    const procurement = this.getProcurementPolicy(id);
+    if (procurement) {
+      const t = procurement.terms;
+      return {
+        source: 'procurement' as const,
+        id,
+        owner: t.owner,
+        beneficiary: t.beneficiary,
+        agentId: t.agentId,
+        confirmed: procurement.state === 'confirmed',
+        synthetic: true,
+        limitMicros: BigInt(t.limitMicros),
+        deductibleMicros: BigInt(t.deductibleMicros),
+        effectiveAt: t.effectiveAt,
+        expiresAt: t.expiresAt,
+        exposures: [
+          {
+            id: t.agentId,
+            exposureKey: t.exposure.position,
+            description: t.exposure.protocol,
+            limitMicros: BigInt(t.limitMicros),
+          },
+        ],
+      };
+    }
+    const policy = this.getPolicy(id);
+    if (!policy) return null;
+    const holder = this.getPolicyholder(policy.policyholderId);
+    return {
+      source: 'legacy' as const,
+      id,
+      owner: holder?.walletAddress?.toLowerCase() ?? null,
+      beneficiary: holder?.walletAddress?.toLowerCase() ?? null,
+      agentId: policy.agentId,
+      policyholderId: policy.policyholderId,
+      confirmed: policy.status === 'active' || policy.status === 'bound',
+      synthetic: policy.terms.synthetic,
+      limitMicros: policy.terms.limitMicros,
+      deductibleMicros: policy.terms.deductibleMicros,
+      effectiveAt: Math.floor(Date.parse(policy.terms.coverageStartsAt) / 1000),
+      expiresAt: Math.floor(Date.parse(policy.terms.coverageEndsAt) / 1000),
+      exposures: this.listExposures(id),
+    };
+  }
+  canonicalLegacyIncident(policyId:string,exposureId:string,event:string) {const row=this.db.prepare('SELECT id FROM incidents WHERE policy_id=? AND exposure_id=? AND observed_event_ref=? ORDER BY created_at,id LIMIT 1').get(policyId,exposureId,event) as {id:string}|undefined;return row?this.getIncident(row.id):null;}
+  procurementIncident(input: {
+    policyId: string;
+    exposureId: string;
+    observedEventRef: string;
+    observedAt: string;
+    source: string;
+  }) {
+    return this.runInTransaction(() => {
+      const existing = this.db
+        .prepare(
+          'SELECT incident_id FROM procurement_incident_links WHERE policy_id=? AND exposure_id=? AND observed_event_ref=?',
+        )
+        .get(input.policyId, input.exposureId, input.observedEventRef) as
+        { incident_id: string } | undefined;
+      if (existing) return this.getIncident(existing.incident_id)!;
+      const incident: Incident = {
+        id: newId(),
+        status: 'received',
+        observedEventRef: input.observedEventRef,
+        observedAt: input.observedAt,
+        policyId: null,
+        exposureId: null,
+        source: input.source,
+        createdAt: new Date().toISOString(),
+      };
+      this.saveIncident(incident);
+      this.db
+        .prepare('INSERT INTO procurement_incident_links VALUES (?,?,?,?)')
+        .run(incident.id, input.policyId, input.exposureId, input.observedEventRef);
+      return incident;
+    });
+  }
+  incidentMatchesPolicy(incidentId: string, policyId: string, exposureId: string): boolean {
+    const p = this.getProcurementPolicy(policyId);
+    if (p)
+      return !!this.db
+        .prepare(
+          'SELECT 1 FROM procurement_incident_links WHERE incident_id=? AND policy_id=? AND exposure_id=?',
+        )
+        .get(incidentId, policyId, exposureId);
+    const i = this.getIncident(incidentId);
+    return i?.policyId === policyId && i.exposureId === exposureId;
+  }
+  saveClaimsCase(c: PersistedClaimsCase): void {
+    this.db
+      .prepare(
+        `INSERT INTO claims_cases (
+           id, schema_version, status, policy_id, exposure_id, incident_id, claim_id,
+           claimant_ref, idempotency_key, synthetic_demo, evidence_authenticity,
+           coverage_determination, settlement_authorization, verified_loss_micros,
+           deductible_micros, prior_compensation_micros, recoveries_micros,
+           remaining_limit_micros, loss_cap_micros, payable_micros, loss_key,
+           denial_reason_code, review_reason_code, authority_actor, settlement_prep_id,
+           payout_to, evidence_root, adjudication_binding_json, row_version,
+           created_at, updated_at, procurement_policy_id
+         ) VALUES (
+           @id, @schemaVersion, @status, @policyId, @exposureId, @incidentId, @claimId,
+           @claimantRef, @idempotencyKey, @syntheticDemo, @evidenceAuthenticity,
+           @coverageDetermination, @settlementAuthorization, @verifiedLossMicros,
+           @deductibleMicros, @priorCompensationMicros, @recoveriesMicros,
+           @remainingLimitMicros, @lossCapMicros, @payableMicros, @lossKey,
+           @denialReasonCode, @reviewReasonCode, @authorityActor, @settlementPrepId,
+           @payoutTo, @evidenceRoot, @adjudicationBindingJson, @rowVersion,
+           @createdAt, @updatedAt, (SELECT id FROM procurement_policies WHERE id=@policyId)
+         )`,
+      )
+      .run({
+        id: c.id,
+        schemaVersion: c.schemaVersion,
+        status: c.status,
+        policyId: c.policyId,
+        exposureId: c.exposureId,
+        incidentId: c.incidentId,
+        claimId: c.claimId,
+        claimantRef: c.claimantRef,
+        idempotencyKey: c.idempotencyKey,
+        syntheticDemo: c.syntheticDemo ? 1 : 0,
+        evidenceAuthenticity: c.evidenceAuthenticity,
+        coverageDetermination: c.coverageDetermination,
+        settlementAuthorization: c.settlementAuthorization,
+        verifiedLossMicros: c.verifiedLossMicros?.toString() ?? null,
+        deductibleMicros: c.deductibleMicros.toString(),
+        priorCompensationMicros: c.priorCompensationMicros.toString(),
+        recoveriesMicros: c.recoveriesMicros?.toString() ?? null,
+        remainingLimitMicros: c.remainingLimitMicros?.toString() ?? null,
+        lossCapMicros: c.lossCapMicros?.toString() ?? null,
+        payableMicros: c.payableMicros?.toString() ?? null,
+        lossKey: c.lossKey,
+        denialReasonCode: c.denialReasonCode,
+        reviewReasonCode: c.reviewReasonCode,
+        authorityActor: c.authorityActor,
+        settlementPrepId: c.settlementPrepId,
+        payoutTo: c.payoutTo,
+        evidenceRoot: c.evidenceRoot,
+        adjudicationBindingJson: c.adjudicationBindingJson,
+        rowVersion: c.rowVersion,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+      });
+  }
+
+  /**
+   * Optimistic concurrency: updates only when row_version matches.
+   * Returns false on conflict (caller should abort / retry).
+   */
+  updateClaimsCaseOptimistic(c: PersistedClaimsCase, expectedVersion: number): boolean {
+    const result = this.db
+      .prepare(
+        `UPDATE claims_cases SET
+           schema_version = @schemaVersion,
+           status = @status,
+           policy_id = @policyId,
+           exposure_id = @exposureId,
+           incident_id = @incidentId,
+           claim_id = @claimId,
+           claimant_ref = @claimantRef,
+           idempotency_key = @idempotencyKey,
+           synthetic_demo = @syntheticDemo,
+           evidence_authenticity = @evidenceAuthenticity,
+           coverage_determination = @coverageDetermination,
+           settlement_authorization = @settlementAuthorization,
+           verified_loss_micros = @verifiedLossMicros,
+           deductible_micros = @deductibleMicros,
+           prior_compensation_micros = @priorCompensationMicros,
+           recoveries_micros = @recoveriesMicros,
+           remaining_limit_micros = @remainingLimitMicros,
+           loss_cap_micros = @lossCapMicros,
+           payable_micros = @payableMicros,
+           loss_key = @lossKey,
+           denial_reason_code = @denialReasonCode,
+           review_reason_code = @reviewReasonCode,
+           authority_actor = @authorityActor,
+           settlement_prep_id = @settlementPrepId,
+           payout_to = @payoutTo,
+           evidence_root = @evidenceRoot,
+           adjudication_binding_json = @adjudicationBindingJson,
+           row_version = @rowVersion,
+           updated_at = @updatedAt
+         WHERE id = @id AND row_version = @expectedVersion`,
+      )
+      .run({
+        id: c.id,
+        expectedVersion,
+        schemaVersion: c.schemaVersion,
+        status: c.status,
+        policyId: c.policyId,
+        exposureId: c.exposureId,
+        incidentId: c.incidentId,
+        claimId: c.claimId,
+        claimantRef: c.claimantRef,
+        idempotencyKey: c.idempotencyKey,
+        syntheticDemo: c.syntheticDemo ? 1 : 0,
+        evidenceAuthenticity: c.evidenceAuthenticity,
+        coverageDetermination: c.coverageDetermination,
+        settlementAuthorization: c.settlementAuthorization,
+        verifiedLossMicros: c.verifiedLossMicros?.toString() ?? null,
+        deductibleMicros: c.deductibleMicros.toString(),
+        priorCompensationMicros: c.priorCompensationMicros.toString(),
+        recoveriesMicros: c.recoveriesMicros?.toString() ?? null,
+        remainingLimitMicros: c.remainingLimitMicros?.toString() ?? null,
+        lossCapMicros: c.lossCapMicros?.toString() ?? null,
+        payableMicros: c.payableMicros?.toString() ?? null,
+        lossKey: c.lossKey,
+        denialReasonCode: c.denialReasonCode,
+        reviewReasonCode: c.reviewReasonCode,
+        authorityActor: c.authorityActor,
+        settlementPrepId: c.settlementPrepId,
+        payoutTo: c.payoutTo,
+        evidenceRoot: c.evidenceRoot,
+        adjudicationBindingJson: c.adjudicationBindingJson,
+        rowVersion: c.rowVersion,
+        updatedAt: c.updatedAt,
+      });
+    return Number(result.changes) === 1;
+  }
+
+  getClaimsCase(id: string): PersistedClaimsCase | null {
+    const row = this.db.prepare(`SELECT * FROM claims_cases WHERE id = ?`).get(id);
+    return row ? mapPersistedClaimsCase(row as Record<string, unknown>) : null;
+  }
+
+  getClaimsCaseByIdempotencyKey(key: string): PersistedClaimsCase | null {
+    const row = this.db.prepare(`SELECT * FROM claims_cases WHERE idempotency_key = ?`).get(key);
+    return row ? mapPersistedClaimsCase(row as Record<string, unknown>) : null;
+  }
+
+  listClaimsCases(limit = 50, status?: string): PersistedClaimsCase[] {
+    if (status) {
+      return this.db
+        .prepare(`SELECT * FROM claims_cases WHERE status = ? ORDER BY updated_at DESC LIMIT ?`)
+        .all(status, limit)
+        .map((row) => mapPersistedClaimsCase(row as Record<string, unknown>));
+    }
+    return this.db
+      .prepare(`SELECT * FROM claims_cases ORDER BY updated_at DESC LIMIT ?`)
+      .all(limit)
+      .map((row) => mapPersistedClaimsCase(row as Record<string, unknown>));
+  }
+
+  appendClaimsCaseEvent(event: PersistedClaimsCaseEvent): void {
+    this.db
+      .prepare(
+        `INSERT INTO claims_case_events
+         (id, case_id, from_status, to_status, actor, reason_code, payload_json, created_at)
+         VALUES (@id, @caseId, @fromStatus, @toStatus, @actor, @reasonCode, @payloadJson, @createdAt)`,
+      )
+      .run(event);
+  }
+
+  listClaimsCaseEvents(caseId: string, limit = 100): PersistedClaimsCaseEvent[] {
+    return this.db
+      .prepare(`SELECT * FROM claims_case_events WHERE case_id = ? ORDER BY created_at ASC LIMIT ?`)
+      .all(caseId, limit)
+      .map((row) => mapPersistedClaimsCaseEvent(row as Record<string, unknown>));
+  }
+
+  saveEvidenceManifest(m: PersistedEvidenceManifest): { inserted: boolean } {
+    const result = this.db
+      .prepare(
+        `INSERT OR IGNORE INTO claims_evidence_manifests (
+           id, case_id, source, chain, block_hash, transaction_hash, provenance,
+           raw_evidence_digest, verification_method, source_reliability, synthetic_fixture, created_at
+         ) VALUES (
+           @id, @caseId, @source, @chain, @blockHash, @transactionHash, @provenance,
+           @rawEvidenceDigest, @verificationMethod, @sourceReliability, @syntheticFixture, @createdAt
+         )`,
+      )
+      .run({
+        id: m.id,
+        caseId: m.caseId,
+        source: m.source,
+        chain: m.chain,
+        blockHash: m.blockHash,
+        transactionHash: m.transactionHash,
+        provenance: m.provenance,
+        rawEvidenceDigest: m.rawEvidenceDigest,
+        verificationMethod: m.verificationMethod,
+        sourceReliability: m.sourceReliability,
+        syntheticFixture: m.syntheticFixture ? 1 : 0,
+        createdAt: m.createdAt,
+      });
+    return { inserted: Number(result.changes) > 0 };
+  }
+
+  listEvidenceManifests(caseId: string): PersistedEvidenceManifest[] {
+    return this.db
+      .prepare(`SELECT * FROM claims_evidence_manifests WHERE case_id = ? ORDER BY created_at ASC`)
+      .all(caseId)
+      .map((row) => mapPersistedEvidenceManifest(row as Record<string, unknown>));
+  }
+
+  sumPaidForLossKey(lossKey: string): bigint {
+    const row = this.db
+      .prepare(
+        `SELECT COALESCE(SUM(CAST(payable_micros AS INTEGER)), 0) AS total
+         FROM claims_cases
+         WHERE loss_key = ? AND status = 'PAID' AND payable_micros IS NOT NULL`,
+      )
+      .get(lossKey) as { total: number | string } | undefined;
+    return BigInt(row?.total ?? 0);
+  }
+
+  /** PAID + SETTLEMENT_PENDING commitments for same economic loss (blocks new payable intents). */
+  sumCommittedForLossKey(lossKey: string, excludeCaseId?: string): bigint {
+    const row = excludeCaseId
+      ? (this.db
+          .prepare(
+            `SELECT COALESCE(SUM(CAST(payable_micros AS INTEGER)), 0) AS total
+             FROM claims_cases
+             WHERE loss_key = ?
+               AND id != ?
+               AND status IN ('PAID', 'SETTLEMENT_PENDING')
+               AND payable_micros IS NOT NULL`,
+          )
+          .get(lossKey, excludeCaseId) as { total: number | string } | undefined)
+      : (this.db
+          .prepare(
+            `SELECT COALESCE(SUM(CAST(payable_micros AS INTEGER)), 0) AS total
+             FROM claims_cases
+             WHERE loss_key = ?
+               AND status IN ('PAID', 'SETTLEMENT_PENDING')
+               AND payable_micros IS NOT NULL`,
+          )
+          .get(lossKey) as { total: number | string } | undefined);
+    return BigInt(row?.total ?? 0);
+  }
+
+  insertClaimsAuthNonce(input: {
+    nonce: string;
+    walletAddress: string;
+    message: string;
+    expiresAt: string;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT INTO claims_auth_nonces (nonce, wallet_address, message, expires_at, consumed_at)
+         VALUES (@nonce, @walletAddress, @message, @expiresAt, NULL)`,
+      )
+      .run(input);
+  }
+
+  getClaimsAuthNonce(nonce: string): {
+    nonce: string;
+    walletAddress: string;
+    message: string;
+    expiresAt: string;
+    consumedAt: string | null;
+  } | null {
+    const row = this.db.prepare(`SELECT * FROM claims_auth_nonces WHERE nonce = ?`).get(nonce) as
+      Record<string, unknown> | undefined;
+    if (!row) return null;
+    return {
+      nonce: String(row.nonce),
+      walletAddress: String(row.wallet_address),
+      message: String(row.message),
+      expiresAt: String(row.expires_at),
+      consumedAt: row.consumed_at ? String(row.consumed_at) : null,
+    };
+  }
+
+  consumeClaimsAuthNonce(nonce: string, consumedAt: string): boolean {
+    const result = this.db
+      .prepare(
+        `UPDATE claims_auth_nonces SET consumed_at = ?
+         WHERE nonce = ? AND consumed_at IS NULL AND expires_at > ?`,
+      )
+      .run(consumedAt, nonce, consumedAt);
+    return Number(result.changes) === 1;
+  }
+
+  insertClaimsSession(input: {
+    id: string;
+    role: string;
+    walletAddress: string | null;
+    subject: string;
+    allowSyntheticSettlementPrep: boolean;
+    expiresAt: string;
+    createdAt: string;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT INTO claims_sessions
+         (id, role, wallet_address, subject, allow_synthetic_settlement_prep, expires_at, created_at, revoked_at)
+         VALUES (@id, @role, @walletAddress, @subject, @allowSynthetic, @expiresAt, @createdAt, NULL)`,
+      )
+      .run({
+        id: input.id,
+        role: input.role,
+        walletAddress: input.walletAddress,
+        subject: input.subject,
+        allowSynthetic: input.allowSyntheticSettlementPrep ? 1 : 0,
+        expiresAt: input.expiresAt,
+        createdAt: input.createdAt,
+      });
+  }
+
+  getClaimsSession(id: string): {
+    id: string;
+    role: string;
+    walletAddress: string | null;
+    subject: string;
+    allowSyntheticSettlementPrep: boolean;
+    expiresAt: string;
+    revokedAt: string | null;
+  } | null {
+    const row = this.db.prepare(`SELECT * FROM claims_sessions WHERE id = ?`).get(id) as
+      Record<string, unknown> | undefined;
+    if (!row) return null;
+    return {
+      id: String(row.id),
+      role: String(row.role),
+      walletAddress: row.wallet_address ? String(row.wallet_address) : null,
+      subject: String(row.subject),
+      allowSyntheticSettlementPrep: Number(row.allow_synthetic_settlement_prep) === 1,
+      expiresAt: String(row.expires_at),
+      revokedAt: row.revoked_at ? String(row.revoked_at) : null,
+    };
+  }
+
+  revokeClaimsSession(id: string, revokedAt: string): void {
+    this.db
+      .prepare(`UPDATE claims_sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL`)
+      .run(revokedAt, id);
   }
 
   runInTransaction<T>(fn: () => T): T {

@@ -1,10 +1,12 @@
 async (page) => {
+  // Use a fresh Playwright page: this scenario advances its clock past scheduled coverage.
   // Run with the Playwright browser tool's filename option. All wallet/RPC/API calls are mocked.
   const owner='0x1111111111111111111111111111111111111111';
   const start=Math.floor(Date.now()/1000);
   const agent={id:'e2e-agent',owner,signer:owner,label:'test-agent',exposure:{chainId:5042002,protocol:'arcuex-synthetic-lending-v1',position:'test-position',notionalMicros:'10000000'}};
   const terms={version:1,policyId:'e2e-policy',quoteId:'e2e-quote',productCode:'ARC_ORACLE_LIQUIDATION_DEMO_V1',agentId:agent.id,owner,beneficiary:owner,exposure:agent.exposure,eligibility:{positionHealthy:true,noKnownIncident:true,syntheticOnly:true,ownerAttestsControl:true},premiumMicros:'10000',limitMicros:'1000000',deductibleMicros:'100000',effectiveAt:start+900,expiresAt:start+86400,quoteExpiresAt:start+600,insuredEvent:'Synthetic oracle adapter causes wrongful liquidation.',exclusions:['Pre-existing incidents'],synthetic:true};
   const quote={terms,digest:'0x'+'ab'.repeat(32)};
+  let authenticated=false;
   const policy={...quote,state:'prepared',payer:owner,delegationId:null,bindTx:null,confirmedAt:null};
   await page.addInitScript(({owner})=>{
     sessionStorage.clear();
@@ -31,13 +33,18 @@ async (page) => {
   await page.route('**/*',async route=>{
     const req=route.request(),url=new URL(req.url());
     const respond=value=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(value)});
+    if(url.pathname==='/api/claims/auth/session')return respond(authenticated?{role:'claimant',wallet:owner}:{error:'Sign in'});
+    if(url.pathname==='/api/claims/policies')return respond({policies:[{id:terms.policyId,status:'bound',synthetic:true,exposures:[{id:agent.id,exposureKey:'test-position',description:'Synthetic lending'}]}]});
+    if(url.pathname==='/api/claims/cases' && req.method()==='POST'){const body=req.postDataJSON();return respond({case:{id:'e2e-case',status:body.action==='complete_evidence'?'INVESTIGATING':'COLLECTING_EVIDENCE'},inserted:true});}
+    if(url.pathname==='/api/claims/cases/e2e-case')return respond({principalRole:'claimant',case:{id:'e2e-case',status:'INVESTIGATING',syntheticDemo:true,evidenceAuthenticity:'synthetic_fixture',coverageDetermination:'unknown',settlementAuthorization:'none',verifiedLoss:{usdc:null},recoveries:{usdc:null},payable:{usdc:null,micros:null},lossKey:null,evidenceRoot:null,payoutTo:owner,adjudicationBindingJson:null,reviewReasonCode:null,denialReasonCode:null,authorityActor:null,labels:{synthetic:'SYNTHETIC DEMO — not independent loss proof'},policyId:terms.policyId,exposureId:agent.id,claimantRef:owner},timeline:[],evidenceManifests:[]});
     if(url.pathname.startsWith('/api/procurement/')){
       const path=url.pathname.slice('/api/procurement/'.length);
       if(path==='auth/challenge')return respond({id:'e2e-challenge',message:'Arcuex MOCK authentication; no transfers.'});
-      if(path==='auth/verify')return respond({token:'e2e-session',address:owner,expiresAt:start+3600});
+      if(path==='auth/verify'){authenticated=true;return route.fulfill({status:200,contentType:'application/json',headers:{'Set-Cookie':'arcuex_claims_sid=e2e-session; HttpOnly; SameSite=Lax; Path=/'},body:JSON.stringify({address:owner,expiresAt:new Date((start+3600)*1000).toISOString()})});}
       if(path==='agents')return respond(req.method()==='POST'?agent:[]);
       if(path==='quotes')return respond(quote);
       if(path==='procure')return respond({policy,chainId:5042002,transactions:[{account:owner,to:'0x3600000000000000000000000000000000000000',data:'0x095ea7b3',description:'MOCK approval'},{account:owner,to:'0x6657974EEdF488380251bDD95A7FFfb0D456E49E',data:'0x12345678',description:'MOCK bind'}]});
+      if(path==='policies/e2e-policy')return respond({policy:{...policy,state:'confirmed',bindTx:'0x'+'22'.repeat(32)},reconciliation:{matches:true,bound:true,cancelled:false,paidOutMicros:'0',reservedMicros:'1000000',checkedAt:new Date().toISOString()}});
       if(path==='confirm')return respond({...policy,state:'confirmed',bindTx:'0x'+'22'.repeat(32),confirmedAt:start+10});
       return respond([]);
     }
@@ -56,7 +63,7 @@ async (page) => {
     return route.continue();
   });
   await page.setViewportSize({width:1280,height:900});
-  await page.goto('http://localhost:3002/coverage');
+  await page.goto('http://localhost:3003/coverage');
   const connect=page.getByRole('button',{name:'Connect wallet',exact:true});
   if(await connect.isVisible()) await connect.click();
   await page.getByRole('button',{name:'Sign in & load my agents'}).click();
@@ -75,10 +82,24 @@ async (page) => {
   await page.getByRole('status').filter({hasText:'Premium approval confirmed'}).waitFor();
   await page.getByRole('button',{name:'Pay premium & bind policy'}).click();
   await page.getByRole('heading',{name:'Policy bind confirmed'}).waitFor();
+  await page.clock.install({time:new Date((start+1200)*1000)});
+  await page.getByRole('link',{name:'View policy & live reconciliation →'}).click();
+  await page.getByRole('button',{name:'Sign in & refresh policies'}).click();
+  await page.getByRole('link',{name:'Submit a synthetic claim'}).click();
+  await page.getByLabel('Canonical synthetic incident reference').fill('synthetic:oracle-adapter:lot-1');
+  const observed=new Date((start+1050)*1000);const local=new Date(observed.getTime()-observed.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  await page.getByLabel('Incident time').fill(local);
+  await page.getByRole('button',{name:'Submit claim case'}).click();
+  await page.waitForURL('**/claims/e2e-case');
+  await page.getByText('INVESTIGATING',{exact:true}).waitFor();
+  if(await page.getByRole('button',{name:'Adjudicate approve (1 USDC)'}).isVisible())throw new Error('Claimant sees privileged reviewer actions');
+  const signed=await page.evaluate(()=>window.__mockWalletCalls.filter(m=>m==='personal_sign').length);
+  if(signed!==1)throw new Error('Journey required duplicate authentication');
+  if(await page.evaluate(()=>document.cookie.includes('arcuex_claims_sid')))throw new Error('Session cookie is accessible to JavaScript');
   const transactions=await page.evaluate(()=>window.__mockWalletCalls.filter(m=>m==='eth_sendTransaction').length);
   await page.setViewportSize({width:390,height:844});
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
   if(overflow)throw new Error('Mobile layout overflows');
   if(transactions!==3)throw new Error('Expected one rejected approval, one approved approval, one bind');
-  return {result:'PASS',journey:'connect → authenticate → register → attest → quote → accept → rejected approval → retry → approve → bind → confirmed',mocked:true,financialBroadcasts:0,mobileOverflow:false};
+  return {result:'PASS',journey:'connect → authenticate → register → attest → quote → accept → rejected approval → retry → approve → bind → policy details → claims intake → claim details',mocked:true,singleAuthentication:true,httpOnlySession:true,claimsStatus:'INVESTIGATING',financialBroadcasts:0,mobileOverflow:false};
 }

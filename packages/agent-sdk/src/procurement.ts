@@ -1,5 +1,5 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { isAddress, keccak256, stringToHex, verifyMessage, type Address, type Hex } from 'viem';
+import { randomUUID } from 'node:crypto';
+import { isAddress, keccak256, stringToHex, type Address, type Hex } from 'viem';
 import {
   PROCUREMENT_PRODUCT as PRODUCT,
   type ProcurementAgent,
@@ -71,7 +71,6 @@ function canonical(value: unknown): string {
 export function procurementDigest(value: unknown): Hex {
   return keccak256(stringToHex(canonical(value)));
 }
-const tokenHash = (token: string) => createHash('sha256').update(token).digest('hex');
 
 /** No wallet or signer lives here. All permissions are backend-only. */
 export class ProcurementService {
@@ -82,73 +81,6 @@ export class ProcurementService {
     readonly now = () => Math.floor(Date.now() / 1000),
   ) {}
 
-  challenge(wallet: unknown, origin: string) {
-    const who = address(wallet),
-      id = randomUUID(),
-      expiresAt = this.now() + 300;
-    const message = `Arcuex procurement sign-in\nOrigin: ${origin}\nChain: 5042002\nAddress: ${who}\nNonce: ${id}\nExpires: ${expiresAt}\nThis signature authorizes a one-hour backend session. It does not authorize token transfers.`;
-    this.store.db.transaction(() =>
-      this.store.db
-        .prepare('INSERT INTO procurement_auth(id,address,message,expires_at) VALUES (?,?,?,?)')
-        .run(id, who, message, expiresAt),
-    )();
-    return { id, message, expiresAt };
-  }
-  async authenticate(id: unknown, signature: unknown) {
-    const row = this.store.db
-      .prepare('SELECT * FROM procurement_auth WHERE id=?')
-      .get(text(id, 'challenge')) as
-      { address: Address; message: string; expires_at: number; consumed: number } | undefined;
-    requireThat(
-      row && !row.consumed && row.expires_at > this.now(),
-      'AUTH_EXPIRED',
-      'Challenge expired or already used',
-      401,
-    );
-    const sig = text(signature, 'signature', 132);
-    requireThat(
-      /^0x[0-9a-f]{130}$/i.test(sig),
-      'AUTH_SIGNATURE',
-      'Expected EOA personal_sign signature',
-      401,
-    );
-    const valid = await verifyMessage({
-      address: row.address,
-      message: row.message,
-      signature: sig as Hex,
-    }).catch(() => false);
-    requireThat(valid, 'AUTH_SIGNATURE', 'Wallet signature does not match', 401);
-    const token = randomBytes(32).toString('hex'),
-      expiresAt = this.now() + 3600;
-    this.store.db.transaction(() => {
-      const updated = this.store.db
-        .prepare('UPDATE procurement_auth SET consumed=1 WHERE id=? AND consumed=0')
-        .run(id);
-      requireThat(updated.changes === 1, 'AUTH_REPLAY', 'Challenge already used', 401);
-      this.store.db
-        .prepare('INSERT INTO procurement_sessions VALUES (?,?,?)')
-        .run(tokenHash(token), row.address, expiresAt);
-    })();
-    return { token, address: row.address, expiresAt };
-  }
-  identity(token: string | undefined): string {
-    requireThat(
-      token && token.length === 64,
-      'UNAUTHENTICATED',
-      'Sign in with your wallet first',
-      401,
-    );
-    const row = this.store.db
-      .prepare('SELECT address, expires_at FROM procurement_sessions WHERE token_hash=?')
-      .get(tokenHash(token)) as { address: string; expires_at: number } | undefined;
-    requireThat(
-      row && row.expires_at > this.now(),
-      'UNAUTHENTICATED',
-      'Session expired; sign in again',
-      401,
-    );
-    return row.address;
-  }
   private idempotent<T>(
     actor: string,
     action: string,

@@ -66,7 +66,14 @@ export async function POST(request: Request) {
         result:
           action === 'status' ? json.policy : action === 'reconcile' ? json.reconciliation : json,
       },
-      { headers: { 'Cache-Control': 'no-store' } },
+      {
+        headers: {
+          'Cache-Control': 'no-store',
+          ...(response.headers.get('set-cookie')
+            ? { 'Set-Cookie': response.headers.get('set-cookie')! }
+            : {}),
+        },
+      },
     );
   } catch {
     return NextResponse.json(

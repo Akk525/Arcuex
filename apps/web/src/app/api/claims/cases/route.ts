@@ -1,0 +1,162 @@
+import {
+  attachEvidenceManifest,
+  canAccessClaimsPolicy,
+  intakeClaimsCase,
+  completeEvidenceOrReview,
+  listClaimsCases,
+} from '@arcuex/insurance';
+import { reconcile } from '@/lib/server/procurement-chain';
+import { NextResponse } from 'next/server';
+import { getRepo } from '@/lib/server/db';
+import { authenticateClaimsRequest } from '@/lib/server/claims-auth';
+import { serializeClaimsCase } from '@/lib/claims/serialize-case';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: Request) {
+  const auth = authenticateClaimsRequest(request, ['claimant', 'reviewer', 'authority', 'system']);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  const url = new URL(request.url);
+  const status = url.searchParams.get('status') ?? undefined;
+  const repo = getRepo();
+  const cases = listClaimsCases(repo, { limit: 500, status })
+    .filter((c) => canAccessClaimsPolicy(repo, auth.principal, c.policyId))
+    .slice(0, 50)
+    .map(serializeClaimsCase);
+  return NextResponse.json({
+    dataClass: 'claims_case',
+    notice:
+      'ClaimsCase statuses are first-class adjudication states. Synthetic fixtures are labeled explicitly.',
+    cases,
+  });
+}
+
+export async function POST(request: Request) {
+  const body = (await request.json()) as {
+    action?: string;
+    policyId?: string;
+    exposureId?: string;
+    claimantRef?: string;
+    idempotencyKey?: string;
+    syntheticDemo?: boolean;
+    caseId?: string;
+    evidenceComplete?: boolean;
+    observedEventRef?: string;
+    observedAt?: string;
+    evidence?: {
+      source: string;
+      chain?: string;
+      blockHash?: string;
+      transactionHash?: string;
+      provenance: string;
+      rawEvidence: string;
+      verificationMethod: string;
+      sourceReliability: string;
+      syntheticFixture: boolean;
+    };
+  };
+
+  const repo = getRepo();
+
+  try {
+    if (body.action === 'open') {
+      const auth = authenticateClaimsRequest(request, ['claimant', 'system']);
+      if (!auth.ok) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+      }
+      if (!body.policyId || !body.exposureId || !body.idempotencyKey || !body.claimantRef) {
+        return NextResponse.json({ error: 'Missing open fields' }, { status: 400 });
+      }
+      if (!body.observedEventRef || !body.observedAt)
+        return NextResponse.json(
+          { error: 'observedEventRef and observedAt required' },
+          { status: 400 },
+        );
+      if (!canAccessClaimsPolicy(repo, auth.principal, body.policyId))
+        return NextResponse.json({ error: 'Policy not found' }, { status: 404 });
+      const procurement = repo.getProcurementPolicy(body.policyId);
+      if (procurement) {
+        let chain;
+        try {
+          chain = await reconcile(procurement);
+        } catch {
+          return NextResponse.json(
+            { error: 'Arc reconciliation unavailable; retry intake' },
+            { status: 503 },
+          );
+        }
+        if (!chain.matches || chain.cancelled)
+          return NextResponse.json(
+            { error: 'Policy chain state is not eligible for claims intake' },
+            { status: 409 },
+          );
+      }
+      const collecting = intakeClaimsCase(
+        repo,
+        {
+          policyId: body.policyId,
+          exposureId: body.exposureId,
+          claimantRef: auth.principal.subject,
+          idempotencyKey: body.idempotencyKey,
+          syntheticDemo: true,
+          actor: 'ignored',
+          observedEventRef: body.observedEventRef,
+          observedAt: body.observedAt,
+        },
+        auth.principal,
+      );
+      return NextResponse.json({
+        dataClass: 'claims_case',
+        case: serializeClaimsCase(collecting),
+      });
+    }
+
+    if (body.action === 'attach_evidence') {
+      const auth = authenticateClaimsRequest(request, ['claimant', 'system', 'reviewer']);
+      if (!auth.ok) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+      }
+      if (!body.caseId || !body.evidence) {
+        return NextResponse.json({ error: 'caseId and evidence required' }, { status: 400 });
+      }
+      const result = attachEvidenceManifest(
+        repo,
+        { caseId: body.caseId, ...body.evidence },
+        auth.principal,
+      );
+      return NextResponse.json({
+        dataClass: 'claims_case',
+        inserted: result.inserted,
+        digest: result.digest,
+        case: serializeClaimsCase(result.case),
+      });
+    }
+
+    if (body.action === 'complete_evidence') {
+      const auth = authenticateClaimsRequest(request, ['claimant', 'system', 'reviewer']);
+      if (!auth.ok) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+      }
+      if (!body.caseId) {
+        return NextResponse.json({ error: 'caseId required' }, { status: 400 });
+      }
+      const next = completeEvidenceOrReview(
+        repo,
+        {
+          caseId: body.caseId,
+          evidenceComplete: body.evidenceComplete !== false,
+        },
+        auth.principal,
+      );
+      return NextResponse.json({ dataClass: 'claims_case', case: serializeClaimsCase(next) });
+    }
+
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'ClaimsCase error';
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}

@@ -16,7 +16,7 @@ export type ProcurementAuthority = {
 };
 /** Keys never enter this client. External wallets sign messages and authorize prepared transactions. */
 export class ProcurementApiClient {
-  private token?: string;
+  private cookie?: string;
   private readonly base: string;
   private readonly request: typeof fetch;
   constructor(config: { baseUrl: string; request?: typeof fetch }) {
@@ -25,24 +25,26 @@ export class ProcurementApiClient {
   }
   private async call<T>(path: string, input?: unknown): Promise<T> {
     const r = await this.request(`${this.base}/${path}`, {
+      credentials: 'include',
       method: input === undefined ? 'GET' : 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+        ...(this.cookie ? { Cookie: this.cookie } : {}),
       },
       ...(input === undefined ? {} : { body: JSON.stringify(input) }),
     });
+    const cookie = r.headers.get('set-cookie');
+    if (cookie) this.cookie = cookie.split(';')[0];
     const body = (await r.json()) as { code?: string; error?: string };
     if (!r.ok) throw new Error(`${body.code}: ${body.error}`);
     return body as T;
   }
   async authenticate(address: string, signMessage: (message: string) => Promise<string>) {
     const c = await this.call<{ id: string; message: string }>('auth/challenge', { address });
-    const s = await this.call<{ token: string; address: string; expiresAt: number }>(
-      'auth/verify',
-      { id: c.id, signature: await signMessage(c.message) },
-    );
-    this.token = s.token;
+    const s = await this.call<{ address: string; expiresAt: string }>('auth/verify', {
+      id: c.id,
+      signature: await signMessage(c.message),
+    });
     return { address: s.address, expiresAt: s.expiresAt };
   }
   products() {
