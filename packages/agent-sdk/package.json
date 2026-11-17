@@ -16,7 +16,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src --max-warnings=0",
     "test": "vitest run",
-    "example:quote-bind": "tsx examples/quote-bind-flow.ts"
+    "example:quote-bind": "tsx examples/quote-bind-flow.ts",
+    "example:autonomous-procure": "tsx examples/autonomous-procure.ts"
   },
   "dependencies": {
     "@arcuex/chain": "workspace:*",

@@ -11,9 +11,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@arcuex/agent-sdk": "workspace:*",
     "@arcuex/chain": "workspace:*",
     "@arcuex/domain": "workspace:*",
     "@arcuex/insurance": "workspace:*",
+    "@arcuex/onchain": "workspace:*",
     "@arcuex/persistence": "workspace:*",
     "@arcuex/quicknode": "workspace:*",
     "@tanstack/react-query": "^5.69.0",

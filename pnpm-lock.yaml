@@ -35,6 +35,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@arcuex/agent-sdk':
+        specifier: workspace:*
+        version: link:../../packages/agent-sdk
       '@arcuex/chain':
         specifier: workspace:*
         version: link:../../packages/chain
@@ -44,6 +47,9 @@ importers:
       '@arcuex/insurance':
         specifier: workspace:*
         version: link:../../packages/insurance
+      '@arcuex/onchain':
+        specifier: workspace:*
+        version: link:../../packages/onchain
       '@arcuex/persistence':
         specifier: workspace:*
         version: link:../../packages/persistence
