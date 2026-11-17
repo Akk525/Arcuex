@@ -4,7 +4,7 @@
 **Packaged:** 2026-11-17  
 **Parents:** `integration/procurement-claims` @ `9f8d473` + `feat/launch-infrastructure` @ `334472c` (fast-forward; no content conflicts)  
 **Code base (procurement + claims + launch infra):** `334472c35788fc493cf534fc43c495712eeefadd`  
-**Release branch tip:** recorded below after this docs commit lands
+**Release branch tip:** `fbdf70cc75201437b09822335ef7fd83c08ce8e3`
 
 This document is the sanitized release manifest and Railway environment checklist. It does **not** authorize public DNS cutover, financial broadcasts, contract redeployment, or mainnet issuance.
 
