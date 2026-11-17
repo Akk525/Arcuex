@@ -1,0 +1,83 @@
+[
+  {
+    "id": "capo-PriceCapAdapterBase.sol",
+    "url": "https://raw.githubusercontent.com/aave-dao/aave-price-feeds/d1d6a2fb30377c1aaafa77ee91bbb548d98633b5/src/contracts/PriceCapAdapterBase.sol",
+    "sha256": "b54000c6d5d686baa661c15527656fc536102e55a9579ae08e1103d60f3b5c2a",
+    "bytes": 7582
+  },
+  {
+    "id": "capo-lst-adapters-WstETHPriceCapAdapter.sol",
+    "url": "https://raw.githubusercontent.com/aave-dao/aave-price-feeds/d1d6a2fb30377c1aaafa77ee91bbb548d98633b5/src/contracts/lst-adapters/WstETHPriceCapAdapter.sol",
+    "sha256": "b5ac1fefd6a313d32470690746cbc77f29acb7690cfe94e2693be22cc30e184c",
+    "bytes": 1333
+  },
+  {
+    "id": "AaveV3Ethereum.sol",
+    "url": "https://raw.githubusercontent.com/bgd-labs/aave-address-book/266429eefae828d52c91ffcb3a75656ab18f7160/src/AaveV3Ethereum.sol",
+    "sha256": "d41d075f1d3ff7a9cf75ad3076c21cdb8ed63115831b743462eea33140c237ab",
+    "bytes": 82214
+  },
+  {
+    "id": "AaveV3EthereumLido.sol",
+    "url": "https://raw.githubusercontent.com/bgd-labs/aave-address-book/266429eefae828d52c91ffcb3a75656ab18f7160/src/AaveV3EthereumLido.sol",
+    "sha256": "19e5b45f0639278ed7cb38d85995ea7ada8fb58def6588714f7248c1862336b8",
+    "bytes": 16874
+  },
+  {
+    "id": "reimbursement-diff.md",
+    "url": "https://raw.githubusercontent.com/aave-dao/aave-proposals-v3/38022b1fe7186df26df8f8fb0994d88d50975e1f/diffs/AaveV3Ethereum_WstETHCAPOOracleIncidentUserReimbursement_20260312_before_AaveV3Ethereum_WstETHCAPOOracleIncidentUserReimbursement_20260312_after.md",
+    "sha256": "7ddeab3f34456de38227881dfd998dbfd9226d2fb575fc6e6cef96616fa3e599",
+    "bytes": 2267
+  },
+  {
+    "id": "proposals-paths",
+    "url": "https://api.github.com/repos/aave-dao/aave-proposals-v3/git/trees/38022b1fe7186df26df8f8fb0994d88d50975e1f?recursive=1",
+    "sha256": "7c77229d8aaf004aa146ae14bb8a2dffdeac0f17b6c0bd51c0768ecba64de7ed",
+    "bytes": 400159,
+    "paths": [
+      "diffs/AaveV3Arbitrum_MarchFundingUpdate_20260311_before_AaveV3Arbitrum_MarchFundingUpdate_20260311_after.md",
+      "diffs/AaveV3Arbitrum_RiskStewardsUpdate_20260331_before_AaveV3Arbitrum_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3Avalanche_RiskStewardsUpdate_20260331_before_AaveV3Avalanche_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3BNB_RiskStewardsUpdate_20260331_before_AaveV3BNB_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3Base_MarchFundingUpdate_20260311_before_AaveV3Base_MarchFundingUpdate_20260311_after.md",
+      "diffs/AaveV3Base_RiskStewardsUpdate_20260331_before_AaveV3Base_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3Celo_RiskStewardsUpdate_20260331_before_AaveV3Celo_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3EthereumLido_ReEnableWstETHBorrowCaps_20260316_before_AaveV3EthereumLido_ReEnableWstETHBorrowCaps_20260316_after.md",
+      "diffs/AaveV3Ethereum_ACIIsLeavingAave_20260302_before_AaveV3Ethereum_ACIIsLeavingAave_20260302_after.md",
+      "diffs/AaveV3Ethereum_AuditReimbursement_before_AaveV3Ethereum_AuditReimbursement_after.md",
+      "diffs/AaveV3Ethereum_ListingPTSrUsde25JUN2026_20260324_before_AaveV3Ethereum_ListingPTSrUsde25JUN2026_20260324_after.md",
+      "diffs/AaveV3Ethereum_MarchFundingUpdate_20260311_before_AaveV3Ethereum_MarchFundingUpdate_20260311_after.md",
+      "diffs/AaveV3Ethereum_OnboardBTCBToAaveV3CoreInstance_20260320_before_AaveV3Ethereum_OnboardBTCBToAaveV3CoreInstance_20260320_after.md",
+      "diffs/AaveV3Ethereum_ReEnableWstETHBorrowCaps_20260316_before_AaveV3Ethereum_ReEnableWstETHBorrowCaps_20260316_after.md",
+      "diffs/AaveV3Ethereum_ReimburseLinkForRobot_20251201_before_AaveV3Ethereum_ReimburseLinkForRobot_20251201_after.md",
+      "diffs/AaveV3Ethereum_RiskStewardsUpdate_20260331_before_AaveV3Ethereum_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3Ethereum_UmbrellaDeficitUpdates_Part_1_20260313_before_AaveV3Ethereum_UmbrellaDeficitUpdates_Part_1_20260313_after.md",
+      "diffs/AaveV3Ethereum_UmbrellaDeficitUpdates_Part_2_20260313_before_AaveV3Ethereum_UmbrellaDeficitUpdates_Part_2_20260313_after.md",
+      "diffs/AaveV3Ethereum_WstETHCAPOOracleIncidentUserReimbursement_20260312_before_AaveV3Ethereum_WstETHCAPOOracleIncidentUserReimbursement_20260312_after.md",
+      "diffs/AaveV3Gnosis_RiskStewardsUpdate_20260331_before_AaveV3Gnosis_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3InkWhitelabel_GrantFUNDS_ADMINRoleToInkTeam_20260313_before_AaveV3InkWhitelabel_GrantFUNDS_ADMINRoleToInkTeam_20260313_after.md",
+      "diffs/AaveV3InkWhitelabel_RiskStewardsUpdate_20260331_before_AaveV3InkWhitelabel_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3InkWhitelabel_SyrupUSDTListingInTrydo_20260316_before_AaveV3InkWhitelabel_SyrupUSDTListingInTrydo_20260316_after.md",
+      "diffs/AaveV3Linea_RiskStewardsUpdate_20260331_before_AaveV3Linea_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3Mantle_RiskStewardsUpdate_20260331_before_AaveV3Mantle_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3MegaEth_RiskStewardsUpdate_20260331_before_AaveV3MegaEth_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3Optimism_RiskStewardsUpdate_20260331_before_AaveV3Optimism_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3Plasma_ListingPTEthena18JUN2026_20260324_before_AaveV3Plasma_ListingPTEthena18JUN2026_20260324_after.md",
+      "diffs/AaveV3Plasma_RiskStewardsUpdate_20260331_before_AaveV3Plasma_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3Polygon_MarchFundingUpdate_20260311_before_AaveV3Polygon_MarchFundingUpdate_20260311_after.md",
+      "diffs/AaveV3Polygon_RiskStewardsUpdate_20260331_before_AaveV3Polygon_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3Scroll_RiskStewardsUpdate_20260331_before_AaveV3Scroll_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3Sonic_RiskStewardsUpdate_20260331_before_AaveV3Sonic_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV3XLayer_AaveV36XLayerActivation_20260306_before_AaveV3XLayer_AaveV36XLayerActivation_20260306_after.md",
+      "diffs/AaveV3XLayer_RiskStewardsUpdate_20260331_before_AaveV3XLayer_RiskStewardsUpdate_20260331_after.md",
+      "diffs/AaveV4Ethereum_ActivateV4Ethereum_20260319_before_AaveV4Ethereum_ActivateV4Ethereum_20260319_after.md",
+      "diffs/ReimbursePayload_before_ReimbursePayload_after.md",
+      "reports/seatbelt/AaveV3InkWhitelabel_RiskStewardsUpdate_20260331",
+      "reports/seatbelt/AaveV3InkWhitelabel_RiskStewardsUpdate_20260331/57073_0x1dE9CB9420Dd1f2cCeFFf9393E126b800D413b7A",
+      "reports/seatbelt/AaveV3InkWhitelabel_RiskStewardsUpdate_20260331/57073_0x1dE9CB9420Dd1f2cCeFFf9393E126b800D413b7A/23.md",
+      "reports/seatbelt/AaveV3InkWhitelabel_SyrupUSDTListingInTrydo_20260316",
+      "reports/seatbelt/AaveV3InkWhitelabel_SyrupUSDTListingInTrydo_20260316/57073_0x1dE9CB9420Dd1f2cCeFFf9393E126b800D413b7A",
+      "reports/seatbelt/AaveV3InkWhitelabel_SyrupUSDTListingInTrydo_20260316/57073_0x1dE9CB9420Dd1f2cCeFFf9393E126b800D413b7A/20.md"
+    ]
+  }
+]
