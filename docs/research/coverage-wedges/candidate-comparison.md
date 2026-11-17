@@ -13,14 +13,14 @@ differentiation = advantage over existing cover and service guarantees. Demo sco
 discount the absence of verified live Arc lending/vault deployments. No score overrides
 the disqualification gate. A two-point lead is not statistically meaningful.
 
-| Rank | Candidate | Need /20 | Residual /20 | Verify /20 | Hazard /15 | Demo /15 | Different /10 | /100 | Decision |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---|
-| 1 | Canonical exchange-rate adapter error → liquidation | 17 | 18 | 18 | 12 | 12 | 6 | 83 | Conditional go; narrow top wedge |
-| 2 | External protocol exploit → deposit impairment | 19 | 19 | 16 | 11 | 11 | 4 | 80 | Strongest fallback; expert event qualification |
-| 3 | Cross-chain infrastructure principal loss | 18 | 19 | 13 | 9 | 7 | 4 | 70 | Defer; delivery timeout variant disqualified |
-| — | Signed execution-service failure | 14 | 10 | 12 | 5 | 13 | 3 | 57 | Disqualify pooled missed-deadline cover |
-| — | Bounded drift / off-market execution | 16 | 7 | 10 | 4 | 13 | 3 | 53 | Disqualify unrestricted adverse-price cover |
-| — | Prompt-injection financial loss | 16 | 12 | 3 | 2 | 10 | 7 | 50 | Disqualify claimant-log trigger |
+| Rank | Candidate                                           | Need /20 | Residual /20 | Verify /20 | Hazard /15 | Demo /15 | Different /10 | /100 | Decision                                       |
+| ---- | --------------------------------------------------- | -------: | -----------: | ---------: | ---------: | -------: | ------------: | ---: | ---------------------------------------------- |
+| 1    | Canonical exchange-rate adapter error → liquidation |       17 |           18 |         18 |         12 |       12 |             6 |   83 | Conditional go; narrow top wedge               |
+| 2    | External protocol exploit → deposit impairment      |       19 |           19 |         16 |         11 |       11 |             4 |   80 | Strongest fallback; expert event qualification |
+| 3    | Cross-chain infrastructure principal loss           |       18 |           19 |         13 |          9 |        7 |             4 |   70 | Defer; delivery timeout variant disqualified   |
+| —    | Signed execution-service failure                    |       14 |           10 |         12 |          5 |       13 |             3 |   57 | Disqualify pooled missed-deadline cover        |
+| —    | Bounded drift / off-market execution                |       16 |            7 |         10 |          4 |       13 |             3 |   53 | Disqualify unrestricted adverse-price cover    |
+| —    | Prompt-injection financial loss                     |       16 |           12 |          3 |          2 |       10 |             7 |   50 | Disqualify claimant-log trigger                |
 
 Sensitivity: remove a usable independent reference and oracle verifiability falls from
 18 to at most 8: the fallback wins. A verifiable reference is a launch gate, not an
@@ -233,8 +233,7 @@ losses. Wallet limits/slippage cannot make validators honest or deliver a messag
 though transfer caps and safer routes reduce exposure.
 
 **Incident:** investigator Jonathan Levin's September 20, 2022 congressional testimony
-describes compromised validator keys and two unauthorized Ronin withdrawals in March
-2022. This is a documented infrastructure theft, not proof of a generic late-delivery
+describes compromised validator keys and two unauthorized Ronin withdrawals in March 2022. This is a documented infrastructure theft, not proof of a generic late-delivery
 claim. [Primary testimony, Ronin discussion](https://docs.house.gov/meetings/BA/BA10/20220920/115144/HHRG-117-BA10-Wstate-LevinJ-20220920.pdf).
 
 **Evidence/authority:** source receipt/message ID, source and destination finality,

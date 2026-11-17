@@ -44,14 +44,14 @@ choose a reference, threshold, pool or event after the fact.
 Use the shared envelope in [handoff](decision-brief.md#interface-handoff-for-codex-a).
 The oracle payload adds:
 
-| Field group | Required evidence |
-|---|---|
-| Position identity | pool/account/subaccount, collateral/debt addresses and decimals, registered balances/debt, registration receipt/time and continuously observed mutations |
-| Receipt | liquidation hash, block hash/height/time, transaction and log index, actual collateral seized, debt repaid, fees, liquidator and beneficiary deltas |
-| State/replay | exact pre-call state root/input bundle, pool code/config hashes, actual oracle read, canonical ratio call bytes/results, actual HF, reference HF, replay engine/version/digest |
-| Integrity | canonical/finalized header, complete ordered receipts, independent RPC comparison, reference control-path review |
-| Loss/recovery | seized value, extinguished debt value, conversion into USDC micros with valuation proof, recovery ledger including DAO grants, rebates and other insurance; remaining policy/event limits |
-| Authority | signed verifier result plus reviewer identity, conflict status, approved methods and complete evidence digest; no AI-vote authority |
+| Field group       | Required evidence                                                                                                                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Position identity | pool/account/subaccount, collateral/debt addresses and decimals, registered balances/debt, registration receipt/time and continuously observed mutations                                  |
+| Receipt           | liquidation hash, block hash/height/time, transaction and log index, actual collateral seized, debt repaid, fees, liquidator and beneficiary deltas                                       |
+| State/replay      | exact pre-call state root/input bundle, pool code/config hashes, actual oracle read, canonical ratio call bytes/results, actual HF, reference HF, replay engine/version/digest            |
+| Integrity         | canonical/finalized header, complete ordered receipts, independent RPC comparison, reference control-path review                                                                          |
+| Loss/recovery     | seized value, extinguished debt value, conversion into USDC micros with valuation proof, recovery ledger including DAO grants, rebates and other insurance; remaining policy/event limits |
+| Authority         | signed verifier result plus reviewer identity, conflict status, approved methods and complete evidence digest; no AI-vote authority                                                       |
 
 Evaluator order: validate schema → envelope/identity/time/limits → exclusions →
 canonicality/completeness/review gates → actual liquidation → reference deviation →
@@ -83,18 +83,18 @@ first-claimant-wins. Atomic reservation/settlement is outside this pure evaluato
 
 ## Scenarios and adversarial tests
 
-| Scenario | Result |
-|---|---|
-| All gates pass; numbers above | COVERED, 312 USDC |
-| Reference HF is 0.99 (market loss anyway) | REJECTED, zero |
-| Ratio deviation is 199 bps | REJECTED; 200 bps boundary passes |
-| Forged same-topic log from another contract or chain | REJECTED |
-| Additional borrowing after binding; claimant is liquidator | REJECTED |
-| Reference wrapper itself manipulated, or two RPCs disagree | REVIEW, zero |
-| Recovery covers gross loss; claim below deductible | REJECTED/no payable loss |
-| Same event repeated under different delivery/claim IDs | REJECTED duplicate |
+| Scenario                                                          | Result                                  |
+| ----------------------------------------------------------------- | --------------------------------------- |
+| All gates pass; numbers above                                     | COVERED, 312 USDC                       |
+| Reference HF is 0.99 (market loss anyway)                         | REJECTED, zero                          |
+| Ratio deviation is 199 bps                                        | REJECTED; 200 bps boundary passes       |
+| Forged same-topic log from another contract or chain              | REJECTED                                |
+| Additional borrowing after binding; claimant is liquidator        | REJECTED                                |
+| Reference wrapper itself manipulated, or two RPCs disagree        | REVIEW, zero                            |
+| Recovery covers gross loss; claim below deductible                | REJECTED/no payable loss                |
+| Same event repeated under different delivery/claim IDs            | REJECTED duplicate                      |
 | Event at exact end time, registration too late, non-final receipt | REJECTED, REJECTED, REVIEW respectively |
-| Correct block-end state but missing earlier tx state | REVIEW |
+| Correct block-end state but missing earlier tx state              | REVIEW                                  |
 
 Executable tests additionally exercise giant integer inputs, caps, negative values,
 untrusted summary records and unknown relationships. Required future verifier tests:

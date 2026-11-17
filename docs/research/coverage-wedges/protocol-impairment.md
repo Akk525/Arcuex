@@ -35,14 +35,14 @@ out by onchain receipts alone. These are residual trust risks, not solved proper
 
 Common envelope: [Codex A handoff](decision-brief.md#interface-handoff-for-codex-a).
 
-| Field group | Required evidence |
-|---|---|
-| Registration | immutable pool/code/asset scope, owner/beneficiary and share lot; pre-event deposits and continuous transfer history |
-| Incident | code hash at exploit, qualified type, extraction receipts and traces, independent replay/postmortem digests, reviewer/conflict record |
-| Entitlement | registered share cap, minimum held shares, pre-event net principal allocation excluding yield, position ledger and all withdrawals/transfers |
-| Resolution | event time, evaluation time, recovery process status, proceeds already received, residual share/recovery-right value, rights assignment and legal claims |
-| Capacity | policy/exposure/event remaining and reservation ID; same-loss allocation across policies/providers |
-| Provenance | finalized chain refs, raw payload archive digests, independent read comparison and verifier identity |
+| Field group  | Required evidence                                                                                                                                        |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Registration | immutable pool/code/asset scope, owner/beneficiary and share lot; pre-event deposits and continuous transfer history                                     |
+| Incident     | code hash at exploit, qualified type, extraction receipts and traces, independent replay/postmortem digests, reviewer/conflict record                    |
+| Entitlement  | registered share cap, minimum held shares, pre-event net principal allocation excluding yield, position ledger and all withdrawals/transfers             |
+| Resolution   | event time, evaluation time, recovery process status, proceeds already received, residual share/recovery-right value, rights assignment and legal claims |
+| Capacity     | policy/exposure/event remaining and reservation ID; same-loss allocation across policies/providers                                                       |
+| Provenance   | finalized chain refs, raw payload archive digests, independent read comparison and verifier identity                                                     |
 
 Evaluator order: validate/common gates → listed code/exploit qualification → continuous
 exposure and principal allocation → review-window/resolution gates → net-loss formula.
@@ -73,18 +73,18 @@ binding and reduce atomically when paying; do not prorate silently after a loss.
 
 ## Scenarios and adversarial tests
 
-| Scenario | Result |
-|---|---|
-| Independent qualified exploit, final loss above example, rights accounted | COVERED; 1,000 USDC capped |
-| Full recovery of principal, no remaining loss | REJECTED; zero |
-| Fake pool, related operator or logged “loss” with no entitlement | REJECTED |
-| Ordinary market decline or credit default | REJECTED |
-| Pool paused; no resolution or contested receivable value | REVIEW; zero |
-| Only 10 days elapsed | REVIEW, never automatic total-loss claim |
-| Post-event acquisition or balance dipped below claimed lot | REJECTED |
-| Exploit qualification unsigned/unapproved reviewer | REVIEW |
-| Conflicting code hash, forged contract/chain reference | REJECTED |
-| Duplicate event-position claim under another ID | REJECTED |
+| Scenario                                                                  | Result                                   |
+| ------------------------------------------------------------------------- | ---------------------------------------- |
+| Independent qualified exploit, final loss above example, rights accounted | COVERED; 1,000 USDC capped               |
+| Full recovery of principal, no remaining loss                             | REJECTED; zero                           |
+| Fake pool, related operator or logged “loss” with no entitlement          | REJECTED                                 |
+| Ordinary market decline or credit default                                 | REJECTED                                 |
+| Pool paused; no resolution or contested receivable value                  | REVIEW; zero                             |
+| Only 10 days elapsed                                                      | REVIEW, never automatic total-loss claim |
+| Post-event acquisition or balance dipped below claimed lot                | REJECTED                                 |
+| Exploit qualification unsigned/unapproved reviewer                        | REVIEW                                   |
+| Conflicting code hash, forged contract/chain reference                    | REJECTED                                 |
+| Duplicate event-position claim under another ID                           | REJECTED                                 |
 
 Future verifier adversarial tests: malicious ERC-4626 donation/share-price inflation,
 rebasing shares, protocol insolvency versus market depeg, dust transfer re-entry,
