@@ -25,14 +25,16 @@ describe('authenticateClaimsRequest', () => {
     const reviewerReq = new Request('http://localhost/x', {
       headers: { authorization: 'Bearer review-secret' },
     });
-    const reviewer = authenticateClaimsRequest(reviewerReq, ['authority']);
+    const reviewer = authenticateClaimsRequest(reviewerReq, ['authority'], {
+      preferBearer: true,
+    });
     expect(reviewer.ok).toBe(false);
     if (!reviewer.ok) expect(reviewer.status).toBe(403);
 
     const okReq = new Request('http://localhost/x', {
       headers: { authorization: 'Bearer auth-secret' },
     });
-    const ok = authenticateClaimsRequest(okReq, ['authority']);
+    const ok = authenticateClaimsRequest(okReq, ['authority'], { preferBearer: true });
     expect(ok.ok).toBe(true);
     if (ok.ok) expect(ok.principal.role).toBe('authority');
   });
@@ -43,7 +45,7 @@ describe('authenticateClaimsRequest', () => {
     const req = new Request('http://localhost/x', {
       headers: { authorization: 'Bearer auth-secret' },
     });
-    const auth = authenticateClaimsRequest(req, ['authority']);
+    const auth = authenticateClaimsRequest(req, ['authority'], { preferBearer: true });
     expect(auth.ok).toBe(true);
     if (auth.ok) expect(auth.principal.allowSyntheticSettlementPrep).toBe(true);
   });

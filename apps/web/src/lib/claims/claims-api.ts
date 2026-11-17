@@ -1,52 +1,68 @@
 'use client';
 
-const CLAIMANT_KEY = 'arcuex.claims.claimantToken';
-const REVIEWER_KEY = 'arcuex.claims.reviewerToken';
-const AUTHORITY_KEY = 'arcuex.claims.authorityToken';
-const WALLET_KEY = 'arcuex.claims.wallet';
-const POLICYHOLDER_KEY = 'arcuex.claims.policyholderId';
-
-export function storeClaimsTokens(input: {
-  claimantToken?: string;
-  reviewerToken?: string;
-  authorityToken?: string;
-  wallet?: string;
-  policyholderId?: string;
-}) {
-  if (input.claimantToken !== undefined) {
-    sessionStorage.setItem(CLAIMANT_KEY, input.claimantToken);
-  }
-  if (input.reviewerToken !== undefined) {
-    sessionStorage.setItem(REVIEWER_KEY, input.reviewerToken);
-  }
-  if (input.authorityToken !== undefined) {
-    sessionStorage.setItem(AUTHORITY_KEY, input.authorityToken);
-  }
-  if (input.wallet !== undefined) sessionStorage.setItem(WALLET_KEY, input.wallet);
-  if (input.policyholderId !== undefined) {
-    sessionStorage.setItem(POLICYHOLDER_KEY, input.policyholderId);
-  }
-}
+/** Cookie-session claims API helper — credentials include httpOnly session. */
 
 export function claimsFetch(
-  role: 'claimant' | 'reviewer' | 'authority' | 'any',
+  _role: 'claimant' | 'reviewer' | 'authority' | 'any',
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<Response> {
-  const token =
-    role === 'any'
-      ? sessionStorage.getItem(AUTHORITY_KEY) ||
-        sessionStorage.getItem(REVIEWER_KEY) ||
-        sessionStorage.getItem(CLAIMANT_KEY) ||
-        ''
-      : (sessionStorage.getItem(
-          role === 'claimant' ? CLAIMANT_KEY : role === 'reviewer' ? REVIEWER_KEY : AUTHORITY_KEY,
-        ) ?? '');
   const headers = new Headers(init.headers);
-  if (token) headers.set('authorization', `Bearer ${token}`);
-  const wallet = sessionStorage.getItem(WALLET_KEY);
-  const policyholderId = sessionStorage.getItem(POLICYHOLDER_KEY);
-  if (wallet) headers.set('x-arcuex-wallet', wallet);
-  if (policyholderId) headers.set('x-arcuex-policyholder-id', policyholderId);
-  return fetch(input, { ...init, headers });
+  return fetch(input, {
+    ...init,
+    headers,
+    credentials: 'include',
+  });
+}
+
+export async function claimsOpsLogin(
+  role: 'reviewer' | 'authority',
+  apiToken: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch('/api/claims/auth/ops-login', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${apiToken}`,
+    },
+    body: JSON.stringify({ role }),
+  });
+  if (!res.ok) {
+    const json = (await res.json()) as { error?: string };
+    return { ok: false, error: json.error ?? 'Ops login failed' };
+  }
+  return { ok: true };
+}
+
+export async function claimsWalletLogin(input: {
+  wallet: string;
+  signMessage: (message: string) => Promise<`0x${string}`>;
+}): Promise<{ ok: boolean; error?: string }> {
+  const nonceRes = await fetch('/api/claims/auth/nonce', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ wallet: input.wallet }),
+  });
+  const nonceJson = await nonceRes.json();
+  if (!nonceRes.ok) return { ok: false, error: nonceJson.error ?? 'Nonce failed' };
+
+  const signature = await input.signMessage(String(nonceJson.message));
+  const verifyRes = await fetch('/api/claims/auth/verify', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      wallet: input.wallet,
+      nonce: nonceJson.nonce,
+      signature,
+    }),
+  });
+  const verifyJson = await verifyRes.json();
+  if (!verifyRes.ok) return { ok: false, error: verifyJson.error ?? 'Verify failed' };
+  return { ok: true };
+}
+
+export async function claimsLogout(): Promise<void> {
+  await fetch('/api/claims/auth/logout', { method: 'POST', credentials: 'include' });
 }

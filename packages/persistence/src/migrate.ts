@@ -9,6 +9,7 @@ const MIGRATIONS = [
   '003_streams_inbox.sql',
   '004_claims_cases.sql',
   '005_claims_case_binding.sql',
+  '006_claims_auth_sessions.sql',
 ] as const;
 
 export function migrate(db: SqliteDb): void {

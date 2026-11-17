@@ -402,6 +402,22 @@ export class InsuranceRepository {
       .map((row) => mapSettlement(row as Record<string, unknown>));
   }
 
+  listPolicyholders(limit = 100): Policyholder[] {
+    return this.db
+      .prepare(`SELECT * FROM policyholders ORDER BY created_at DESC LIMIT ?`)
+      .all(limit)
+      .map((row) => mapPolicyholder(row as Record<string, unknown>));
+  }
+
+  getPolicyholderByWallet(wallet: string): Policyholder | null {
+    const row = this.db
+      .prepare(
+        `SELECT * FROM policyholders WHERE lower(wallet_address) = lower(?) LIMIT 1`,
+      )
+      .get(wallet);
+    return row ? mapPolicyholder(row as Record<string, unknown>) : null;
+  }
+
   getPolicyholder(id: string): Policyholder | null {
     const row = this.db.prepare(`SELECT * FROM policyholders WHERE id = ?`).get(id);
     return row ? mapPolicyholder(row as Record<string, unknown>) : null;
@@ -916,6 +932,131 @@ export class InsuranceRepository {
       )
       .get(lossKey) as { total: number | string } | undefined;
     return BigInt(row?.total ?? 0);
+  }
+
+  /** PAID + SETTLEMENT_PENDING commitments for same economic loss (blocks new payable intents). */
+  sumCommittedForLossKey(lossKey: string, excludeCaseId?: string): bigint {
+    const row = excludeCaseId
+      ? (this.db
+          .prepare(
+            `SELECT COALESCE(SUM(CAST(payable_micros AS INTEGER)), 0) AS total
+             FROM claims_cases
+             WHERE loss_key = ?
+               AND id != ?
+               AND status IN ('PAID', 'SETTLEMENT_PENDING')
+               AND payable_micros IS NOT NULL`,
+          )
+          .get(lossKey, excludeCaseId) as { total: number | string } | undefined)
+      : (this.db
+          .prepare(
+            `SELECT COALESCE(SUM(CAST(payable_micros AS INTEGER)), 0) AS total
+             FROM claims_cases
+             WHERE loss_key = ?
+               AND status IN ('PAID', 'SETTLEMENT_PENDING')
+               AND payable_micros IS NOT NULL`,
+          )
+          .get(lossKey) as { total: number | string } | undefined);
+    return BigInt(row?.total ?? 0);
+  }
+
+  insertClaimsAuthNonce(input: {
+    nonce: string;
+    walletAddress: string;
+    message: string;
+    expiresAt: string;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT INTO claims_auth_nonces (nonce, wallet_address, message, expires_at, consumed_at)
+         VALUES (@nonce, @walletAddress, @message, @expiresAt, NULL)`,
+      )
+      .run(input);
+  }
+
+  getClaimsAuthNonce(nonce: string): {
+    nonce: string;
+    walletAddress: string;
+    message: string;
+    expiresAt: string;
+    consumedAt: string | null;
+  } | null {
+    const row = this.db
+      .prepare(`SELECT * FROM claims_auth_nonces WHERE nonce = ?`)
+      .get(nonce) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return {
+      nonce: String(row.nonce),
+      walletAddress: String(row.wallet_address),
+      message: String(row.message),
+      expiresAt: String(row.expires_at),
+      consumedAt: row.consumed_at ? String(row.consumed_at) : null,
+    };
+  }
+
+  consumeClaimsAuthNonce(nonce: string, consumedAt: string): boolean {
+    const result = this.db
+      .prepare(
+        `UPDATE claims_auth_nonces SET consumed_at = ?
+         WHERE nonce = ? AND consumed_at IS NULL`,
+      )
+      .run(consumedAt, nonce);
+    return Number(result.changes) === 1;
+  }
+
+  insertClaimsSession(input: {
+    id: string;
+    role: string;
+    walletAddress: string | null;
+    subject: string;
+    allowSyntheticSettlementPrep: boolean;
+    expiresAt: string;
+    createdAt: string;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT INTO claims_sessions
+         (id, role, wallet_address, subject, allow_synthetic_settlement_prep, expires_at, created_at, revoked_at)
+         VALUES (@id, @role, @walletAddress, @subject, @allowSynthetic, @expiresAt, @createdAt, NULL)`,
+      )
+      .run({
+        id: input.id,
+        role: input.role,
+        walletAddress: input.walletAddress,
+        subject: input.subject,
+        allowSynthetic: input.allowSyntheticSettlementPrep ? 1 : 0,
+        expiresAt: input.expiresAt,
+        createdAt: input.createdAt,
+      });
+  }
+
+  getClaimsSession(id: string): {
+    id: string;
+    role: string;
+    walletAddress: string | null;
+    subject: string;
+    allowSyntheticSettlementPrep: boolean;
+    expiresAt: string;
+    revokedAt: string | null;
+  } | null {
+    const row = this.db
+      .prepare(`SELECT * FROM claims_sessions WHERE id = ?`)
+      .get(id) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return {
+      id: String(row.id),
+      role: String(row.role),
+      walletAddress: row.wallet_address ? String(row.wallet_address) : null,
+      subject: String(row.subject),
+      allowSyntheticSettlementPrep: Number(row.allow_synthetic_settlement_prep) === 1,
+      expiresAt: String(row.expires_at),
+      revokedAt: row.revoked_at ? String(row.revoked_at) : null,
+    };
+  }
+
+  revokeClaimsSession(id: string, revokedAt: string): void {
+    this.db
+      .prepare(`UPDATE claims_sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL`)
+      .run(revokedAt, id);
   }
 
   runInTransaction<T>(fn: () => T): T {
