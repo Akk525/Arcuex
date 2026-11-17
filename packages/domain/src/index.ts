@@ -9,5 +9,6 @@ export * from './capital';
 export * from './synthetic-product';
 export * from './interfaces';
 export * from './onchain-ids';
+export * from './loss-key';
 export * from './outcomes';
 

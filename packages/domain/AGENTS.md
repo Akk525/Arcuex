@@ -13,6 +13,8 @@ state transitions. No I/O, no SQL, no RPC, no UI.
 - State machines are the only authorized transition paths.
 - AI votes must never authorize payouts; assessments require explicit decision records.
 - Synthetic underwriting products must be labeled `synthetic: true`.
+- Economic loss identity (`lossKey` / `loss-key.ts`) is distinct from claim ids;
+  on-chain hashing lives in `@arcuex/onchain` / `LossKey.sol`.
 
 ## Tests
 
