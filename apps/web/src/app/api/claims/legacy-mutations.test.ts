@@ -25,7 +25,13 @@ describe('legacy claims mutation containment', () => {
   });
 
   it('rejects unauthenticated demo settlement preparation', async () => {
-    const res = await demoPost();
+    const res = await demoPost(
+      new Request('http://localhost/api/claims/demo', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{}',
+      }),
+    );
     expect(res.status).toBe(403);
     const json = (await res.json()) as { error?: string; mutationsEnabled?: boolean };
     expect(json.mutationsEnabled).toBe(false);

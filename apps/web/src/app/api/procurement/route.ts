@@ -1,12 +1,13 @@
+import {withApiSecurity} from '@/lib/server/api-security';
 import { NextResponse } from 'next/server';
 import { handle } from '@/lib/server/procurement-api';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   return handle(request, 'products');
 }
 /** Compatibility action API uses the same authorization and read-only preflight as REST. */
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const raw = await request.text();
     if (raw.length > 16000)
@@ -82,3 +83,6 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const GET=withApiSecurity(GETHandler);
+export const POST=withApiSecurity(POSTHandler);

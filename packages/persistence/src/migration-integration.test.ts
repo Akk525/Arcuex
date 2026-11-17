@@ -90,9 +90,26 @@ describe('integration migration histories', () => {
     db.pragma('foreign_keys=ON');
     migrate(db);
     migrate(db);
-    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(10);
+    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(11);
     expect(db.pragma('foreign_key_check')).toEqual([]);
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
+    expect(
+      db.prepare("SELECT name FROM sqlite_master WHERE name='launch_rate_limits'").get(),
+    ).toBeTruthy();
+    expect(
+      db.prepare("SELECT value FROM launch_runtime_state WHERE key='recovery_hold'").get(),
+    ).toEqual({ value: '0' });
+  });
+
+  it('applies 009_launch_security onto an already-integrated database', () => {
+    const db = beforeIntegration([...common, ...procurement, ...claims, '007_procurement_claims_integration.sql', '008_shared_wallet_session_scope.sql']);
+    migrate(db);
+    const applied = db
+      .prepare('SELECT id FROM schema_migrations WHERE id=?')
+      .get('009_launch_security.sql') as { id: string } | undefined;
+    expect(applied?.id).toBe('009_launch_security.sql');
+    const cols = db.prepare('PRAGMA table_info(claims_sessions)').all() as Array<{ name: string }>;
+    expect(cols.some((c) => c.name === 'config_epoch')).toBe(true);
   });
   it.each(['procurement', 'claims', 'both'])(
     'upgrades existing %s history without losing records or original migration IDs',
@@ -180,9 +197,15 @@ it('retires old claims-only claimant sessions/nonces while preserving ops and ne
       }
     ).revoked_at,
   ).toBeTruthy();
-  expect(db.prepare("SELECT revoked_at FROM claims_sessions WHERE id='ops'").get()).toEqual({
-    revoked_at: null,
-  });
+  // 008 preserves ops through shared-scope rotation; 009 then retires every pre-launch
+  // session (including ops) so the pinned signing domain/session epoch cannot be skipped.
+  expect(
+    (
+      db.prepare("SELECT revoked_at FROM claims_sessions WHERE id='ops'").get() as {
+        revoked_at: string;
+      }
+    ).revoked_at,
+  ).toBeTruthy();
   expect(
     (
       db.prepare("SELECT consumed_at FROM claims_auth_nonces WHERE nonce='old-nonce'").get() as {
@@ -191,7 +214,7 @@ it('retires old claims-only claimant sessions/nonces while preserving ops and ne
     ).consumed_at,
   ).toBeTruthy();
   db.prepare(
-    "INSERT INTO claims_sessions(id,role,subject,expires_at,created_at) VALUES ('new-wallet','claimant','holder','2099-01-01T00:00:00.000Z','2026-11-17T00:00:00.000Z')",
+    "INSERT INTO claims_sessions(id,role,subject,expires_at,created_at,config_epoch) VALUES ('new-wallet','claimant','holder','2099-01-01T00:00:00.000Z','2026-11-17T00:00:00.000Z','launch-2026-11-20')",
   ).run();
   migrate(db);
   expect(db.prepare("SELECT revoked_at FROM claims_sessions WHERE id='new-wallet'").get()).toEqual({

@@ -1,3 +1,4 @@
+import {withApiSecurity} from '@/lib/server/api-security';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -7,7 +8,7 @@ export const dynamic = 'force-dynamic';
  * Legacy one-click demo that authorized and prepared settlements without auth.
  * Disabled for public Arc Testnet beta. Use ClaimsCase UI with wallet + ops sessions.
  */
-export async function POST() {
+async function POSTHandler() {
   return NextResponse.json(
     {
       error:
@@ -19,7 +20,7 @@ export async function POST() {
   );
 }
 
-export async function GET() {
+async function GETHandler() {
   return NextResponse.json({
     dataClass: 'synthetic',
     mutationsEnabled: false,
@@ -27,3 +28,6 @@ export async function GET() {
       'Demo mutation endpoint disabled. See /claims for ClaimsCase adjudication (wallet session required).',
   });
 }
+
+export const GET=withApiSecurity(GETHandler);
+export const POST=withApiSecurity(POSTHandler);

@@ -14,6 +14,7 @@ const MIGRATIONS = [
   '006_claims_auth_sessions.sql',
   '007_procurement_claims_integration.sql',
   '008_shared_wallet_session_scope.sql',
+  '009_launch_security.sql',
 ] as const;
 
 export function migrate(db: SqliteDb, migrationDirectory?: string): void {

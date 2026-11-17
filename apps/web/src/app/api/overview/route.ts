@@ -1,22 +1,14 @@
+import {withApiSecurity} from '@/lib/server/api-security';
 import { NextResponse } from 'next/server';
 import { createArcPublicClient, getNetworkHealth, ARC_TESTNET_CHAIN_ID } from '@arcuex/chain';
 import { createQuickNodeClient } from '@arcuex/quicknode';
 import { getRepo } from '@/lib/server/db';
-import { getArcRpcUrl, getQuickNodeRpcUrl, getPoolAddress } from '@/lib/env';
+import {getPoolAddress} from '@/lib/env';
+import {getArcRpcUrl,getQuickNodeRpcUrl} from '@/lib/server/env-rpc';
 
 export const runtime = 'nodejs';
 
-function serializeAudit(events: ReturnType<ReturnType<typeof getRepo>['listAudit']>) {
-  return events.map((e) => ({
-    id: e.id,
-    aggregateType: e.aggregateType,
-    aggregateId: e.aggregateId,
-    eventType: e.eventType,
-    createdAt: e.createdAt,
-  }));
-}
-
-export async function GET() {
+async function GETHandler() {
   const repo = getRepo();
   const arcRpc = getArcRpcUrl();
   const qnRpc = getQuickNodeRpcUrl();
@@ -27,8 +19,8 @@ export async function GET() {
   try {
     const client = createArcPublicClient({ rpcUrl: arcRpc });
     arcHealth = await getNetworkHealth(client, arcRpc);
-  } catch (err) {
-    arcError = err instanceof Error ? err.message : 'Arc health failed';
+  } catch {
+    arcError = 'Arc health unavailable';
   }
 
   let qnStatus: Awaited<ReturnType<ReturnType<typeof createQuickNodeClient>['getStatus']>> | null =
@@ -36,8 +28,8 @@ export async function GET() {
   let qnError: string | null = null;
   try {
     qnStatus = await createQuickNodeClient({ rpcUrl: qnRpc }).getStatus();
-  } catch (err) {
-    qnError = err instanceof Error ? err.message : 'QuickNode status failed';
+  } catch {
+    qnError = 'QuickNode status unavailable';
   }
 
   const capitalPools = repo.listPools().map((p) => ({
@@ -81,9 +73,9 @@ export async function GET() {
     policyCount: repo.listPolicies(100).length,
     claimCount: repo.listClaims(100).length,
     recent: {
-      policyAudit: serializeAudit(repo.listAudit('policy', 8)),
-      capitalAudit: serializeAudit(repo.listAudit('capital_pool', 8)),
-      streamsInbox: repo.listStreamsInbox(8),
+      policyAudit: [],
+      capitalAudit: [],
+      streamsInbox: [],
     },
     labels: {
       synthetic: 'Synthetic ledger / demo underwriting',
@@ -91,3 +83,5 @@ export async function GET() {
     },
   });
 }
+
+export const GET=withApiSecurity(GETHandler);

@@ -2,6 +2,8 @@ import { openDatabase, InsuranceRepository, type SqliteDb } from '@arcuex/persis
 import { ensureDemoPool } from '@arcuex/insurance';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { getRuntimeConfig } from './runtime-config';
+import { assertStorageReady } from './storage';
 
 const globalStore = globalThis as typeof globalThis & {
   __arcuexDb?: SqliteDb;
@@ -9,6 +11,11 @@ const globalStore = globalThis as typeof globalThis & {
 };
 
 function resolveDbPath(): string {
+  const c = getRuntimeConfig();
+  if (c.enforced) {
+    assertStorageReady(c);
+    return c.databasePath;
+  }
   const fromEnv = process.env.ARCUE_X_SQLITE_PATH?.trim();
   if (fromEnv) return fromEnv;
   if (process.env.NODE_ENV === 'test') return ':memory:';

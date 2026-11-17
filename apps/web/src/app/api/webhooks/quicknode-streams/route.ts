@@ -1,3 +1,4 @@
+import {withApiSecurity} from '@/lib/server/api-security';
 import { NextResponse } from 'next/server';
 import { gunzipSync } from 'node:zlib';
 import { newId } from '@arcuex/domain';
@@ -20,7 +21,7 @@ export const runtime = 'nodejs';
  * 3. Set QUICKNODE_STREAMS_WEBHOOK_SECRET to the Stream security token
  * 4. Prefer compression=none during bring-up; gzip is supported here
  */
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const secret = process.env.QUICKNODE_STREAMS_WEBHOOK_SECRET?.trim();
   if (!secret) {
     return NextResponse.json(
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
   try {
     bodyText =
       encoding === 'gzip'
-        ? gunzipSync(rawBuf).toString('utf8')
+        ? gunzipSync(rawBuf,{maxOutputLength:1048576}).toString('utf8')
         : rawBuf.toString('utf8');
   } catch {
     return NextResponse.json({ ok: false, error: 'Failed to decode body' }, { status: 400 });
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
   });
 }
 
-export async function GET() {
+async function GETHandler() {
   const configured = Boolean(process.env.QUICKNODE_STREAMS_WEBHOOK_SECRET?.trim());
   return NextResponse.json({
     service: 'quicknode-streams-webhook',
@@ -118,3 +119,6 @@ export async function GET() {
       : 'Set QUICKNODE_STREAMS_WEBHOOK_SECRET and expose a public HTTPS endpoint',
   });
 }
+
+export const GET=withApiSecurity(GETHandler);
+export const POST=withApiSecurity(POSTHandler);

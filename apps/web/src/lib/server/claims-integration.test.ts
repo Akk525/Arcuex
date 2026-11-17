@@ -1,3 +1,4 @@
+import {sessionStoreId} from './claims-session';
 import { describe, it, expect, vi } from 'vitest';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { ProcurementService } from '@arcuex/agent-sdk';
@@ -171,7 +172,7 @@ describe('one authenticated procurement and claims customer journey', () => {
     const sessionId = f.owner.cookie.split('=')[1]!;
     getDb()
       .prepare('UPDATE claims_sessions SET expires_at=? WHERE id=?')
-      .run('2000-01-01T00:00:00.000Z', sessionId);
+      .run('2000-01-01T00:00:00.000Z', sessionStoreId(sessionId));
     expect((await policyOptions(request('/api/claims/policies', f.owner.cookie))).status).toBe(401);
   });
   it('does not accept a static claimant token plus caller-selected owner headers', async () => {

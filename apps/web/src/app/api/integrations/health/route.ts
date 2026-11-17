@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createArcPublicClient, getNetworkHealth, ARC_TESTNET_CHAIN_ID } from '@arcuex/chain';
 import { createQuickNodeClient } from '@arcuex/quicknode';
+import { withApiSecurity } from '@/lib/server/api-security';
 import { getRepo } from '@/lib/server/db';
-import { getArcRpcUrl, getPoolAddress, getQuickNodeRpcUrl } from '@/lib/env';
+import { getPoolAddress } from '@/lib/env';
+import { getArcRpcUrl, getQuickNodeRpcUrl } from '@/lib/server/env-rpc';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+async function GETHandler() {
   const checks: Array<{ name: string; ok: boolean; detail: string; kind: 'live' | 'config' }> = [];
 
   try {
@@ -18,11 +20,11 @@ export async function GET() {
       detail: `chainId=${health.chainId} block=${health.blockNumber?.toString() ?? 'null'}`,
       kind: 'live',
     });
-  } catch (err) {
+  } catch {
     checks.push({
       name: 'Arc RPC',
       ok: false,
-      detail: err instanceof Error ? err.message : 'failed',
+      detail: 'Provider check unavailable',
       kind: 'live',
     });
   }
@@ -35,11 +37,11 @@ export async function GET() {
       detail: `chainId=${status.chainId} block=${status.blockNumber}`,
       kind: 'live',
     });
-  } catch (err) {
+  } catch {
     checks.push({
       name: 'QuickNode RPC',
       ok: false,
-      detail: err instanceof Error ? err.message : 'failed',
+      detail: 'Provider check unavailable',
       kind: 'live',
     });
   }
@@ -83,3 +85,5 @@ export async function GET() {
     note: 'RPC health ≠ Streams completion. Webhook auth + live deliveries required.',
   });
 }
+
+export const GET = withApiSecurity(GETHandler);

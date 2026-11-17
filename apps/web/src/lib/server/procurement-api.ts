@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { hasAllowedOrigin, canonicalSigningOrigin } from './request-boundary';
+import { getRuntimeConfig } from './runtime-config';
 import { PROCUREMENT_PRODUCT } from '@arcuex/domain';
 import { ProcurementStore } from '@arcuex/persistence';
 import { ARC_USDC_ERC20_ADDRESS } from '@arcuex/chain';
@@ -33,8 +35,9 @@ export async function handle(request: Request, path: string) {
         chainId: 5042002,
         pool: procurementPool,
       });
-    const origin = new URL(request.url).origin;
-    if (request.headers.get('origin') && request.headers.get('origin') !== origin)
+    const runtime = getRuntimeConfig();
+    const origin = canonicalSigningOrigin(request, runtime);
+    if (!hasAllowedOrigin(request, runtime))
       throw new ProcurementError('ORIGIN', 'Cross-origin requests rejected', 403);
     const raw = request.method === 'POST' ? await request.text() : '{}';
     if (raw.length > 16000) throw new ProcurementError('TOO_LARGE', 'Request too large', 413);

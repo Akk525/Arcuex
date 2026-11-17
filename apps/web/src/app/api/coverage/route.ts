@@ -1,3 +1,4 @@
+import {withApiSecurity} from '@/lib/server/api-security';
 import { authenticateClaimsRequest } from '@/lib/server/claims-auth';
 import { canAccessClaimsPolicy } from '@arcuex/insurance';
 import { formatUsdc } from '@arcuex/domain';
@@ -7,7 +8,7 @@ import { getRepo } from '@/lib/server/db';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const auth = authenticateClaimsRequest(request, ['claimant', 'reviewer', 'authority', 'system']);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const repo = getRepo();
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
   });
 }
 
-export async function POST() {
+async function POSTHandler() {
   return NextResponse.json(
     {
       error:
@@ -64,3 +65,6 @@ export async function POST() {
     { status: 410 },
   );
 }
+
+export const GET=withApiSecurity(GETHandler);
+export const POST=withApiSecurity(POSTHandler);

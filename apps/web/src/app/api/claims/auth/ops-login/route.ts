@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getRepo } from '@/lib/server/db';
+import { withApiSecurity } from '@/lib/server/api-security';
 import { authenticateClaimsRequest } from '@/lib/server/claims-auth';
 import {
   CLAIMS_SESSION_COOKIE,
   claimsSessionCookieOptions,
   createOpsSessionFromBearer,
 } from '@/lib/server/claims-session';
+import { getRepo } from '@/lib/server/db';
+import { hasAllowedOrigin } from '@/lib/server/request-boundary';
+import { getRuntimeConfig } from '@/lib/server/runtime-config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,12 +17,10 @@ export const dynamic = 'force-dynamic';
  * Exchange a server-held reviewer/authority API token for an opaque httpOnly session.
  * The API secret is never written into the cookie value or returned to the browser.
  */
-export async function POST(request: Request) {
-  if (
-    request.headers.get('origin') &&
-    request.headers.get('origin') !== new URL(request.url).origin
-  )
+async function POSTHandler(request: Request) {
+  if (!hasAllowedOrigin(request, getRuntimeConfig())) {
     return NextResponse.json({ error: 'Cross-origin authentication rejected' }, { status: 403 });
+  }
   const body = (await request.json()) as { role?: 'reviewer' | 'authority' };
   if (body.role !== 'reviewer' && body.role !== 'authority') {
     return NextResponse.json({ error: 'role must be reviewer|authority' }, { status: 400 });
@@ -45,3 +46,5 @@ export async function POST(request: Request) {
   );
   return res;
 }
+
+export const POST = withApiSecurity(POSTHandler);

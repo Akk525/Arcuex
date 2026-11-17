@@ -3,10 +3,9 @@ import { newId } from '@arcuex/domain';
 import type { ClaimsPrincipal, ClaimsRole } from '@arcuex/insurance';
 import type { InsuranceRepository } from '@arcuex/persistence';
 import { verifyMessage } from 'viem';
+import { getRuntimeConfig } from './runtime-config';
 
 export const CLAIMS_SESSION_COOKIE = 'arcuex_claims_sid';
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
-const NONCE_TTL_MS = 10 * 60 * 1000;
 
 export function normalizeClaimsWallet(address: string): `0x${string}` {
   if (!/^0x[a-fA-F0-9]{40}$/.test(address) || /^0x0{40}$/i.test(address)) {
@@ -39,9 +38,13 @@ export function issueClaimsNonce(
   walletRaw: string,
   origin = 'http://localhost',
 ): { nonce: string; message: string; expiresAt: string } {
+  const c = getRuntimeConfig();
+  if (c.enforced && origin !== c.origin) {
+    throw new Error('Signing origin does not match deployment');
+  }
   const wallet = normalizeClaimsWallet(walletRaw);
   const nonce = randomBytes(24).toString('hex');
-  const expiresAt = new Date(Date.now() + NONCE_TTL_MS).toISOString();
+  const expiresAt = new Date(Date.now() + c.nonceTtlSeconds * 1000).toISOString();
   const message = buildClaimsAuthMessage({ wallet, nonce, expiresAt, origin });
   repo.runInTransaction(() =>
     repo.insertClaimsAuthNonce({
@@ -58,6 +61,7 @@ export async function verifyWalletAndCreateSession(
   repo: InsuranceRepository,
   input: { wallet: string; nonce: string; signature: `0x${string}` },
 ): Promise<{ sessionId: string; expiresAt: string; principal: ClaimsPrincipal }> {
+  const c = getRuntimeConfig();
   const wallet = normalizeClaimsWallet(input.wallet);
   const record = repo.getClaimsAuthNonce(input.nonce);
   if (!record) throw new Error('Unknown nonce');
@@ -65,6 +69,19 @@ export async function verifyWalletAndCreateSession(
   if (Date.parse(record.expiresAt) <= Date.now()) throw new Error('Nonce expired');
   if (normalizeClaimsWallet(record.walletAddress) !== wallet) {
     throw new Error('Nonce wallet mismatch');
+  }
+
+  if (
+    c.enforced &&
+    record.message !==
+      buildClaimsAuthMessage({
+        wallet,
+        nonce: input.nonce,
+        expiresAt: record.expiresAt,
+        origin: c.origin,
+      })
+  ) {
+    throw new Error('Nonce signing domain differs from deployment');
   }
 
   const ok = await verifyMessage({
@@ -79,10 +96,11 @@ export async function verifyWalletAndCreateSession(
     if (!consumed) throw new Error('Nonce already used');
 
     const sessionId = createHash('sha256').update(randomBytes(32)).digest('hex');
-    const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+    const expiresAt = new Date(Date.now() + getRuntimeConfig().sessionTtlSeconds * 1000).toISOString();
     const createdAt = new Date().toISOString();
     repo.insertClaimsSession({
-      id: sessionId,
+      id: sessionStoreId(sessionId),
+      configEpoch: c.sessionEpoch,
       role: 'claimant',
       walletAddress: wallet,
       subject: wallet,
@@ -109,12 +127,14 @@ export function createOpsSessionFromBearer(
   role: 'reviewer' | 'authority',
   subject = 'ops',
 ): { sessionId: string; expiresAt: string; principal: ClaimsPrincipal } {
+  const c = getRuntimeConfig();
   const sessionId = createHash('sha256').update(randomBytes(32)).digest('hex');
-  const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+  const expiresAt = new Date(Date.now() + c.sessionTtlSeconds * 1000).toISOString();
   const allowSynthetic =
-    role === 'authority' && process.env.CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP === '1';
+    role === 'authority' && !c.enforced && process.env.CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP === '1';
   repo.insertClaimsSession({
-    id: sessionId,
+    id: sessionStoreId(sessionId),
+    configEpoch: c.sessionEpoch,
     role,
     walletAddress: null,
     subject: `${role}:${subject}`,
@@ -151,15 +171,22 @@ export function loadPrincipalFromSession(
   repo: InsuranceRepository,
   sessionId: string,
 ): ClaimsPrincipal | null {
-  const session = repo.getClaimsSession(sessionId);
-  if (!session || session.revokedAt) return null;
-  if (Date.parse(session.expiresAt) <= Date.now()) return null;
+  if (!/^[0-9a-f]{64}$/.test(sessionId)) return null;
+  const c = getRuntimeConfig();
+  const session = repo.getClaimsSession(sessionStoreId(sessionId));
+  if (!session || session.revokedAt || (c.enforced && session.configEpoch !== c.sessionEpoch)) {
+    return null;
+  }
+  if (!Number.isFinite(Date.parse(session.expiresAt)) || Date.parse(session.expiresAt) <= Date.now()) {
+    return null;
+  }
   return {
     role: session.role as ClaimsRole,
     subject: session.subject,
     walletAddress: session.walletAddress ?? undefined,
     allowSyntheticSettlementPrep:
-      (session.role === 'authority' &&
+      (!c.enforced &&
+        session.role === 'authority' &&
         session.allowSyntheticSettlementPrep &&
         process.env.CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP === '1') ||
       undefined,
@@ -175,7 +202,7 @@ export function claimsSessionCookieOptions(expiresAt: string): {
 } {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production' || process.env.CLAIMS_COOKIE_SECURE === '1',
+    secure: getRuntimeConfig().secureCookies,
     sameSite: 'lax',
     path: '/',
     expires: new Date(expiresAt),
@@ -184,4 +211,8 @@ export function claimsSessionCookieOptions(expiresAt: string): {
 
 export function newOpaqueId(): string {
   return newId();
+}
+
+export function sessionStoreId(sessionId: string): string {
+  return createHash('sha256').update(sessionId).digest('hex');
 }

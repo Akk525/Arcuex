@@ -1,0 +1,18 @@
+# Arcuex November 20 public-beta host config (Railway).
+# Attach a single volume with mount path /data in the Railway dashboard / IaC.
+# Volumes force single-replica operation — do not enable horizontal replicas.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "pnpm --filter @arcuex/web exec next start -H 0.0.0.0 -p $PORT"
+healthcheckPath = "/api/health/live"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+# Volume-backed SQLite cannot share across replicas. Keep overlap at 0 so only
+# one deployment mounts /data (Railway also enforces this when a volume is attached).
+overlapSeconds = 0
+drainingSeconds = 20

@@ -2,6 +2,8 @@ import { timingSafeEqual } from 'node:crypto';
 import type { ClaimsPrincipal, ClaimsRole } from '@arcuex/insurance';
 import { getRepo } from '@/lib/server/db';
 import { loadPrincipalFromSession, parseSessionCookie } from '@/lib/server/claims-session';
+import { hasAllowedOrigin } from './request-boundary';
+import { getRuntimeConfig } from './runtime-config';
 
 function safeEqual(a: string, b: string): boolean {
   const left = Buffer.from(a);
@@ -21,12 +23,18 @@ function tokenForRole(role: ClaimsRole): string | undefined {
   switch (role) {
     case 'claimant':
       return undefined; // Claimants authenticate by wallet signature, never caller-provided identity headers.
-    case 'reviewer':
-      return process.env.CLAIMS_REVIEWER_API_TOKEN?.trim();
-    case 'authority':
-      return process.env.CLAIMS_AUTHORITY_API_TOKEN?.trim();
-    case 'system':
-      return process.env.CLAIMS_SYSTEM_API_TOKEN?.trim();
+    case 'reviewer': {
+      const token = getRuntimeConfig().reviewerToken;
+      return token || undefined;
+    }
+    case 'authority': {
+      const token = getRuntimeConfig().authorityToken;
+      return token || undefined;
+    }
+    case 'system': {
+      const token = getRuntimeConfig().systemToken;
+      return token || undefined;
+    }
     default:
       return undefined;
   }
@@ -52,13 +60,10 @@ export function authenticateClaimsRequest(
   allowed: readonly ClaimsRole[],
   opts?: { preferBearer?: boolean },
 ): { ok: true; principal: ClaimsPrincipal } | { ok: false; status: number; error: string } {
-  const origin = request.headers.get('origin');
-  if (
-    !['GET', 'HEAD', 'OPTIONS'].includes(request.method) &&
-    origin &&
-    origin !== new URL(request.url).origin
-  )
+  const c = getRuntimeConfig();
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method) && !hasAllowedOrigin(request, c)) {
     return { ok: false, status: 403, error: 'Cross-origin mutation rejected' };
+  }
   const repo = getRepo();
   const bearer = readBearer(request);
 
@@ -72,12 +77,13 @@ export function authenticateClaimsRequest(
           expectedWallet &&
           fromSession.walletAddress &&
           expectedWallet.toLowerCase() !== fromSession.walletAddress.toLowerCase()
-        )
+        ) {
           return {
             ok: false,
             status: 401,
             error: 'Wallet account differs from session; sign in again',
           };
+        }
         if (!allowed.includes(fromSession.role)) {
           return {
             ok: false,
@@ -124,7 +130,7 @@ export function authenticateClaimsRequest(
   // Bearer claimant tokens are server/automation only — still not a privileged escalation.
   const subject = matched;
   const allowSynthetic =
-    matched === 'authority' && process.env.CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP === '1';
+    matched === 'authority' && !c.enforced && process.env.CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP === '1';
 
   const principal = enrichClaimantPrincipal({
     role: matched,

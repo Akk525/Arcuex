@@ -1106,15 +1106,17 @@ export class InsuranceRepository {
     allowSyntheticSettlementPrep: boolean;
     expiresAt: string;
     createdAt: string;
+    configEpoch?: string;
   }): void {
     this.db
       .prepare(
         `INSERT INTO claims_sessions
-         (id, role, wallet_address, subject, allow_synthetic_settlement_prep, expires_at, created_at, revoked_at)
-         VALUES (@id, @role, @walletAddress, @subject, @allowSynthetic, @expiresAt, @createdAt, NULL)`,
+         (id, role, wallet_address, subject, allow_synthetic_settlement_prep, expires_at, created_at, revoked_at, config_epoch)
+         VALUES (@id, @role, @walletAddress, @subject, @allowSynthetic, @expiresAt, @createdAt, NULL, @configEpoch)`,
       )
       .run({
         id: input.id,
+        configEpoch: input.configEpoch ?? 'legacy',
         role: input.role,
         walletAddress: input.walletAddress,
         subject: input.subject,
@@ -1132,12 +1134,14 @@ export class InsuranceRepository {
     allowSyntheticSettlementPrep: boolean;
     expiresAt: string;
     revokedAt: string | null;
+    configEpoch: string;
   } | null {
     const row = this.db.prepare(`SELECT * FROM claims_sessions WHERE id = ?`).get(id) as
       Record<string, unknown> | undefined;
     if (!row) return null;
     return {
       id: String(row.id),
+      configEpoch: String(row.config_epoch ?? 'legacy'),
       role: String(row.role),
       walletAddress: row.wallet_address ? String(row.wallet_address) : null,
       subject: String(row.subject),

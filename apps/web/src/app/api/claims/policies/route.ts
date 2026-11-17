@@ -1,9 +1,10 @@
+import {withApiSecurity} from '@/lib/server/api-security';
 import { NextResponse } from 'next/server';
 import { canAccessClaimsPolicy } from '@arcuex/insurance';
 import { getRepo } from '@/lib/server/db';
 import { authenticateClaimsRequest } from '@/lib/server/claims-auth';
 export const dynamic = 'force-dynamic';
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const auth = authenticateClaimsRequest(request, ['claimant', 'reviewer', 'authority', 'system']);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const repo = getRepo();
@@ -25,3 +26,5 @@ export async function GET(request: Request) {
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }
+
+export const GET=withApiSecurity(GETHandler);

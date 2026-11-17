@@ -16,6 +16,7 @@
     "test": "pnpm -r test",
     "test:contracts": "cd contracts && forge test",
     "test:all": "pnpm test && pnpm test:contracts",
+    "smoke:launch": "pnpm --filter @arcuex/onchain exec tsx ../../apps/web/scripts/launch-release-smoke.mts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

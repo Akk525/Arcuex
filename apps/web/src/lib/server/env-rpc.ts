@@ -1,4 +1,9 @@
-import { ARC_TESTNET_RPC_HTTP } from '@arcuex/chain';
+import { getRuntimeConfig } from './runtime-config';
+
 export function getArcRpcUrl(): string {
-  return process.env.ARC_TESTNET_RPC_URL?.trim() || ARC_TESTNET_RPC_HTTP;
+  return getRuntimeConfig().rpcUrl;
+}
+
+export function getQuickNodeRpcUrl(): string {
+  return getRuntimeConfig().quicknodeRpcUrl;
 }

@@ -1,3 +1,4 @@
+import {withApiSecurity} from '@/lib/server/api-security';
 import { prepareClaimsTransaction, verifyClaimsSettlement } from '@/lib/server/claims-chain';
 import { reconcile } from '@/lib/server/procurement-chain';
 import { txHash } from '@/lib/server/procurement-chain';
@@ -22,7 +23,7 @@ export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(request: Request, ctx: Ctx) {
+async function GETHandler(request: Request, ctx: Ctx) {
   const auth = authenticateClaimsRequest(request, ['claimant', 'reviewer', 'authority', 'system']);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -43,7 +44,7 @@ export async function GET(request: Request, ctx: Ctx) {
   });
 }
 
-export async function POST(request: Request, ctx: Ctx) {
+async function POSTHandler(request: Request, ctx: Ctx) {
   const session = authenticateClaimsRequest(request, [
     'claimant',
     'reviewer',
@@ -232,3 +233,6 @@ export async function POST(request: Request, ctx: Ctx) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+export const GET=withApiSecurity(GETHandler);
+export const POST=withApiSecurity(POSTHandler);

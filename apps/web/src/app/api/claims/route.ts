@@ -1,3 +1,4 @@
+import {withApiSecurity} from '@/lib/server/api-security';
 import { formatUsdc } from '@arcuex/domain';
 import { NextResponse } from 'next/server';
 import { authenticateClaimsRequest } from '@/lib/server/claims-auth';
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic';
  * Read-only legacy synthetic ledger view.
  * Mutations are disabled — use ClaimsCase APIs under /api/claims/cases.
  */
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const auth = authenticateClaimsRequest(request, ['reviewer', 'authority', 'system']);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const repo = getRepo();
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
   });
 }
 
-export async function POST() {
+async function POSTHandler() {
   return NextResponse.json(
     {
       error:
@@ -49,3 +50,6 @@ export async function POST() {
     { status: 403 },
   );
 }
+
+export const GET=withApiSecurity(GETHandler);
+export const POST=withApiSecurity(POSTHandler);

@@ -64,9 +64,17 @@ pnpm build
 
 ```bash
 node scripts/verify-arc-rpc.mjs
+curl -s http://localhost:3000/api/health/live
 curl -s http://localhost:3000/api/health
 curl -s http://localhost:3000/api/capital
 ```
+
+## Railway public-beta hosting
+
+Volume-backed single-instance deployment packaging lives on `feat/launch-infrastructure`.
+See [docs/deployments/railway-public-beta.md](docs/deployments/railway-public-beta.md) and the
+[infrastructure assessment](docs/verification/2026-11-17-railway-launch-infrastructure.md).
+Do not expose the service publicly until those checklists pass.
 
 ## Repository map
 
@@ -113,3 +121,5 @@ immutable procurement policy/exposure directly; reviewer and authority rights
 remain separately provisioned. Legacy claimant tokens and procurement browser
 bearer sessions are retired. No contract changes or broadcasts are part of this
 integration. See the [launch assessment and exact gates](docs/verification/2026-11-17-procurement-claims-integration.md).
+Railway hosting packaging and CONDITIONAL GO notes:
+[docs/verification/2026-11-17-railway-launch-infrastructure.md](docs/verification/2026-11-17-railway-launch-infrastructure.md).
