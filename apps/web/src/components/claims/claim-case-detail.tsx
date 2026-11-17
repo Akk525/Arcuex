@@ -6,6 +6,12 @@ import { Panel } from '@/components/panel';
 import { CaseStatusBadge } from '@/components/claims/case-status-badge';
 import { StatusBadge } from '@/components/status-badge';
 import { claimsFetch } from '@/lib/claims/claims-api';
+import {
+  CLAIMS_SIGN_IN_REQUIRED,
+  claimsNetworkFailure,
+  parseClaimCaseDetailPayload,
+  readClaimsClientResponse,
+} from '@/lib/claims/claims-client-response';
 
 type DetailResponse = {
   principalRole?: string;
@@ -58,14 +64,27 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   const [notice, setNotice] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const res = await claimsFetch('any', `/api/claims/cases/${caseId}`);
-    const json = (await res.json()) as DetailResponse;
-    if (!res.ok) throw new Error(json.error ?? 'Failed to load case');
-    setData(json);
+    try {
+      const res = await claimsFetch('any', `/api/claims/cases/${caseId}`);
+      const result = await readClaimsClientResponse(res, (json) => {
+        const parsed = parseClaimCaseDetailPayload(json);
+        return parsed ? (parsed as unknown as DetailResponse) : null;
+      });
+      if (!result.ok) {
+        setData(null);
+        setError(result.message);
+        return;
+      }
+      setError(null);
+      setData(result.data);
+    } catch (e) {
+      setData(null);
+      setError(claimsNetworkFailure(e).message);
+    }
   }, [caseId]);
 
   useEffect(() => {
-    void refresh().catch((e) => setError(e instanceof Error ? e.message : 'Failed'));
+    void refresh();
   }, [refresh]);
 
   function run(role: 'reviewer' | 'authority', body: Record<string, unknown>) {
@@ -90,6 +109,12 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
     return (
       <Panel title="Claim case">
         <p className="text-sm text-rose-700">{error}</p>
+        {error === CLAIMS_SIGN_IN_REQUIRED ? (
+          <p className="mt-2 text-sm text-zinc-600">
+            Sign in with a claims session to open this case. Authorization failures are not treated
+            as an empty case.
+          </p>
+        ) : null}
         <Link href="/claims" className="text-xs text-sky-800 underline">
           Back to list
         </Link>

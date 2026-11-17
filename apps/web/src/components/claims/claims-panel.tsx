@@ -3,32 +3,45 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Panel } from '@/components/panel';
 import { StatusBadge } from '@/components/status-badge';
-
-type ClaimsResponse = {
-  notice: string;
-  mutationsEnabled?: boolean;
-  incidents: Array<{ id: string; status: string; observedEventRef: string }>;
-  claims: Array<{
-    id: string;
-    status: string;
-    requestedUsdc: string;
-    authorizedUsdc: string | null;
-  }>;
-  settlements: Array<{ id: string; status: string; amountUsdc: string }>;
-};
+import { claimsFetch } from '@/lib/claims/claims-api';
+import {
+  claimsNetworkFailure,
+  parseLegacyClaimsLedgerPayload,
+  readClaimsClientResponse,
+  type LegacyClaimsLedger,
+} from '@/lib/claims/claims-client-response';
 
 /** Read-only legacy synthetic ledger. Mutations live under ClaimsCase APIs. */
 export function ClaimsPanel() {
-  const [data, setData] = useState<ClaimsResponse | null>(null);
+  const [data, setData] = useState<LegacyClaimsLedger | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
 
   const refresh = useCallback(async () => {
-    const res = await fetch('/api/claims');
-    setData((await res.json()) as ClaimsResponse);
+    setError(null);
+    setAuthRequired(false);
+    try {
+      const res = await claimsFetch('any', '/api/claims');
+      const result = await readClaimsClientResponse(res, parseLegacyClaimsLedgerPayload);
+      if (!result.ok) {
+        setData(null);
+        if (result.kind === 'unauthorized' || result.kind === 'forbidden') {
+          setAuthRequired(true);
+          setError(result.message);
+          return;
+        }
+        setError(result.message);
+        return;
+      }
+      setData(result.data);
+    } catch (e) {
+      setData(null);
+      setError(claimsNetworkFailure(e).message);
+    }
   }, []);
 
   useEffect(() => {
-    void refresh().catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'));
+    void refresh();
   }, [refresh]);
 
   return (
@@ -49,7 +62,13 @@ export function ClaimsPanel() {
           Refresh
         </button>
         {error ? <p className="text-rose-700">{error}</p> : null}
-        {!data ? <p className="text-zinc-500">Loading claims ledger…</p> : null}
+        {authRequired ? (
+          <p className="text-zinc-600">
+            Sign in with a reviewer or authority session to load the legacy ledger. Authorization
+            failures are not treated as an empty ledger.
+          </p>
+        ) : null}
+        {!data && !error ? <p className="text-zinc-500">Loading claims ledger…</p> : null}
         {data &&
         data.incidents.length === 0 &&
         data.claims.length === 0 &&

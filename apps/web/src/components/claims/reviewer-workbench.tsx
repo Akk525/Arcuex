@@ -6,28 +6,37 @@ import { Panel } from '@/components/panel';
 import { CaseStatusBadge } from '@/components/claims/case-status-badge';
 import { StatusBadge } from '@/components/status-badge';
 import { claimsFetch } from '@/lib/claims/claims-api';
-
-type CaseRow = {
-  id: string;
-  status: string;
-  syntheticDemo: boolean;
-  reviewReasonCode: string | null;
-  payable: { usdc: string | null };
-  updatedAt: string;
-};
+import {
+  claimsNetworkFailure,
+  parseClaimsCaseListPayload,
+  readClaimsClientResponse,
+  type ClaimsCaseListRow,
+} from '@/lib/claims/claims-client-response';
 
 export function ReviewerWorkbench() {
-  const [cases, setCases] = useState<CaseRow[] | null>(null);
+  const [cases, setCases] = useState<ClaimsCaseListRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
 
   useEffect(() => {
-    void claimsFetch('reviewer', '/api/claims/cases?status=REVIEW')
-      .then(async (res) => {
-        const json = (await res.json()) as { cases?: CaseRow[]; error?: string };
-        if (!res.ok) throw new Error(json.error ?? 'Failed');
-        setCases(json.cases ?? []);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed'));
+    void (async () => {
+      try {
+        const res = await claimsFetch('reviewer', '/api/claims/cases?status=REVIEW');
+        const result = await readClaimsClientResponse(res, parseClaimsCaseListPayload);
+        if (!result.ok) {
+          setCases(null);
+          if (result.kind === 'unauthorized' || result.kind === 'forbidden') {
+            setAuthRequired(true);
+          }
+          setError(result.message);
+          return;
+        }
+        setCases(result.data);
+      } catch (e) {
+        setCases(null);
+        setError(claimsNetworkFailure(e).message);
+      }
+    })();
   }, []);
 
   return (
@@ -40,7 +49,13 @@ export function ReviewerWorkbench() {
         unknown recoveries stay here — never silent approve/deny.
       </p>
       {error ? <p className="text-sm text-rose-700">{error}</p> : null}
-      {!cases ? <p className="text-sm text-zinc-500">Loading review queue…</p> : null}
+      {authRequired ? (
+        <p className="text-sm text-zinc-600">
+          Sign in with a reviewer session to load the review queue. Unauthorized responses are not
+          shown as an empty queue.
+        </p>
+      ) : null}
+      {!cases && !error ? <p className="text-sm text-zinc-500">Loading review queue…</p> : null}
       {cases && cases.length === 0 ? (
         <p className="text-sm text-zinc-500">Review queue empty.</p>
       ) : null}

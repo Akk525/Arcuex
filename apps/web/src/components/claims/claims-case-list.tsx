@@ -6,17 +6,12 @@ import { Panel } from '@/components/panel';
 import { CaseStatusBadge } from '@/components/claims/case-status-badge';
 import { StatusBadge } from '@/components/status-badge';
 import { claimsFetch } from '@/lib/claims/claims-api';
-
-type CaseRow = {
-  id: string;
-  status: string;
-  policyId: string;
-  syntheticDemo: boolean;
-  payable: { usdc: string | null };
-  reviewReasonCode: string | null;
-  updatedAt: string;
-  labels: { synthetic: string | null };
-};
+import {
+  claimsNetworkFailure,
+  parseClaimsCaseListPayload,
+  readClaimsClientResponse,
+  type ClaimsCaseListRow,
+} from '@/lib/claims/claims-client-response';
 
 const FILTERS = [
   'ALL',
@@ -29,24 +24,37 @@ const FILTERS = [
 ] as const;
 
 export function ClaimsCaseList() {
-  const [cases, setCases] = useState<CaseRow[] | null>(null);
+  const [cases, setCases] = useState<ClaimsCaseListRow[] | null>(null);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('ALL');
   const [error, setError] = useState<string | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const refresh = useCallback(async (status: (typeof FILTERS)[number]) => {
-    const q = status === 'ALL' ? '' : `?status=${status}`;
-    const res = await claimsFetch('any', `/api/claims/cases${q}`);
-    const json = (await res.json()) as { cases?: CaseRow[]; error?: string };
-    if (!res.ok) throw new Error(json.error ?? 'Failed to load cases');
-    setCases(json.cases ?? []);
+    setError(null);
+    setAuthRequired(false);
+    try {
+      const q = status === 'ALL' ? '' : `?status=${status}`;
+      const res = await claimsFetch('any', `/api/claims/cases${q}`);
+      const result = await readClaimsClientResponse(res, parseClaimsCaseListPayload);
+      if (!result.ok) {
+        setCases(null);
+        if (result.kind === 'unauthorized' || result.kind === 'forbidden') {
+          setAuthRequired(true);
+        }
+        setError(result.message);
+        return;
+      }
+      setCases(result.data);
+    } catch (e) {
+      setCases(null);
+      setError(claimsNetworkFailure(e).message);
+    }
   }, []);
 
   useEffect(() => {
     startTransition(() => {
-      void refresh(filter).catch((e) =>
-        setError(e instanceof Error ? e.message : 'Failed to load'),
-      );
+      void refresh(filter);
     });
   }, [filter, refresh]);
 
@@ -83,7 +91,13 @@ export function ClaimsCaseList() {
       </div>
 
       {error ? <p className="text-sm text-rose-700">{error}</p> : null}
-      {pending && !cases ? <p className="text-sm text-zinc-500">Loading cases…</p> : null}
+      {authRequired ? (
+        <p className="text-sm text-zinc-600">
+          Sign in with your wallet session to load claims cases. Unauthorized responses are not shown
+          as an empty list.
+        </p>
+      ) : null}
+      {pending && !cases && !error ? <p className="text-sm text-zinc-500">Loading cases…</p> : null}
       {cases && cases.length === 0 ? (
         <p className="text-sm text-zinc-500">
           No claims cases yet. Submit a claim against an active synthetic policy.

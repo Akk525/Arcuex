@@ -3,6 +3,12 @@
 import { useEffect, useState } from 'react';
 import { Panel } from '@/components/panel';
 import { StatusBadge } from '@/components/status-badge';
+import { claimsFetch } from '@/lib/claims/claims-api';
+import {
+  claimsNetworkFailure,
+  parseHistoricSettlementPayload,
+  readClaimsClientResponse,
+} from '@/lib/claims/claims-client-response';
 
 type Historic = {
   notice: string;
@@ -20,14 +26,28 @@ type Historic = {
 export function HistoricSettlementPanel() {
   const [data, setData] = useState<Historic | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
 
   useEffect(() => {
-    void fetch('/api/claims/settlements/historic')
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to load historic settlement');
-        setData((await res.json()) as Historic);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed'));
+    void (async () => {
+      try {
+        const res = await claimsFetch('any', '/api/claims/settlements/historic');
+        const result = await readClaimsClientResponse(res, (json) => {
+          const parsed = parseHistoricSettlementPayload(json);
+          return parsed ? (parsed as unknown as Historic) : null;
+        });
+        if (!result.ok) {
+          if (result.kind === 'unauthorized' || result.kind === 'forbidden') {
+            setAuthRequired(true);
+          }
+          setError(result.message);
+          return;
+        }
+        setData(result.data);
+      } catch (e) {
+        setError(claimsNetworkFailure(e).message);
+      }
+    })();
   }, []);
 
   return (
@@ -36,6 +56,12 @@ export function HistoricSettlementPanel() {
       action={<StatusBadge label="CHAIN RECEIPT" tone="ok" />}
     >
       {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+      {authRequired ? (
+        <p className="text-sm text-zinc-600">
+          Sign in to view the verified Arc Testnet settlement receipt. Auth failures are not treated
+          as a missing receipt.
+        </p>
+      ) : null}
       {!data && !error ? <p className="text-sm text-zinc-500">Loading receipt…</p> : null}
       {data ? (
         <div className="space-y-2 text-sm">
