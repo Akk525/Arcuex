@@ -14,6 +14,11 @@ Override with `NEXT_PUBLIC_QUICKNODE_RPC_URL` or `QUICKNODE_RPC_URL`.
 
 ## Streams (receiver implemented; live delivery blocked)
 
+Auth mechanism verified against QuickNode sample repos (HMAC-SHA256 over
+`nonce+timestamp+body` with Stream security token) — see
+[quicknode-streams-auth.md](./quicknode-streams-auth.md). Official guide URL
+404’d from this host; do not treat that as “HMAC unavailable.”
+
 Authenticated webhook receiver:
 
 `POST /api/webhooks/quicknode-streams`
