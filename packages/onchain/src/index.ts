@@ -1,5 +1,22 @@
 export { insurancePoolAbi } from './abi/insurance-pool';
-export { ARC_USDC_ADDRESS, ARC_TESTNET_DEPLOYMENTS, type DeployedAddresses } from './addresses';
+export {
+  ARC_USDC_ADDRESS,
+  ARC_TESTNET_DEPLOYMENTS,
+  loadArcTestnetDeployments,
+  type DeployedAddresses,
+} from './addresses';
+export {
+  loadDeploymentManifest,
+  parseDeploymentManifest,
+  defaultManifestPath,
+  type DeploymentManifest,
+} from './deployment-manifest';
+export {
+  connectArcTestnetAdapter,
+  createArcTestnetPublicClient,
+  type TestnetAdapterConfig,
+  type TestnetAdapterSnapshot,
+} from './testnet-adapter';
 export {
   toPolicyIdBytes32,
   hashCoverageTerms,
@@ -52,3 +69,21 @@ export {
   arcFeeOverrides,
   type LifecycleClients,
 } from './lifecycle';
+export {
+  buildLifecyclePlan,
+  formatLifecyclePlanReport,
+  DEFAULT_LIFECYCLE_AMOUNTS,
+  type LifecyclePlan,
+  type LifecycleAmounts,
+  type LifecycleRoles,
+} from './lifecycle-plan';
+export {
+  runTestnetLifecycle,
+  type LifecycleRunnerOptions,
+  type LifecycleRunnerResult,
+} from './lifecycle-runner';
+export {
+  evaluateSyntheticLifecycleClaim,
+  SYNTHETIC_LIFECYCLE_CLAIM_LABEL,
+  type SyntheticClaimEvaluation,
+} from './synthetic-claim-fixture';
