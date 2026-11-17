@@ -79,30 +79,44 @@ async function main() {
       if (e.skipped) console.log(`SKIP ${e.stepId}: ${e.reason}`);
       else
         console.log(
-          `DONE ${e.stepId}: hash=${e.tx?.hash ?? 'n/a'} block=${e.tx?.blockNumber ?? 'n/a'} events=${e.reason ?? ''}`,
+          `${e.status ?? 'UNKNOWN'} ${e.stepId}: hash=${e.hash ?? e.tx?.hash ?? 'n/a'} block=${e.tx?.blockNumber ?? 'n/a'} events=${e.reason ?? ''}`,
         );
     }
   }
   if (result.reconciliation) {
     console.log('--- reconciliation ---');
-    console.log(JSON.stringify(result.reconciliation, (_, v) => (typeof v === 'bigint' ? v.toString() : v), 2));
+    console.log(
+      JSON.stringify(
+        result.reconciliation,
+        (_, v) => (typeof v === 'bigint' ? v.toString() : v),
+        2,
+      ),
+    );
   }
 
-  if (result.plan.blockers.length > 0) {
-    console.log('\nPreflight incomplete — fix blockers before approving live txs.');
+  console.log(
+    `Process outcome: ${result.outcome}; broadcast hashes: ${result.executions.filter((e) => e.hash || e.tx).length}`,
+  );
+  if (result.outcome === 'runtime_failure') {
+    console.log(result.runtimeError ?? 'Reconciliation mismatch (see above).');
+    process.exitCode = 1;
+    return;
+  }
+  if (result.outcome === 'preflight_blocked') {
+    console.log(
+      '\nPreflight blocked before execution — no transactions broadcast by this invocation.',
+    );
     process.exitCode = 2;
     return;
   }
   if (args.mode === 'dry-run') {
-    console.log('\nDry-run OK. First live step (after funding authority + setting CLAIMS_AUTHORITY_PRIVATE_KEY):');
-    console.log(
-      '  pnpm --filter @arcuex/onchain lifecycle:preflight -- --mode=live --confirm=lp_approve',
-    );
+    console.log('\nSelected-step dry-run OK; no transactions broadcast.');
   }
 }
 
-main().catch((err: unknown) => {
-  const message = err instanceof Error ? err.message : String(err);
-  console.error('lifecycle failed:', message);
+main().catch(() => {
+  console.error(
+    'Lifecycle failed; inspect any recorded transaction hashes before retrying. Error details suppressed to protect credentials.',
+  );
   process.exitCode = 1;
 });

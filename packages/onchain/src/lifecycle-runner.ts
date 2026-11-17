@@ -18,10 +18,7 @@ import {
   type RoleKeyPresence,
 } from './lifecycle-plan';
 import { sendPreparedTx, type TxResult } from './tx';
-import {
-  connectArcTestnetAdapter,
-  type TestnetAdapterSnapshot,
-} from './testnet-adapter';
+import { connectArcTestnetAdapter, type TestnetAdapterSnapshot } from './testnet-adapter';
 import { decodePoolLogs } from './events';
 import {
   isClaimSettled,
@@ -52,11 +49,15 @@ export type LifecycleRunnerOptions = {
 export type LifecycleExecutionRecord = {
   stepId: string;
   tx?: TxResult;
+  hash?: Hex;
+  status?: 'success' | 'reverted' | 'pending_or_unknown';
   skipped: boolean;
   reason?: string;
 };
 
 export type LifecycleRunnerResult = {
+  outcome: 'preflight_blocked' | 'dry_run' | 'success' | 'runtime_failure';
+  runtimeError?: string;
   adapter: TestnetAdapterSnapshot;
   plan: LifecyclePlan;
   report: string;
@@ -96,15 +97,35 @@ function resolveRoles(
   adapter: TestnetAdapterSnapshot,
   env: NodeJS.ProcessEnv,
   beneficiaryOverride?: Address,
-): { roles: LifecycleRoles; keys: RoleKeyPresence; deployer: Address | null; wallets: {
-  lp: WalletClient | null;
-  policyholder: WalletClient | null;
-  claimsAuthority: WalletClient | null;
-} } {
-  const deployerPk = readPrivateKey(env, 'DEPLOYER_PRIVATE_KEY');
-  const lpPk = readPrivateKey(env, 'LP_PRIVATE_KEY');
-  const phPk = readPrivateKey(env, 'POLICYHOLDER_PRIVATE_KEY');
-  const caPk = readPrivateKey(env, 'CLAIMS_AUTHORITY_PRIVATE_KEY');
+  selected: Set<string> = new Set(),
+): {
+  roles: LifecycleRoles;
+  keys: RoleKeyPresence;
+  deployer: Address | null;
+  wallets: {
+    lp: WalletClient | null;
+    policyholder: WalletClient | null;
+    claimsAuthority: WalletClient | null;
+  };
+} {
+  const needsDeployer =
+    (env.LIFECYCLE_LP_USE_DEPLOYER === '1' &&
+      (selected.has('lp_deposit') || selected.has('lp_approve'))) ||
+    (env.LIFECYCLE_POLICYHOLDER_USE_DEPLOYER === '1' &&
+      (selected.has('bind_policy') || selected.has('policyholder_approve'))) ||
+    selected.has('bind_policy');
+  const deployerPk = needsDeployer ? readPrivateKey(env, 'DEPLOYER_PRIVATE_KEY') : null;
+  const lpPk =
+    selected.has('lp_deposit') || selected.has('lp_approve')
+      ? readPrivateKey(env, 'LP_PRIVATE_KEY')
+      : null;
+  const phPk =
+    selected.has('bind_policy') || selected.has('policyholder_approve')
+      ? readPrivateKey(env, 'POLICYHOLDER_PRIVATE_KEY')
+      : null;
+  const caPk = selected.has('settle_claim')
+    ? readPrivateKey(env, 'CLAIMS_AUTHORITY_PRIVATE_KEY')
+    : null;
 
   const lpUseDeployer = env.LIFECYCLE_LP_USE_DEPLOYER === '1';
   const policyholderUseDeployer = env.LIFECYCLE_POLICYHOLDER_USE_DEPLOYER === '1';
@@ -128,21 +149,10 @@ function resolveRoles(
   const roles: LifecycleRoles = {
     lp: (lpWallet?.account as Account | undefined)?.address ?? null,
     policyholder: (phWallet?.account as Account | undefined)?.address ?? null,
-    claimsAuthority: adapter.claimsAuthority,
+    claimsAuthority: (caWallet?.account as Account | undefined)?.address ?? adapter.claimsAuthority,
     beneficiary: beneficiary ?? null,
     feeRecipient: adapter.feeRecipient,
   };
-
-  // If ca wallet present, ensure it matches on-chain authority
-  if (caWallet?.account) {
-    const addr = (caWallet.account as Account).address;
-    if (addr.toLowerCase() !== adapter.claimsAuthority.toLowerCase()) {
-      throw new OnchainError(
-        'VALIDATION',
-        'CLAIMS_AUTHORITY_PRIVATE_KEY does not match on-chain claimsAuthority (addresses compared; key not printed)',
-      );
-    }
-  }
 
   return {
     roles,
@@ -179,7 +189,7 @@ export async function runTestnetLifecycle(
     rpcUrl: options.rpcUrl,
   });
 
-  const { roles, keys, wallets } = resolveRoles(adapter, env, options.beneficiary);
+  const { roles, keys, wallets } = resolveRoles(adapter, env, options.beneficiary, confirm);
 
   const plan = await buildLifecyclePlan({
     client,
@@ -187,6 +197,7 @@ export async function runTestnetLifecycle(
     roles,
     keys,
     mode,
+    selectedStepIds: [...confirm],
     policyEntityId: options.policyEntityId,
     claimEntityId: options.claimEntityId,
   });
@@ -195,100 +206,125 @@ export async function runTestnetLifecycle(
   const executions: LifecycleExecutionRecord[] = [];
 
   if (mode !== 'live') {
-    return { adapter, plan, report, executions };
+    return {
+      outcome: plan.blockers.length ? 'preflight_blocked' : 'dry_run',
+      adapter,
+      plan,
+      report,
+      executions,
+    };
   }
 
-  type Confirmable = NonNullable<LifecycleRunnerOptions['confirmStepIds']>[number];
-
-  async function maybeSend(
-    stepId: Confirmable | 'synthetic_evaluate',
-    wallet: WalletClient | null,
-  ): Promise<void> {
-    if (stepId === 'synthetic_evaluate') return;
-    if (!confirm.has(stepId)) {
-      executions.push({
-        stepId,
-        skipped: true,
-        reason: 'not in confirmStepIds — no broadcast',
-      });
-      return;
+  const walletForStep = (role: string) =>
+    role === 'lp'
+      ? wallets.lp
+      : role === 'policyholder'
+        ? wallets.policyholder
+        : role === 'claimsAuthority'
+          ? wallets.claimsAuthority
+          : null;
+  // Complete authorization and preparation validation before the first send.
+  for (const step of plan.steps.filter((s) => s.selected && s.status !== 'SATISFIED')) {
+    const wallet = walletForStep(step.role);
+    if (
+      !wallet?.account ||
+      !step.prepared ||
+      (wallet.account as Account).address.toLowerCase() !== step.prepared.account.toLowerCase()
+    ) {
+      step.blockers.push('signer missing or does not match prepared account');
+      step.status = 'BLOCKED';
+      plan.blockers.push(`${step.id}: signer missing or does not match prepared account`);
     }
-    const step = plan.steps.find((s) => s.id === stepId);
-    if (!step || step.blockers.length) {
-      executions.push({
-        stepId,
-        skipped: true,
-        reason: `blocked: ${step?.blockers.join('; ') ?? 'missing step'}`,
-      });
-      return;
-    }
-    if (!wallet?.account) {
-      executions.push({ stepId, skipped: true, reason: 'signer wallet missing' });
-      return;
-    }
-    if (!step.prepared) {
-      executions.push({ stepId, skipped: true, reason: 'no prepared tx' });
-      return;
-    }
-    const tx = await sendPreparedTx(client as PublicClient, wallet, step.prepared);
-    const receipt = await client.getTransactionReceipt({ hash: tx.hash });
-    const decoded = decodePoolLogs(receipt.logs);
-    executions.push({
-      stepId,
-      skipped: false,
-      tx,
-      reason: decoded.map((d) => d.event.eventName).join(',') || 'no-pool-events',
-    });
   }
-
-  // Execute only confirmed steps in order; stop on failure.
-  for (const step of plan.steps) {
-    if (step.id === 'synthetic_evaluate') {
-      executions.push({ stepId: step.id, skipped: false, reason: step.description });
+  if (plan.blockers.length) {
+    plan.readyForLive = false;
+    return {
+      outcome: 'preflight_blocked',
+      adapter,
+      plan,
+      report: formatLifecyclePlanReport(plan, adapter),
+      executions,
+    };
+  }
+  for (const step of plan.steps.filter((s) => s.selected)) {
+    if (step.status === 'SATISFIED') {
+      executions.push({ stepId: step.id, skipped: true, reason: 'ALREADY_DONE / SATISFIED' });
       continue;
     }
-    const wallet =
-      step.role === 'lp'
-        ? wallets.lp
-        : step.role === 'policyholder'
-          ? wallets.policyholder
-          : step.role === 'claimsAuthority'
-            ? wallets.claimsAuthority
-            : null;
-    await maybeSend(step.id as Confirmable | 'synthetic_evaluate', wallet);
-    const last = executions[executions.length - 1];
-    if (last && !last.skipped && step.id === 'settle_claim') {
-      // anti double-settle: verify mapping
-      const settled = await isClaimSettled(client, adapter.pool, plan.claim.claimId);
-      if (!settled) {
-        throw new OnchainError('TX_REVERTED', 'settle mined but settledClaims false');
+    const record: LifecycleExecutionRecord = { stepId: step.id, skipped: false };
+    executions.push(record);
+    try {
+      const tx = await sendPreparedTx(
+        client as PublicClient,
+        walletForStep(step.role)!,
+        step.prepared!,
+        (hash) => {
+          record.hash = hash;
+          record.status = 'pending_or_unknown';
+        },
+      );
+      record.tx = tx;
+      record.hash = tx.hash;
+      record.status = tx.status;
+      const receipt = await client.getTransactionReceipt({ hash: tx.hash });
+      record.reason = decodePoolLogs(receipt.logs)
+        .map((d) => d.event.eventName)
+        .join(',');
+      if (
+        step.id === 'settle_claim' &&
+        !(await isClaimSettled(client, adapter.pool, plan.claim.claimId))
+      )
+        throw new Error('settledClaims verification failed');
+    } catch (error) {
+      if (error instanceof OnchainError && error.code === 'TX_REVERTED') record.status = 'reverted';
+      // Preserve every known hash even if receipt waiting / post-send reads fail.
+      return {
+        outcome: 'runtime_failure',
+        runtimeError:
+          'Execution or post-send verification failed; inspect recorded hashes before retrying.',
+        adapter,
+        plan,
+        report,
+        executions,
+      };
+    }
+  }
+
+  try {
+    const pool = await readPoolSnapshot(client, adapter.pool);
+    const mismatches: string[] = [];
+    if (pool.usdcBalance < pool.totalAssets) mismatches.push('USDC < totalAssets');
+    if (pool.totalAssets < pool.totalReserved) mismatches.push('underfunded');
+
+    const settleDone = executions.some((e) => e.stepId === 'settle_claim' && !e.skipped && e.tx);
+    if (settleDone) {
+      const policy = await readOnchainPolicy(client, adapter.pool, plan.policyId);
+      const loss = await readLossAccounting(client, adapter.pool, plan.claim.lossKey);
+      if (!policy.bound) mismatches.push('policy not bound after lifecycle');
+      if (policy.paidOut < plan.amounts.payoutMicros) {
+        mismatches.push('policy.paidOut < planned payout');
+      }
+      if (!loss.exists || loss.paid < plan.amounts.payoutMicros) {
+        mismatches.push('loss accounting missing or underpaid');
       }
     }
+
+    return {
+      outcome: mismatches.length ? 'runtime_failure' : 'success',
+      adapter,
+      plan,
+      report,
+      executions,
+      reconciliation: { ok: mismatches.length === 0, mismatches, pool },
+    };
+  } catch {
+    return {
+      outcome: 'runtime_failure',
+      runtimeError: 'Post-execution reconciliation failed; inspect recorded hashes.',
+      adapter,
+      plan,
+      report,
+      executions,
+    };
   }
-
-  const pool = await readPoolSnapshot(client, adapter.pool);
-  const mismatches: string[] = [];
-  if (pool.usdcBalance < pool.totalAssets) mismatches.push('USDC < totalAssets');
-  if (pool.totalAssets < pool.totalReserved) mismatches.push('underfunded');
-
-  const settleDone = executions.some((e) => e.stepId === 'settle_claim' && !e.skipped && e.tx);
-  if (settleDone) {
-    const policy = await readOnchainPolicy(client, adapter.pool, plan.policyId);
-    const loss = await readLossAccounting(client, adapter.pool, plan.claim.lossKey);
-    if (!policy.bound) mismatches.push('policy not bound after lifecycle');
-    if (policy.paidOut < plan.amounts.payoutMicros) {
-      mismatches.push('policy.paidOut < planned payout');
-    }
-    if (!loss.exists || loss.paid < plan.amounts.payoutMicros) {
-      mismatches.push('loss accounting missing or underpaid');
-    }
-  }
-
-  return {
-    adapter,
-    plan,
-    report,
-    executions,
-    reconciliation: { ok: mismatches.length === 0, mismatches, pool },
-  };
 }

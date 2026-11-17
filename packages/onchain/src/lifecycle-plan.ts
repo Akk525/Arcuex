@@ -1,6 +1,6 @@
 import type { Address, Hex, PublicClient } from 'viem';
 import { erc20Abi, formatUnits, isAddressEqual } from 'viem';
-import { ARC_TESTNET_CHAIN_ID, ARC_USDC_ERC20_DECIMALS } from '@arcuex/chain';
+import { ARC_TESTNET_CHAIN_ID } from '@arcuex/chain';
 import { buildSyntheticTerms, formatUsdc, parseUsdcDecimal } from '@arcuex/domain';
 import { hashCoverageTerms, toPolicyIdBytes32 } from './ids';
 import {
@@ -10,9 +10,13 @@ import {
   prepareUsdcApprove,
   type PreparedTx,
 } from './tx';
-import { evaluateSyntheticLifecycleClaim, type SyntheticClaimEvaluation } from './synthetic-claim-fixture';
+import {
+  evaluateSyntheticLifecycleClaim,
+  type SyntheticClaimEvaluation,
+} from './synthetic-claim-fixture';
 import type { TestnetAdapterSnapshot } from './testnet-adapter';
-import { isClaimSettled, readOnchainPolicy } from './pool-reads';
+import { insurancePoolAbi } from './abi/insurance-pool';
+import { isClaimSettled, readOnchainPolicy, readLossAccounting } from './pool-reads';
 
 export type LifecycleAmounts = {
   /** Default 5 USDC */
@@ -53,6 +57,8 @@ export type PlannedStep = {
     | 'bind_policy'
     | 'synthetic_evaluate'
     | 'settle_claim';
+  selected: boolean;
+  status: 'READY' | 'SATISFIED' | 'BLOCKED' | 'NOT_SELECTED';
   role: 'lp' | 'policyholder' | 'claimsAuthority' | 'offchain';
   description: string;
   prepared?: PreparedTx;
@@ -131,6 +137,7 @@ export async function buildLifecyclePlan(input: {
   amounts?: Partial<LifecycleAmounts>;
   policyEntityId?: string;
   claimEntityId?: string;
+  selectedStepIds?: string[];
   mode?: 'dry-run' | 'live';
 }): Promise<LifecyclePlan> {
   const amounts: LifecycleAmounts = { ...DEFAULT_LIFECYCLE_AMOUNTS, ...input.amounts };
@@ -140,41 +147,11 @@ export async function buildLifecyclePlan(input: {
   if (input.adapter.chainId !== ARC_TESTNET_CHAIN_ID) {
     blockers.push(`wrong chain ${input.adapter.chainId}`);
   }
-  if (amounts.payoutMicros > amounts.policyLimitMicros) {
-    blockers.push('payout exceeds policy limit');
-  }
-  if (amounts.payoutMicros > amounts.lossCapMicros) {
-    blockers.push('payout exceeds lossCap');
-  }
-  if (amounts.lpDepositMicros < amounts.policyLimitMicros) {
-    blockers.push('LP deposit must cover full-collateral policy limit');
-  }
-
-  if (!input.roles.lp) blockers.push('LP address unset');
-  if (!input.roles.policyholder) blockers.push('policyholder address unset');
-  if (!input.roles.beneficiary) blockers.push('beneficiary address unset');
-
-  const lpKeyOk = input.keys.lpKey || input.keys.lpUseDeployer;
-  const phKeyOk = input.keys.policyholderKey || input.keys.policyholderUseDeployer;
-  if (!lpKeyOk) {
-    blockers.push('LP signer missing (set LP_PRIVATE_KEY or LIFECYCLE_LP_USE_DEPLOYER=1)');
-  }
-  if (!phKeyOk) {
-    blockers.push(
-      'policyholder signer missing (set POLICYHOLDER_PRIVATE_KEY or LIFECYCLE_POLICYHOLDER_USE_DEPLOYER=1)',
-    );
-  }
-  if (!input.keys.claimsAuthorityKey) {
-    blockers.push(
-      'CLAIMS_AUTHORITY_PRIVATE_KEY unset — cannot settle (authority ≠ deployer; no auto key gen)',
-    );
-  }
-
   const policyEntityId =
     input.policyEntityId ?? `testnet-lifecycle-${input.adapter.manifest.verifiedAt.slice(0, 10)}`;
   const claimEntityId = input.claimEntityId ?? `${policyEntityId}-claim-1`;
 
-  const now = BigInt(Math.floor(Date.now() / 1000));
+  const now = (await input.client.getBlock()).timestamp;
   const coverageStart = now;
   const coverageEnd = now + BigInt(amounts.coverageDays * 24 * 60 * 60);
 
@@ -186,10 +163,23 @@ export async function buildLifecyclePlan(input: {
   });
   const policyId = toPolicyIdBytes32(policyEntityId);
   const termsHash = hashCoverageTerms(terms);
+  const existing = await readOnchainPolicy(input.client, input.adapter.pool, policyId);
+  const selected = new Set(
+    input.selectedStepIds ?? [
+      'lp_approve',
+      'lp_deposit',
+      'policyholder_approve',
+      'bind_policy',
+      'settle_claim',
+    ],
+  );
+  const known = ['lp_approve', 'lp_deposit', 'policyholder_approve', 'bind_policy', 'settle_claim'];
+  for (const id of selected) if (!known.includes(id)) blockers.push(`unknown selected step: ${id}`);
 
   // Placeholder only for dry-run planning when beneficiary unset — never a live payout target.
   const beneficiary =
     input.roles.beneficiary ??
+    (existing.bound ? existing.beneficiary : null) ??
     ('0x0000000000000000000000000000000000000001' as Address);
 
   const claim = evaluateSyntheticLifecycleClaim({
@@ -199,159 +189,188 @@ export async function buildLifecyclePlan(input: {
     exposureId: `${policyEntityId}:exposure`,
     incidentId: `${policyEntityId}:incident`,
     lossLotId: `${policyEntityId}:lot-1`,
-    insuredAgent: input.roles.policyholder ?? 'unset',
+    insuredAgent: existing.bound ? existing.premiumPayer : (input.roles.policyholder ?? 'unset'),
     beneficiary,
     requestedPayoutMicros: amounts.payoutMicros,
     lossCapMicros: amounts.lossCapMicros,
     observedEventRef: 'synthetic:oracle-liq:testnet-lifecycle-1',
   });
-  if (!claim.evaluation.verified) {
-    blockers.push(`synthetic evaluation rejected: ${claim.evaluation.reason}`);
-  }
 
   const pool = input.adapter.pool;
   const usdc = input.adapter.usdc;
   const steps: PlannedStep[] = [];
 
-  // Balances / gas checks
-  if (input.roles.lp) {
-    const [bal, native, allowance] = await Promise.all([
-      readUsdcBalance(input.client, usdc, input.roles.lp),
-      readNativeBalance(input.client, input.roles.lp),
-      readAllowance(input.client, usdc, input.roles.lp, pool),
-    ]);
-    const lpBlockers: string[] = [];
-    if (bal < amounts.lpDepositMicros) {
-      lpBlockers.push(
-        `LP USDC ${formatUnits(bal, ARC_USDC_ERC20_DECIMALS)} < deposit ${formatUnits(amounts.lpDepositMicros, ARC_USDC_ERC20_DECIMALS)}`,
-      );
-    }
-    if (native === 0n) lpBlockers.push('LP native balance is 0 (need gas)');
-    blockers.push(...lpBlockers);
+  const add = (
+    id: PlannedStep['id'],
+    role: PlannedStep['role'],
+    description: string,
+    done: boolean,
+    issues: string[],
+    prepared?: PreparedTx,
+  ) => {
+    const active = selected.has(id);
+    steps.push({
+      id,
+      role,
+      description,
+      prepared,
+      selected: active,
+      status: done ? 'SATISFIED' : !active ? 'NOT_SELECTED' : issues.length ? 'BLOCKED' : 'READY',
+      requiresLiveConfirm: role !== 'offchain',
+      blockers: active && !done ? issues : [],
+    });
+  };
+  const signerIssues = async (address: Address | null, key: boolean, label: string) => {
+    const issues: string[] = [];
+    if (!address) issues.push(`${label} address unset`);
+    if (!key) issues.push(`${label} signer missing`);
+    if (address && (await readNativeBalance(input.client, address)) === 0n)
+      issues.push(`${label} native balance is 0 (need gas)`);
+    return issues;
+  };
+  // sharesOf is authoritative for this demo's one-deposit-per-LP guard. It is
+  // not a deposit receipt: transferred/burned shares require operator review.
+  const lp = input.roles.lp;
+  const shares = lp
+    ? await input.client.readContract({
+        address: pool,
+        abi: insurancePoolAbi,
+        functionName: 'sharesOf',
+        args: [lp],
+      })
+    : 0n;
+  const deposited = shares > 0n;
+  const lpAllowance = lp ? await readAllowance(input.client, usdc, lp, pool) : 0n;
+  const lpIssues = await signerIssues(lp, input.keys.lpKey || input.keys.lpUseDeployer, 'LP');
+  const depositIssues = [...lpIssues];
+  if (lp && (await readUsdcBalance(input.client, usdc, lp)) < amounts.lpDepositMicros)
+    depositIssues.push('LP USDC balance below deposit');
+  if (amounts.lpDepositMicros <= 0n) depositIssues.push('deposit must be positive');
+  if (lpAllowance < amounts.lpDepositMicros && !selected.has('lp_approve'))
+    depositIssues.push('deposit requires allowance or selected lp_approve');
+  add(
+    'lp_approve',
+    'lp',
+    'Approve LP deposit',
+    deposited || lpAllowance >= amounts.lpDepositMicros,
+    lpIssues,
+    lp
+      ? prepareUsdcApprove({ usdc, spender: pool, amount: amounts.lpDepositMicros, account: lp })
+      : undefined,
+  );
+  add(
+    'lp_deposit',
+    'lp',
+    'Deposit LP capital (existing shares satisfy demo deposit)',
+    deposited,
+    depositIssues,
+    lp ? prepareDeposit({ pool, amount: amounts.lpDepositMicros, account: lp }) : undefined,
+  );
 
-    steps.push({
-      id: 'lp_approve',
-      role: 'lp',
-      description: `LP approve ${formatUnits(amounts.lpDepositMicros, 6)} USDC to pool (current allowance ${formatUnits(allowance, 6)})`,
-      prepared: input.roles.lp
-        ? prepareUsdcApprove({
-            usdc,
-            spender: pool,
-            amount: amounts.lpDepositMicros,
-            account: input.roles.lp,
-          })
-        : undefined,
-      requiresLiveConfirm: true,
-      blockers: lpBlockers,
-    });
-    steps.push({
-      id: 'lp_deposit',
-      role: 'lp',
-      description: `LP deposit ${formatUnits(amounts.lpDepositMicros, 6)} USDC`,
-      prepared: input.roles.lp
-        ? prepareDeposit({ pool, amount: amounts.lpDepositMicros, account: input.roles.lp })
-        : undefined,
-      requiresLiveConfirm: true,
-      blockers: lpBlockers,
-    });
+  const ph = input.roles.policyholder;
+  let phAllowance = ph ? await readAllowance(input.client, usdc, ph, pool) : 0n;
+  // Approvals share one allowance when LP and policyholder reuse an account.
+  // A selected deposit consumes that allowance before premium approval/bind.
+  if (lp && ph && isAddressEqual(lp, ph)) {
+    if (selected.has('lp_approve') && !deposited && lpAllowance < amounts.lpDepositMicros)
+      phAllowance = amounts.lpDepositMicros;
+    if (selected.has('lp_deposit') && !deposited)
+      phAllowance =
+        phAllowance >= amounts.lpDepositMicros ? phAllowance - amounts.lpDepositMicros : 0n;
   }
+  const phIssues = await signerIssues(
+    ph,
+    input.keys.policyholderKey || input.keys.policyholderUseDeployer,
+    'policyholder',
+  );
+  const bindIssues = [...phIssues];
+  if (!input.roles.beneficiary) bindIssues.push('beneficiary address unset');
+  if (ph && (await readUsdcBalance(input.client, usdc, ph)) < amounts.premiumMicros)
+    bindIssues.push('policyholder USDC balance below premium');
+  if (phAllowance < amounts.premiumMicros && !selected.has('policyholder_approve'))
+    bindIssues.push('bind requires allowance or selected policyholder_approve');
+  const plannedDeposit = selected.has('lp_deposit') && !deposited ? amounts.lpDepositMicros : 0n;
+  if (amounts.policyLimitMicros > input.adapter.poolSnapshot.availableCapital + plannedDeposit)
+    bindIssues.push('policy limit exceeds available capital including selected deposit');
+  if (
+    amounts.policyLimitMicros <= 0n ||
+    amounts.premiumMicros <= 0n ||
+    coverageEnd <= coverageStart
+  )
+    bindIssues.push('invalid policy amounts or coverage window');
+  add(
+    'policyholder_approve',
+    'policyholder',
+    'Approve policy premium',
+    existing.bound || phAllowance >= amounts.premiumMicros,
+    phIssues,
+    ph
+      ? prepareUsdcApprove({ usdc, spender: pool, amount: amounts.premiumMicros, account: ph })
+      : undefined,
+  );
+  add(
+    'bind_policy',
+    'policyholder',
+    'Bind policy (bound policy satisfies prerequisite)',
+    existing.bound,
+    bindIssues,
+    ph
+      ? prepareBindPolicy({
+          pool,
+          account: ph,
+          policyId,
+          termsHash,
+          beneficiary,
+          premium: amounts.premiumMicros,
+          limit: amounts.policyLimitMicros,
+          coverageStart,
+          coverageEnd,
+        })
+      : undefined,
+  );
+  add('synthetic_evaluate', 'offchain', claim.label, true, []);
 
-  if (input.roles.policyholder && input.roles.beneficiary) {
-    const [bal, native] = await Promise.all([
-      readUsdcBalance(input.client, usdc, input.roles.policyholder),
-      readNativeBalance(input.client, input.roles.policyholder),
-    ]);
-    const phBlockers: string[] = [];
-    if (bal < amounts.premiumMicros) {
-      phBlockers.push(
-        `policyholder USDC ${formatUnits(bal, 6)} < premium ${formatUnits(amounts.premiumMicros, 6)}`,
-      );
-    }
-    if (native === 0n) phBlockers.push('policyholder native balance is 0 (need gas)');
-
-    const availableAfterDeposit =
-      input.adapter.poolSnapshot.availableCapital + amounts.lpDepositMicros;
-    // After deposit, available ≈ current available + deposit (approx for empty pool)
-    if (amounts.policyLimitMicros > availableAfterDeposit && input.adapter.poolSnapshot.totalAssets === 0n) {
-      // empty pool: after 5 USDC deposit, available = 5; limit 2 OK
-    } else if (
-      input.adapter.poolSnapshot.totalAssets > 0n &&
-      amounts.policyLimitMicros > input.adapter.poolSnapshot.availableCapital + amounts.lpDepositMicros
-    ) {
-      phBlockers.push('policy limit may exceed available capital after planned deposit');
-    }
-
-    const existing = await readOnchainPolicy(input.client, pool, policyId);
-    if (existing.bound) {
-      phBlockers.push(`policyId already bound on-chain (${policyEntityId})`);
-    }
-    blockers.push(...phBlockers);
-
-    steps.push({
-      id: 'policyholder_approve',
-      role: 'policyholder',
-      description: `Policyholder approve premium ${formatUnits(amounts.premiumMicros, 6)} USDC`,
-      prepared: prepareUsdcApprove({
-        usdc,
-        spender: pool,
-        amount: amounts.premiumMicros,
-        account: input.roles.policyholder,
-      }),
-      requiresLiveConfirm: true,
-      blockers: phBlockers,
-    });
-    steps.push({
-      id: 'bind_policy',
-      role: 'policyholder',
-      description: `Bind policy limit=${formatUnits(amounts.policyLimitMicros, 6)} premium=${formatUnits(amounts.premiumMicros, 6)} beneficiary=${redact(input.roles.beneficiary)}`,
-      prepared: prepareBindPolicy({
-        pool,
-        account: input.roles.policyholder,
-        policyId,
-        termsHash,
-        beneficiary: input.roles.beneficiary,
-        premium: amounts.premiumMicros,
-        limit: amounts.policyLimitMicros,
-        coverageStart,
-        coverageEnd,
-      }),
-      requiresLiveConfirm: true,
-      blockers: phBlockers,
-    });
-  }
-
-  steps.push({
-    id: 'synthetic_evaluate',
-    role: 'offchain',
-    description: `${claim.label} → outcome=${claim.evaluation.outcome}`,
-    requiresLiveConfirm: false,
-    blockers: claim.evaluation.verified ? [] : [claim.evaluation.reason],
-  });
-
+  const settled = await isClaimSettled(input.client, pool, claim.claimId);
+  const loss = await readLossAccounting(input.client, pool, claim.lossKey);
   const auth = input.adapter.claimsAuthority;
-  const authNative = await readNativeBalance(input.client, auth);
-  const settleBlockers: string[] = [];
-  if (!isAddressEqual(auth, input.roles.claimsAuthority)) {
-    settleBlockers.push('plan claimsAuthority ≠ on-chain claimsAuthority');
+  const settleIssues = await signerIssues(auth, input.keys.claimsAuthorityKey, 'claimsAuthority');
+  if (!isAddressEqual(auth, input.roles.claimsAuthority))
+    settleIssues.push('claimsAuthority mismatch');
+  if (!claim.evaluation.verified)
+    settleIssues.push(`synthetic evaluation rejected: ${claim.evaluation.reason}`);
+  if (!existing.bound && !selected.has('bind_policy'))
+    settleIssues.push('settlement requires bound policy or selected bind_policy');
+  if (amounts.payoutMicros <= 0n || amounts.lossCapMicros <= 0n)
+    settleIssues.push('payout/lossCap must be positive');
+  if (amounts.payoutMicros > amounts.lossCapMicros) settleIssues.push('payout exceeds lossCap');
+  const chainNow = now;
+  if (existing.bound) {
+    if (existing.cancelled) settleIssues.push('policy cancelled');
+    if (!isAddressEqual(beneficiary, existing.beneficiary))
+      settleIssues.push('beneficiary differs from bound policy');
+    if (chainNow < existing.coverageStart || chainNow > existing.coverageEnd)
+      settleIssues.push('outside policy coverage window');
+    if (
+      amounts.payoutMicros > existing.limit - existing.paidOut ||
+      amounts.payoutMicros > existing.reserved
+    )
+      settleIssues.push('payout exceeds remaining policy limit/reservation');
+  } else if (amounts.payoutMicros > amounts.policyLimitMicros)
+    settleIssues.push('payout exceeds policy limit');
+  if (loss.exists) {
+    if (loss.policyId !== policyId) settleIssues.push('lossKey belongs to different policy');
+    if (loss.lossCap !== amounts.lossCapMicros)
+      settleIssues.push('lossCap differs from immutable onchain cap');
+    if (loss.paid + amounts.payoutMicros > loss.lossCap)
+      settleIssues.push('lossKey cap exhausted or insufficient');
   }
-  if (authNative === 0n) {
-    settleBlockers.push(
-      'claimsAuthority native balance is 0 — cannot pay gas for settleClaim (do not auto-fund)',
-    );
-  }
-  if (!input.keys.claimsAuthorityKey) {
-    settleBlockers.push('CLAIMS_AUTHORITY_PRIVATE_KEY unset');
-  }
-  if (await isClaimSettled(input.client, pool, claim.claimId)) {
-    settleBlockers.push('claimId already settled (anti-replay)');
-  }
-  blockers.push(...settleBlockers);
-
-  steps.push({
-    id: 'settle_claim',
-    role: 'claimsAuthority',
-    description: `Authority settle ${formatUnits(amounts.payoutMicros, 6)} USDC to beneficiary (lossKey bound; evidence does not authorize)`,
-    prepared: prepareSettleClaim({
+  add(
+    'settle_claim',
+    'claimsAuthority',
+    'Authority settle synthetic claim',
+    settled,
+    settleIssues,
+    prepareSettleClaim({
       pool,
       account: auth,
       policyId: claim.policyId,
@@ -361,9 +380,16 @@ export async function buildLifecyclePlan(input: {
       lossCap: amounts.lossCapMicros,
       payoutTo: beneficiary,
     }),
-    requiresLiveConfirm: true,
-    blockers: settleBlockers,
-  });
+  );
+  // Combined spending matters when the demo reuses one signer for both roles.
+  if (lp && ph && isAddressEqual(lp, ph)) {
+    const spend =
+      (selected.has('lp_deposit') && !deposited ? amounts.lpDepositMicros : 0n) +
+      (selected.has('bind_policy') && !existing.bound ? amounts.premiumMicros : 0n);
+    if (spend > (await readUsdcBalance(input.client, usdc, lp)))
+      blockers.push('shared LP/policyholder balance below combined selected spending');
+  }
+  blockers.push(...steps.flatMap((step) => step.blockers));
 
   const uniqueBlockers = [...new Set(blockers)];
   return {
@@ -382,7 +408,10 @@ export async function buildLifecyclePlan(input: {
   };
 }
 
-export function formatLifecyclePlanReport(plan: LifecyclePlan, adapter: TestnetAdapterSnapshot): string {
+export function formatLifecyclePlanReport(
+  plan: LifecyclePlan,
+  adapter: TestnetAdapterSnapshot,
+): string {
   const lines: string[] = [];
   lines.push('=== Arcuex Arc Testnet lifecycle plan ===');
   lines.push(`mode: ${plan.mode} (default dry-run; live requires explicit confirm)`);
@@ -405,9 +434,7 @@ export function formatLifecyclePlanReport(plan: LifecyclePlan, adapter: TestnetA
   lines.push(
     `premium: ${plan.amounts.premiumMicros} (${formatUnits(plan.amounts.premiumMicros, 6)})`,
   );
-  lines.push(
-    `payout / lossCap: ${plan.amounts.payoutMicros} / ${plan.amounts.lossCapMicros}`,
-  );
+  lines.push(`payout / lossCap: ${plan.amounts.payoutMicros} / ${plan.amounts.lossCapMicros}`);
   lines.push('--- roles ---');
   lines.push(`LP: ${redact(plan.roles.lp)}`);
   lines.push(`policyholder: ${redact(plan.roles.policyholder)}`);
@@ -419,7 +446,7 @@ export function formatLifecyclePlanReport(plan: LifecyclePlan, adapter: TestnetA
   lines.push(`settlementAuthorizedByEvidence: ${plan.claim.settlementAuthorizedByEvidence}`);
   lines.push('--- planned steps ---');
   for (const step of plan.steps) {
-    const flag = step.blockers.length ? 'BLOCKED' : 'OK';
+    const flag = step.status;
     lines.push(`[${flag}] ${step.id} (${step.role}): ${step.description}`);
     for (const b of step.blockers) lines.push(`    - ${b}`);
   }

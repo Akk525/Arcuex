@@ -48,6 +48,7 @@ async function sendPrepared(
   publicClient: PublicClient,
   walletClient: AnyWallet,
   prepared: PreparedTx,
+  onBroadcast?: (hash: Hash) => void,
 ): Promise<TxResult> {
   const account = walletClient.account;
   if (!account) {
@@ -70,9 +71,10 @@ async function sendPrepared(
     });
   }
 
+  onBroadcast?.(hash);
   const result = await waitReceipt(publicClient, hash);
   if (result.status === 'reverted') {
-    throw new OnchainError('TX_REVERTED', `Transaction reverted: ${prepared.description}`, {
+    throw new OnchainError('TX_REVERTED', `Transaction ${hash} reverted: ${prepared.description}`, {
       cause: result,
     });
   }
@@ -180,6 +182,7 @@ export async function sendPreparedTx(
   publicClient: PublicClient,
   walletClient: AnyWallet,
   prepared: PreparedTx,
+  onBroadcast?: (hash: Hash) => void,
 ): Promise<TxResult> {
-  return sendPrepared(publicClient, walletClient, prepared);
+  return sendPrepared(publicClient, walletClient, prepared, onBroadcast);
 }
