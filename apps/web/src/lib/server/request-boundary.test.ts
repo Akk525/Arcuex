@@ -19,27 +19,41 @@ function cfg(partial: Partial<RuntimeConfig>): RuntimeConfig {
     reviewerToken: 'cd'.repeat(32),
     authorityToken: 'ef'.repeat(32),
     systemToken: '',
+    acceptanceGateToken: '11'.repeat(32),
     sessionEpoch: 'launch-2026-11-20',
     storageId: 'vol-arcuex-beta-01',
     sessionTtlSeconds: 28800,
     nonceTtlSeconds: 600,
     secureCookies: true,
     requireRailwayEdge: true,
+    requireAcceptanceGate: true,
     ...partial,
   };
 }
 
 describe('requestBoundaryError', () => {
-  it('accepts Railway public-edge requests', () => {
+  it('accepts Railway public-edge requests with acceptance gate', () => {
     const request = new Request('https://beta.example.com/api/policies', {
       headers: {
         host: 'beta.example.com',
         'x-forwarded-proto': 'https',
         'x-railway-edge': 'us-west2',
         'x-real-ip': '203.0.113.10',
+        'x-arcuex-acceptance-gate': '11'.repeat(32),
       },
     });
     expect(requestBoundaryError(request, cfg({}))).toBeNull();
+  });
+
+  it('rejects missing acceptance gate in public-beta', () => {
+    const request = new Request('https://beta.example.com/api/policies', {
+      headers: {
+        host: 'beta.example.com',
+        'x-forwarded-proto': 'https',
+        'x-railway-edge': 'us-west2',
+      },
+    });
+    expect(requestBoundaryError(request, cfg({}))?.status).toBe(401);
   });
 
   it('rejects client-supplied proxy identity headers', () => {
@@ -48,6 +62,7 @@ describe('requestBoundaryError', () => {
         host: 'beta.example.com',
         'x-forwarded-proto': 'https',
         'x-railway-edge': 'us-west2',
+        'x-arcuex-acceptance-gate': '11'.repeat(32),
         'x-arcuex-proxy-token': 'ab'.repeat(32),
       },
     });
@@ -59,6 +74,7 @@ describe('requestBoundaryError', () => {
       headers: {
         host: 'beta.example.com',
         'x-forwarded-proto': 'https',
+        'x-arcuex-acceptance-gate': '11'.repeat(32),
       },
     });
     expect(requestBoundaryError(request, cfg({}))?.error).toMatch(/Railway public edge/);
@@ -71,6 +87,7 @@ describe('requestBoundaryError', () => {
         host: 'beta.example.com',
         'x-forwarded-proto': 'https',
         'x-railway-edge': 'us-west2',
+        'x-arcuex-acceptance-gate': '11'.repeat(32),
         origin: 'https://evil.example',
       },
     });

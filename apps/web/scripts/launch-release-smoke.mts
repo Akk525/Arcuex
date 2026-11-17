@@ -23,8 +23,12 @@ function assert(cond: unknown, message: string): asserts cond {
   if (!cond) throw new Error(message);
 }
 
+const acceptanceGate = process.env.ARCUEX_ACCEPTANCE_GATE_TOKEN?.trim();
+
 async function json(path: string, init?: RequestInit) {
-  const response = await fetch(`${baseUrl}${path}`, init);
+  const headers = new Headers(init?.headers);
+  if (acceptanceGate) headers.set('x-arcuex-acceptance-gate', acceptanceGate);
+  const response = await fetch(`${baseUrl}${path}`, { ...init, headers });
   const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   return { response, body };
 }

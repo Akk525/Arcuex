@@ -9,6 +9,27 @@ import type { RuntimeConfig } from './runtime-config';
  *   untrusted sibling services that can reach this HTTP port.
  * - Never accept client-supplied x-arcuex-proxy-token / x-arcuex-client-ip.
  */
+function timingSafeEqualString(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let n = 0;
+  for (let i = 0; i < a.length; i += 1) n |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return n === 0;
+}
+
+function acceptanceGatePresented(request: Request, expected: string): boolean {
+  const header = request.headers.get('x-arcuex-acceptance-gate')?.trim() ?? '';
+  if (header && timingSafeEqualString(header, expected)) return true;
+  const cookie = request.headers.get('cookie') ?? '';
+  for (const part of cookie.split(';')) {
+    const [rawKey, ...rest] = part.trim().split('=');
+    if (rawKey === 'arcuex_acceptance_gate') {
+      const value = rest.join('=');
+      if (value && timingSafeEqualString(value, expected)) return true;
+    }
+  }
+  return false;
+}
+
 export function requestBoundaryError(
   request: Request,
   c: RuntimeConfig,
@@ -18,6 +39,12 @@ export function requestBoundaryError(
   // Reject legacy/custom proxy auth headers entirely — they are never authoritative.
   if (request.headers.has('x-arcuex-proxy-token') || request.headers.has('x-arcuex-client-ip')) {
     return { status: 400, error: 'Unsupported ingress identity headers' };
+  }
+
+  if (c.requireAcceptanceGate) {
+    if (!acceptanceGatePresented(request, c.acceptanceGateToken)) {
+      return { status: 401, error: 'Acceptance gate required' };
+    }
   }
 
   const host = request.headers.get('host');

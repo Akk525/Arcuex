@@ -137,6 +137,12 @@ export function validateRuntimeEnvironment(env: Record<string, string | undefine
   const reviewerToken = secret('CLAIMS_REVIEWER_API_TOKEN');
   const authorityToken = secret('CLAIMS_AUTHORITY_API_TOKEN');
   const systemToken = secret('CLAIMS_SYSTEM_API_TOKEN', false);
+  // Private host-acceptance / pre-public gate. Required for public-beta so a
+  // Railway HTTPS domain is not anonymously reachable before authorization.
+  const acceptanceGateToken = secret(
+    'ARCUEX_ACCEPTANCE_GATE_TOKEN',
+    enforced && profile === 'public-beta',
+  );
 
   if (enforced) {
     const secrets = [
@@ -144,6 +150,7 @@ export function validateRuntimeEnvironment(env: Record<string, string | undefine
       reviewerToken,
       authorityToken,
       ...(systemToken ? [systemToken] : []),
+      ...(acceptanceGateToken ? [acceptanceGateToken] : []),
     ];
     fail('operator/rate credentials must be distinct', new Set(secrets).size === secrets.length);
     fail('CLAIMS_COOKIE_SECURE', value('CLAIMS_COOKIE_SECURE') === '1');
@@ -204,12 +211,14 @@ export function validateRuntimeEnvironment(env: Record<string, string | undefine
     reviewerToken,
     authorityToken,
     systemToken,
+    acceptanceGateToken,
     sessionEpoch,
     storageId,
     sessionTtlSeconds,
     nonceTtlSeconds,
     secureCookies: enforced || value('CLAIMS_COOKIE_SECURE') === '1',
     requireRailwayEdge: enforced && profile === 'public-beta',
+    requireAcceptanceGate: enforced && profile === 'public-beta' && Boolean(acceptanceGateToken),
   };
 }
 
