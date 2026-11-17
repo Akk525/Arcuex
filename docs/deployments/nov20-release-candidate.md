@@ -3,7 +3,7 @@
 **Branch:** `release/nov20-arc-testnet-beta`  
 **Packaged:** 2026-11-17  
 **Parents:** `integration/procurement-claims` @ `9f8d473` + `feat/launch-infrastructure` @ `334472c` (fast-forward; no content conflicts)  
-**Release commit:** see `git rev-parse release/nov20-arc-testnet-beta` after this manifest is committed.
+**Release commit:** `0874b5b2349db56eb77005d5a41faa1f2300f1da`
 
 This document is the sanitized release manifest and Railway environment checklist. It does **not** authorize public DNS cutover, financial broadcasts, contract redeployment, or mainnet issuance.
 
