@@ -48,6 +48,6 @@ RUN chmod +x /entrypoint.sh /usr/local/bin/arcuex-backup-sqlite /usr/local/bin/a
 # Railway volumes mount as root. Prefer RAILWAY_RUN_UID=0 (documented in the runbook)
 # so the process can read/write /data. Do not bake application secrets into the image.
 EXPOSE 3000
-VOLUME ["/data"]
+# Do not declare Docker VOLUME here — Railway requires a Railway Volume mount at /data.
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["pnpm", "--filter", "@arcuex/web", "exec", "next", "start", "-H", "0.0.0.0", "-p", "3000"]
