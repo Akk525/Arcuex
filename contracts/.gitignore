@@ -1,0 +1,5 @@
+cache/
+out/
+broadcast/
+# Dependencies installed via `forge install` (see CI / contracts README)
+lib/
