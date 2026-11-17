@@ -27,14 +27,14 @@ Deploy script also refuses non-official USDC addresses.
 | Pending claims | No on-chain pending state; settle is atomic | **OK for v1** — off-chain claim workflow must not call settle until authorized |
 | Access control | `settleClaim` / `releaseReservation` = `onlyClaimsAuthority`; owner rotates authority | **Pass** — no AI role |
 | Signature domain separation | **No EIP-712 claim signatures** — authorization is the `claimsAuthority` address | **Documented gap** — not a bug vs current design; do not treat webhooks as signatures |
-| Duplicate payout | `settledClaims[claimId]` anti-replay | **Pass** for same `claimId`; off-chain must enforce unique loss→claimId |
+| Duplicate payout | `settledClaims[claimId]` anti-replay + `losses[lossKey]` cumulative ≤ immutable `lossCap` | **Pass** — claimId ≠ lossKey; partials allowed within cap |
 | Wrong beneficiary | `payoutTo != policy.beneficiary` reverts | **Pass** |
 | Unauthorized signer | Non-authority settle reverts | **Pass** |
 | LP withdraw vs reserved | `withdraw` capped by `availableCapital()` | **Pass** |
 | Reentrancy | `ReentrancyGuard` + CEI-ish accounting before transfer | **Pass** |
 | Accounting units | ERC-20 6-decimal only; no `msg.value` | **Pass** for Arc |
 | Premium share mint after loss | Was 1:1 even when NAV &lt; 1; **fixed** to NAV mint (same as deposit) | **Hardened this session** |
-| Same economic loss, new claimId | On-chain allows if new id + remaining limit | **Residual** — off-chain same-loss uniqueness required |
+| Same economic loss, new claimId | Second settle with same `lossKey` constrained by `lossCap` / policy remaining | **Hardened** — `LossKey.sol` + `losses` mapping; see Foundry same-loss tests |
 | `releaseReservation` cancels policy | Authority can cancel mid-term and free capital | **By design** — ops control; document |
 
 ## Negative paths covered by Foundry (local)
@@ -46,6 +46,8 @@ Deploy script also refuses non-official USDC addresses.
 - Unauthorized settle  
 - Expired coverage  
 - Payout over remaining limit  
+- Same lossKey partial then cap / inflated cap / policy binding  
+- Local lifecycle E2E (invalid authority + blocked LP withdraw)  
 - Immutable re-bind  
 
 ## Not claimed
