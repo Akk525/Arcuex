@@ -32,4 +32,33 @@ describe('InsuranceRepository', () => {
     });
     expect(repo.listPools()[0]?.depositedMicros).toBe(123456789012345n);
   });
+
+  it('durably dedupes Streams inbox by dedupe_key (replay recovery)', () => {
+    const repo = new InsuranceRepository(openDatabase(':memory:'));
+    const base = {
+      source: 'rpc-backfill',
+      eventName: 'ClaimSettled',
+      txHash: '0xabc',
+      blockNumber: '42',
+      logIndex: '1',
+      payload: { lossKey: '0x' + '11'.repeat(32) },
+      signatureOk: true,
+      receivedAt: new Date().toISOString(),
+    };
+    expect(
+      repo.insertStreamsEvent({
+        id: newId(),
+        dedupeKey: '0xabc:1:ClaimSettled:42',
+        ...base,
+      }),
+    ).toBe(true);
+    expect(
+      repo.insertStreamsEvent({
+        id: newId(),
+        dedupeKey: '0xabc:1:ClaimSettled:42',
+        ...base,
+      }),
+    ).toBe(false);
+    expect(repo.listStreamsInbox()).toHaveLength(1);
+  });
 });

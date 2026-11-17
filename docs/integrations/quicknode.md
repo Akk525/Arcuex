@@ -28,6 +28,8 @@ Authenticated webhook receiver:
 - Normalizes events, dedupes into SQLite `streams_inbox`
 - Explicitly does **not** authorize claims/payouts
 - RPC backfill helper: `backfillPoolLogs` in `@arcuex/quicknode` (reconciliation only)
+- Pair with `@arcuex/onchain` `decodePoolLogs` / `reconcileFromBackfillLogs` for ABI decode + durable dedupe recovery
+- **Streams live delivery** (HMAC webhook) is a separate verification — see `quicknode-streams-auth.md`; do not claim Streams from RPC backfill alone
 
 ### Exact provisioning steps
 
