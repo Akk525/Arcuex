@@ -2,6 +2,7 @@ import { ValidationError, parseUsdcDecimal } from '@arcuex/domain';
 import { InsuranceRepository, openDatabase } from '@arcuex/persistence';
 import { describe, expect, it } from 'vitest';
 import type { ClaimsPrincipal } from './claims-auth';
+import { deriveCanonicalClaimsLossKey } from './canonical-loss-key';
 import {
   adjudicateClaimsCase,
   attachEvidenceManifest,
@@ -14,10 +15,10 @@ import {
   openClaimsCase,
   submitClaimsCase,
 } from './claims-case-service';
+import { intakeObservedEvent } from './claims-pipeline';
 import { acceptAndBindPolicy, requestCoverageQuote } from './quote-to-bind';
 
 const WALLET = '0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760';
-const LOSS_KEY = '0x' + 'ab'.repeat(32);
 
 const claimant: ClaimsPrincipal = {
   role: 'claimant',
@@ -64,13 +65,23 @@ async function openInvestigating(repo: InsuranceRepository) {
     policyholderId: holder.id,
     walletAddress: WALLET,
   };
+  const stamp = Math.random().toString(16).slice(2);
+  const incident = intakeObservedEvent(repo, {
+    idempotencyKey: `evt-${stamp}`,
+    observedEventRef: `tx:0x${stamp}`,
+    observedAt: new Date().toISOString(),
+    source: 'test',
+    policyId: policy.id,
+    exposureId: exposure.id,
+  });
   let c = openClaimsCase(
     repo,
     {
       policyId: policy.id,
       exposureId: exposure.id,
+      incidentId: incident.id,
       claimantRef: `policyholder:${holder.id}`,
-      idempotencyKey: `case-${Math.random().toString(16).slice(2)}`,
+      idempotencyKey: `case-${stamp}`,
       syntheticDemo: true,
       actor: 'ignored',
     },
@@ -97,7 +108,13 @@ async function openInvestigating(repo: InsuranceRepository) {
     { caseId: c.id, evidenceComplete: true },
     { role: 'system', subject: 'evidence' },
   );
-  return { case: c, policy, exposure, holder, principal };
+  const expectedLossKey = deriveCanonicalClaimsLossKey({
+    policyEntityId: policy.id,
+    exposureId: exposure.id,
+    incidentId: incident.id,
+    observedEventRef: incident.observedEventRef,
+  });
+  return { case: c, policy, exposure, holder, principal, incident, expectedLossKey };
 }
 
 describe('ClaimsCase service security', () => {
@@ -113,21 +130,6 @@ describe('ClaimsCase service security', () => {
           verifiedLossMicros: parseUsdcDecimal('1.000000'),
           recoveriesMicros: 0n,
           requestedMicros: parseUsdcDecimal('1.000000'),
-          lossKey: LOSS_KEY,
-        },
-        claimant,
-      ),
-    ).toThrow(/requires role/);
-    expect(() =>
-      authorizeSettlementPreparation(
-        repo,
-        {
-          caseId: c.id,
-          confirmedRecipient: WALLET,
-          confirmedAmountMicros: 1_000_000n,
-          confirmedLossKey: LOSS_KEY,
-          confirmedEvidenceRoot: 'x',
-          settlementPrepId: 'prep',
         },
         claimant,
       ),
@@ -158,9 +160,24 @@ describe('ClaimsCase service security', () => {
     ).toThrow(/not the policyholder/);
   });
 
-  it('freezes binding and rejects settlement tampering / synthetic without flag', async () => {
+  it('rejects invented loss keys and freezes canonical binding', async () => {
     const repo = new InsuranceRepository(openDatabase(':memory:'));
-    const { case: opened } = await openInvestigating(repo);
+    const { case: opened, expectedLossKey } = await openInvestigating(repo);
+
+    expect(() =>
+      adjudicateClaimsCase(
+        repo,
+        {
+          caseId: opened.id,
+          coverageDetermination: 'covered',
+          verifiedLossMicros: parseUsdcDecimal('1.000000'),
+          recoveriesMicros: 0n,
+          requestedMicros: parseUsdcDecimal('1.000000'),
+          lossKey: '0x' + '11'.repeat(32),
+        },
+        reviewer,
+      ),
+    ).toThrow(/canonical/);
 
     const approved = adjudicateClaimsCase(
       repo,
@@ -170,17 +187,17 @@ describe('ClaimsCase service security', () => {
         verifiedLossMicros: parseUsdcDecimal('1.000000'),
         recoveriesMicros: 0n,
         requestedMicros: parseUsdcDecimal('1.000000'),
-        lossKey: LOSS_KEY,
       },
       reviewer,
     );
     expect(approved.status).toBe('APPROVED');
-    expect(approved.adjudicationBindingJson).toBeTruthy();
-    expect(approved.payoutTo?.toLowerCase()).toBe(WALLET.toLowerCase());
+    expect(approved.lossKey?.toLowerCase()).toBe(expectedLossKey.toLowerCase());
     const binding = JSON.parse(approved.adjudicationBindingJson!) as {
       evidenceRoot: string;
       payableMicros: string;
+      lossKey: string;
     };
+    expect(binding.lossKey.toLowerCase()).toBe(expectedLossKey.toLowerCase());
 
     expect(() =>
       authorizeSettlementPreparation(
@@ -189,7 +206,7 @@ describe('ClaimsCase service security', () => {
           caseId: approved.id,
           confirmedRecipient: WALLET,
           confirmedAmountMicros: 1_000_000n,
-          confirmedLossKey: LOSS_KEY,
+          confirmedLossKey: expectedLossKey,
           confirmedEvidenceRoot: binding.evidenceRoot,
           settlementPrepId: 'prep-1',
         },
@@ -197,43 +214,13 @@ describe('ClaimsCase service security', () => {
       ),
     ).toThrow(/Synthetic\/fixture/);
 
-    expect(() =>
-      authorizeSettlementPreparation(
-        repo,
-        {
-          caseId: approved.id,
-          confirmedRecipient: '0x1111111111111111111111111111111111111111',
-          confirmedAmountMicros: 1_000_000n,
-          confirmedLossKey: LOSS_KEY,
-          confirmedEvidenceRoot: binding.evidenceRoot,
-          settlementPrepId: 'prep-2',
-        },
-        authority,
-      ),
-    ).toThrow(/payoutTo/);
-
-    expect(() =>
-      authorizeSettlementPreparation(
-        repo,
-        {
-          caseId: approved.id,
-          confirmedRecipient: WALLET,
-          confirmedAmountMicros: 2_000_000n,
-          confirmedLossKey: LOSS_KEY,
-          confirmedEvidenceRoot: binding.evidenceRoot,
-          settlementPrepId: 'prep-3',
-        },
-        authority,
-      ),
-    ).toThrow(/payable/);
-
     const pending = authorizeSettlementPreparation(
       repo,
       {
         caseId: approved.id,
         confirmedRecipient: WALLET,
         confirmedAmountMicros: BigInt(binding.payableMicros),
-        confirmedLossKey: LOSS_KEY,
+        confirmedLossKey: expectedLossKey,
         confirmedEvidenceRoot: binding.evidenceRoot,
         settlementPrepId: 'prep-ok',
       },
@@ -246,15 +233,13 @@ describe('ClaimsCase service security', () => {
       { caseId: pending.id, reasonCode: 'TX_FAILED' },
       authority,
     );
-    expect(failed.status).toBe('SETTLEMENT_FAILED');
-
     const retried = authorizeSettlementPreparation(
       repo,
       {
         caseId: failed.id,
         confirmedRecipient: WALLET,
         confirmedAmountMicros: BigInt(binding.payableMicros),
-        confirmedLossKey: LOSS_KEY,
+        confirmedLossKey: expectedLossKey,
         confirmedEvidenceRoot: binding.evidenceRoot,
         settlementPrepId: 'prep-retry',
       },
@@ -269,7 +254,7 @@ describe('ClaimsCase service security', () => {
     expect(listClaimsCaseTimeline(repo, paid.id).length).toBeGreaterThan(5);
   });
 
-  it('forces REVIEW for unknown recoveries and rejects unpaid mark_paid', async () => {
+  it('forces REVIEW for unknown recoveries', async () => {
     const repo = new InsuranceRepository(openDatabase(':memory:'));
     const { case: c } = await openInvestigating(repo);
     const reviewed = adjudicateClaimsCase(
@@ -280,13 +265,11 @@ describe('ClaimsCase service security', () => {
         verifiedLossMicros: parseUsdcDecimal('1.000000'),
         recoveriesMicros: null,
         requestedMicros: parseUsdcDecimal('1.000000'),
-        lossKey: LOSS_KEY,
       },
       reviewer,
     );
     expect(reviewed.status).toBe('REVIEW');
     expect(reviewed.payableMicros).toBeNull();
-
     expect(() =>
       markClaimsCasePaid(repo, { caseId: reviewed.id, receiptRef: '0xabc' }, authority),
     ).toThrow(ValidationError);

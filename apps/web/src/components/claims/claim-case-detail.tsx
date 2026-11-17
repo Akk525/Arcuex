@@ -108,8 +108,6 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   }
 
   const c = data.case;
-  const lossKey =
-    c.lossKey ?? '0x7a6dfe6606b3c2651a98c69e36d0f4e806ae77f16dea70adcd342ab8a8fa121c';
 
   return (
     <div className="space-y-4">
@@ -217,7 +215,6 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
                 verifiedLossUsdc: '1.000000',
                 recoveriesUsdc: '0.000000',
                 requestedUsdc: '1.000000',
-                lossKey,
               })
             }
           >
@@ -234,7 +231,6 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
                 verifiedLossUsdc: '1.000000',
                 recoveriesUsdc: null,
                 requestedUsdc: '1.000000',
-                lossKey,
               })
             }
           >
@@ -251,7 +247,6 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
                 verifiedLossUsdc: '1.000000',
                 recoveriesUsdc: '0.000000',
                 requestedUsdc: '1.000000',
-                lossKey,
               })
             }
           >

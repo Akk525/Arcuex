@@ -25,6 +25,7 @@ import {
   type EvidenceAuthenticity,
   type CoverageDetermination,
 } from './claims-case';
+import { deriveCanonicalClaimsLossKey } from './canonical-loss-key';
 import { computeNetLossPayable } from './net-loss';
 
 function toCase(row: NonNullable<ReturnType<InsuranceRepository['getClaimsCase']>>): ClaimsCase {
@@ -400,8 +401,11 @@ export type AdjudicateInput = {
   recoveriesMicros: UsdcMicros | null;
   priorCompensationMicros?: UsdcMicros;
   requestedMicros: UsdcMicros;
-  /** Must be a 0x-prefixed 32-byte hex loss key (canonical). */
-  lossKey: string;
+  /**
+   * @deprecated Ignored — lossKey is derived server-side from policy/exposure/incident.
+   * Kept optional for API compat; inventing alternate keys is rejected.
+   */
+  lossKey?: string;
   forceReviewReason?: string;
 };
 
@@ -413,10 +417,6 @@ export function adjudicateClaimsCase(
   assertClaimsRole(principal, ['reviewer', 'authority']);
   const actor = claimsActorId(principal);
 
-  if (!/^0x[a-fA-F0-9]{64}$/.test(input.lossKey)) {
-    throw new ValidationError('lossKey must be 0x-prefixed 32-byte hex');
-  }
-
   return repo.runInTransaction(() => {
     const current = getClaimsCase(repo, input.caseId);
     if (!current) throw new ValidationError('Unknown ClaimsCase');
@@ -425,12 +425,30 @@ export function adjudicateClaimsCase(
         `Adjudication requires INVESTIGATING or REVIEW (was ${current.status})`,
       );
     }
+    if (!current.incidentId) {
+      throw new ValidationError('ClaimsCase requires linked incidentId for canonical lossKey');
+    }
+    const incident = repo.getIncident(current.incidentId);
+    if (!incident) throw new ValidationError('Linked incident not found');
+
+    const derivedLossKey = deriveCanonicalClaimsLossKey({
+      policyEntityId: current.policyId,
+      exposureId: current.exposureId,
+      incidentId: incident.id,
+      observedEventRef: incident.observedEventRef,
+    });
+    if (input.lossKey && input.lossKey.toLowerCase() !== derivedLossKey.toLowerCase()) {
+      throw new ValidationError(
+        'Client lossKey does not match canonical derived loss identity',
+      );
+    }
+    const lossKey = derivedLossKey;
 
     const reviewPatch = {
       coverageDetermination: 'review_required' as const,
       verifiedLossMicros: input.verifiedLossMicros,
       recoveriesMicros: input.recoveriesMicros,
-      lossKey: input.lossKey,
+      lossKey,
     };
 
     if (
@@ -471,7 +489,7 @@ export function adjudicateClaimsCase(
           coverageDetermination: 'not_covered',
           verifiedLossMicros: input.verifiedLossMicros,
           recoveriesMicros: input.recoveriesMicros,
-          lossKey: input.lossKey,
+          lossKey,
           denialReasonCode: 'NOT_COVERED',
         },
       });
@@ -494,7 +512,8 @@ export function adjudicateClaimsCase(
       return persistTransition(repo, current, next, actor, 'COVERAGE_REVIEW_REQUIRED').case;
     }
 
-    const alreadyPaid = repo.sumPaidForLossKey(input.lossKey);
+    const alreadyPaid = repo.sumPaidForLossKey(lossKey);
+    const committed = repo.sumCommittedForLossKey(lossKey, current.id);
     const net = computeNetLossPayable({
       verifiedLossMicros: input.verifiedLossMicros,
       deductibleMicros: current.deductibleMicros,
@@ -502,7 +521,7 @@ export function adjudicateClaimsCase(
       recoveriesMicros: input.recoveriesMicros,
       remainingLimitMicros: current.remainingLimitMicros ?? 0n,
       lossCapMicros: current.lossCapMicros ?? 0n,
-      alreadyPaidForLossMicros: alreadyPaid,
+      alreadyPaidForLossMicros: alreadyPaid > committed ? alreadyPaid : committed,
       requestedMicros: input.requestedMicros,
     });
 
@@ -534,7 +553,7 @@ export function adjudicateClaimsCase(
           coverageDetermination: 'covered',
           verifiedLossMicros: input.verifiedLossMicros,
           recoveriesMicros: input.recoveriesMicros,
-          lossKey: input.lossKey,
+          lossKey,
           denialReasonCode: reason,
           payableMicros: net.outcome === 'payable' ? 0n : null,
         },
@@ -552,11 +571,15 @@ export function adjudicateClaimsCase(
     }
     const evidenceRoot = computeEvidenceRoot(manifests);
 
+    if (committed + net.payableMicros > (current.lossCapMicros ?? 0n)) {
+      throw new ValidationError('Same-loss committed payouts would exceed loss cap');
+    }
+
     const binding: AdjudicationBinding = {
       policyId: current.policyId,
       exposureId: current.exposureId,
       payableMicros: net.payableMicros.toString(),
-      lossKey: input.lossKey,
+      lossKey,
       evidenceRoot,
       payoutTo: normalizeWallet(current.payoutTo),
       verifiedLossMicros: (input.verifiedLossMicros ?? 0n).toString(),
@@ -575,7 +598,7 @@ export function adjudicateClaimsCase(
         recoveriesMicros: input.recoveriesMicros,
         priorCompensationMicros:
           input.priorCompensationMicros ?? current.priorCompensationMicros,
-        lossKey: input.lossKey,
+        lossKey,
         payableMicros: net.payableMicros,
         payoutTo: binding.payoutTo,
         evidenceRoot,
@@ -585,6 +608,7 @@ export function adjudicateClaimsCase(
     return persistTransition(repo, current, next, actor, net.reasonCode, {
       binding,
       alreadyPaidForLossMicros: alreadyPaid.toString(),
+      committedForLossMicros: committed.toString(),
     }).case;
   });
 }
@@ -688,9 +712,9 @@ export function authorizeSettlementPreparation(
       throw new ValidationError('Evidence manifests changed after adjudication binding');
     }
 
-    const alreadyPaid = repo.sumPaidForLossKey(binding.lossKey);
-    if (alreadyPaid + current.payableMicros > (current.lossCapMicros ?? 0n)) {
-      throw new ValidationError('Same-loss payout would exceed loss cap');
+    const committed = repo.sumCommittedForLossKey(binding.lossKey, current.id);
+    if (committed + current.payableMicros > (current.lossCapMicros ?? 0n)) {
+      throw new ValidationError('Same-loss committed payouts would exceed loss cap');
     }
 
     const next = transitionClaimsCase(current, {

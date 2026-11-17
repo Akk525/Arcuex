@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@arcuex/domain": "workspace:*",
+    "@arcuex/onchain": "workspace:*",
     "@arcuex/persistence": "workspace:*",
     "zod": "^3.24.2"
   },

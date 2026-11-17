@@ -6,5 +6,6 @@ export * from './synthetic-oracle-wedge';
 export * from './claims-case';
 export * from './claims-case-service';
 export * from './claims-auth';
+export * from './canonical-loss-key';
 export * from './net-loss';
 export * from './settlement-prep';

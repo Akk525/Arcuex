@@ -2,6 +2,7 @@ import {
   attachEvidenceManifest,
   beginEvidenceCollection,
   completeEvidenceOrReview,
+  intakeObservedEvent,
   listClaimsCases,
   openClaimsCase,
   submitClaimsCase,
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
     syntheticDemo?: boolean;
     caseId?: string;
     evidenceComplete?: boolean;
+    observedEventRef?: string;
     evidence?: {
       source: string;
       chain?: string;
@@ -65,11 +67,22 @@ export async function POST(request: Request) {
       if (!body.policyId || !body.exposureId || !body.idempotencyKey || !body.claimantRef) {
         return NextResponse.json({ error: 'Missing open fields' }, { status: 400 });
       }
+      const observedEventRef =
+        body.observedEventRef?.trim() || `dashboard:${body.idempotencyKey}`;
+      const incident = intakeObservedEvent(repo, {
+        idempotencyKey: `incident:${body.idempotencyKey}`,
+        observedEventRef,
+        observedAt: new Date().toISOString(),
+        source: 'claims-case-intake',
+        policyId: body.policyId,
+        exposureId: body.exposureId,
+      });
       const opened = openClaimsCase(
         repo,
         {
           policyId: body.policyId,
           exposureId: body.exposureId,
+          incidentId: incident.id,
           claimantRef: body.claimantRef,
           idempotencyKey: body.idempotencyKey,
           syntheticDemo: body.syntheticDemo ?? true,

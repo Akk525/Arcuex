@@ -156,6 +156,9 @@ importers:
       '@arcuex/domain':
         specifier: workspace:*
         version: link:../domain
+      '@arcuex/onchain':
+        specifier: workspace:*
+        version: link:../onchain
       '@arcuex/persistence':
         specifier: workspace:*
         version: link:../persistence

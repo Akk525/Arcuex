@@ -64,7 +64,7 @@ export async function POST(request: Request, ctx: Ctx) {
       if (!auth.ok) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
       }
-      if (!body.coverageDetermination || !body.requestedUsdc || !body.lossKey) {
+      if (!body.coverageDetermination || !body.requestedUsdc) {
         return NextResponse.json({ error: 'Missing adjudication fields' }, { status: 400 });
       }
       const next = adjudicateClaimsCase(
@@ -81,6 +81,7 @@ export async function POST(request: Request, ctx: Ctx) {
               ? null
               : parseUsdcDecimal(body.recoveriesUsdc),
           requestedMicros: parseUsdcDecimal(body.requestedUsdc),
+          // lossKey ignored if present — derived canonically server-side
           lossKey: body.lossKey,
           forceReviewReason: body.forceReviewReason,
         },
