@@ -1,0 +1,30 @@
+import type { Terms, Envelope, OracleEvidence, ProtocolEvidence } from './evaluator.ts';
+export const usdc = (units: bigint) => units * 1000000n;
+export const terms: Terms = {
+  chainId: 5042002, pool: 'synthetic:independent-pool', codeHash: 'synthetic:code-v1',
+  position: 'synthetic:treasury-position', beneficiary: 'synthetic:owner',
+  startsAt: 0, endsAt: 100 * 86400, registeredAt: 0, waitingSeconds: 86400,
+  deductibleMicros: usdc(10n), policyRemainingMicros: usdc(1000n),
+  exposureRemainingMicros: usdc(1000n), reservedEventRemainingMicros: usdc(10000n),
+};
+const common: Envelope = {
+  synthetic: true, chainId: terms.chainId, pool: terms.pool, codeHash: terms.codeHash,
+  position: terms.position, beneficiary: terms.beneficiary, eventAt: 2 * 86400,
+  evaluatedAt: 40 * 86400, lossKey: 'synthetic:event-1:position-1:log-0',
+  verifierApproved: true, canonical: true, complete: true, referenceAgrees: true,
+  relationship: 'independent', excludedConduct: false, exposureUnchanged: true,
+  recoveriesResolved: true,
+};
+export const oracle: OracleEvidence = {
+  ...common, kind: 'oracle', liquidation: true, referenceUsable: true,
+  actualRatio: 9700n, referenceRatio: 10000n,
+  actualHealthE18: 99n * 10n ** 16n, referenceHealthE18: 103n * 10n ** 16n,
+  seizedValueMicros: usdc(10500n), debtExtinguishedValueMicros: usdc(10000n),
+  recoveriesMicros: usdc(100n),
+};
+export const protocolTerms: Terms = { ...terms, deductibleMicros: usdc(100n) };
+export const protocol: ProtocolEvidence = {
+  ...common, kind: 'protocol', exploitQualified: true, registeredPrincipalMicros: usdc(10000n),
+  continuousLotPrincipalMicros: usdc(10000n), proceedsMicros: usdc(2000n),
+  residualRightsMicros: usdc(3000n), recoveriesMicros: usdc(1000n), rightsResolved: true,
+};
