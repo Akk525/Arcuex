@@ -20,3 +20,11 @@ export {
   type TxResult,
 } from './tx';
 export { reconcilePolicy, type LocalPolicyView, type ReconcileResult } from './reconcile';
+export {
+  executeLpDeposit,
+  executeBindPolicy,
+  executeSettleClaim,
+  confirmTx,
+  arcFeeOverrides,
+  type LifecycleClients,
+} from './lifecycle';
