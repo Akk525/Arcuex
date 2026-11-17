@@ -28,14 +28,24 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install Solidity deps
+        run: forge install --no-commit
+        working-directory: contracts
+
       - name: Lint
         run: pnpm lint
 
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Test
+      - name: Test packages
         run: pnpm test
+
+      - name: Test contracts
+        run: pnpm test:contracts
 
       - name: Build
         run: pnpm build

@@ -9,4 +9,8 @@
 | CoverageRule / human authority | Authorization | Required for claim decisions |
 | AI model votes | **Not authorized** | Cannot move money |
 | QuickNode Streams webhooks | Untrusted until verified | Deduped; not financial proofs by themselves |
-| Capital pool SQLite rows | Local accounting | Full collateralization demo; not on-chain |
+| Capital pool SQLite rows | Local accounting | Full collateralization demo; not authoritative once on-chain |
+| `InsurancePool` contract | Authoritative finances | USDC deposits, reservations, binds, settlements |
+| `claimsAuthority` key | Payout authority | Human/rule ops only — never an LLM |
+| `@arcuex/agent-sdk` prepared txs | Unsigned intents | Approve+bind allowlist; wallet must still sign |
+| On-chain reconcile vs SQLite | Contract wins | Mismatches are audited, not silently trusted locally |

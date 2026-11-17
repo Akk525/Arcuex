@@ -3,23 +3,29 @@
 ## Purpose and current scope
 
 Arcuex explores programmable financial protection for autonomous AI agents.
-Current scope: Arc Testnet connectivity, browser wallets, QuickNode RPC, and a
-**policy-agnostic synthetic insurance core** (domain, SQLite persistence,
-quote-to-bind, claims pipeline, capital ledger, dashboard views).
+Current scope: Arc Testnet connectivity, browser wallets, QuickNode RPC, a
+**policy-agnostic synthetic insurance core**, and the **on-chain financial
+lifecycle** (`InsurancePool`, `@arcuex/onchain`, `@arcuex/agent-sdk`) on
+`feat/onchain-lifecycle`.
 
-Do not add Circle Gateway/CCTP, Blockaid, Memora, AI model providers, Solidity
-contracts, or mainnet issuance unless a tracked issue expands scope.
+Do not add Circle Gateway/CCTP, Blockaid, Memora, AI model providers, or
+mainnet insurance issuance unless a tracked issue expands scope. Coverage
+wedge remains undecided — no invented loss oracles; AI votes never authorize
+payouts.
 
 ## Repository organization
 
 | Path | Role |
 | --- | --- |
 | `apps/web` | Next.js dashboard (live Arc/wallet + synthetic coverage/claims/capital) |
+| `contracts/` | Foundry `InsurancePool` + MockUSDC (Arc Testnet–oriented) |
 | `packages/chain` | Arc network config + clients |
 | `packages/quicknode` | QuickNode RPC client |
 | `packages/domain` | Insurance entities, money, state machines, capital math |
 | `packages/persistence` | SQLite migrations + repositories |
 | `packages/insurance` | Quote-to-bind, claims, capital services |
+| `packages/onchain` | ABIs, viem tx pipeline, reconcile helpers |
+| `packages/agent-sdk` | Agent quote→bind facade (no private keys) |
 | `docs/` | Architecture, integrations, development notes |
 | `.github/` | CI, issue/PR templates |
 
@@ -31,13 +37,14 @@ for that package. Keep temporary notes in `docs/working-notes/`, not here.
 ```bash
 pnpm install
 pnpm dev                 # apps/web on http://localhost:3000
-pnpm test
+pnpm test                # packages + forge contracts
+pnpm test:contracts      # Foundry only (requires forge on PATH)
 pnpm lint
 pnpm typecheck
 pnpm build
 ```
 
-Use `pnpm` only. Node.js 20+.
+Use `pnpm` only. Node.js 20+. Foundry (`forge`) required for `contracts/`.
 
 ## Engineering standards
 

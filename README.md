@@ -10,13 +10,17 @@ Arcuex is an early-stage infrastructure project exploring programmable financial
 - `@arcuex/persistence` SQLite migrations/repositories with audit + idempotent event processing
 - `@arcuex/insurance` quote-to-bind, claims pipeline, capital services (synthetic product)
 - Dashboard panels for live Arc/wallet and synthetic Coverage / Claims / Capital
+- Foundry `InsurancePool` (deposit / bind / reserve / authorized settle / restricted withdraw)
+- `@arcuex/onchain` ABIs, canonical ids, tx pipeline, SQLite↔chain reconcile helpers
+- `@arcuex/agent-sdk` quote → inspect → accept → prepare approve/bind (no private keys)
 
 ## Limitations
 
 - Synthetic underwriting is **not** real insurance issuance or production pricing
-- No Solidity contracts, mainnet deployments, or AI-authorized payouts
+- `InsurancePool` is not yet deployed on Arc Testnet (`ARCUE_X_POOL_ADDRESS` unset)
+- No mainnet deployments or AI-authorized payouts (`claimsAuthority` only)
 - QuickNode Streams / webhooks are **not** implemented (credentials + public webhook host missing)
-- Local SQLite ledger is Node-runtime only (`ARCUE_X_SQLITE_PATH`)
+- Local SQLite ledger is Node-runtime only (`ARCUE_X_SQLITE_PATH`); contract state is authoritative once deployed
 
 ## Prerequisites
 
@@ -29,11 +33,15 @@ Arcuex is an early-stage infrastructure project exploring programmable financial
 ```bash
 pnpm install
 cp .env.example .env.local   # optional overrides
+# Optional for contracts:
+# curl -L https://foundry.paradigm.xyz | bash && foundryup
+# (cd contracts && forge install)
 pnpm dev                     # http://localhost:3000
 ```
 
 ```bash
-pnpm test
+pnpm test                    # includes forge tests when forge is on PATH
+pnpm test:contracts
 pnpm lint
 pnpm typecheck
 pnpm build
@@ -48,6 +56,7 @@ pnpm build
 | `QUICKNODE_RPC_URL` | Server QuickNode override | same public host |
 | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | Optional WalletConnect | unset |
 | `ARCUE_X_SQLITE_PATH` | Synthetic ledger SQLite path | `.data/arcuex.sqlite` |
+| `ARCUE_X_POOL_ADDRESS` | Deployed `InsurancePool` | unset until testnet deploy |
 
 ## Connectivity verification
 
@@ -62,11 +71,14 @@ curl -s http://localhost:3000/api/capital
 | Path | Role |
 | --- | --- |
 | `apps/web` | Developer dashboard + API routes |
+| `contracts/` | Foundry `InsurancePool` |
 | `packages/chain` | Arc config/clients |
 | `packages/quicknode` | QuickNode RPC |
 | `packages/domain` | Insurance domain |
 | `packages/persistence` | SQLite |
 | `packages/insurance` | Application services |
+| `packages/onchain` | Contract ABIs + tx/reconcile |
+| `packages/agent-sdk` | Agent quote/bind facade |
 | `docs/` | Architecture and integrations |
 
 ## Documentation
