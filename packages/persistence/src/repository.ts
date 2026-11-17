@@ -610,6 +610,79 @@ export class InsuranceRepository {
     };
   }
 
+  /** Insert Streams inbox row. Returns false if dedupe_key already present. */
+  insertStreamsEvent(input: {
+    id: string;
+    dedupeKey: string;
+    source: string;
+    eventName: string;
+    txHash?: string | null;
+    blockNumber?: string | null;
+    logIndex?: string | null;
+    payload: unknown;
+    signatureOk: boolean;
+    receivedAt: string;
+  }): boolean {
+    const existing = this.db
+      .prepare(`SELECT id FROM streams_inbox WHERE dedupe_key = ?`)
+      .get(input.dedupeKey);
+    if (existing) return false;
+    this.db
+      .prepare(
+        `INSERT INTO streams_inbox (
+          id, dedupe_key, source, event_name, tx_hash, block_number, log_index,
+          payload_json, signature_ok, processed, received_at, processed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, NULL)`,
+      )
+      .run(
+        input.id,
+        input.dedupeKey,
+        input.source,
+        input.eventName,
+        input.txHash ?? null,
+        input.blockNumber ?? null,
+        input.logIndex ?? null,
+        JSON.stringify(input.payload),
+        input.signatureOk ? 1 : 0,
+        input.receivedAt,
+      );
+    return true;
+  }
+
+  markStreamsProcessed(dedupeKey: string, processedAt: string): void {
+    this.db
+      .prepare(
+        `UPDATE streams_inbox SET processed = 1, processed_at = ? WHERE dedupe_key = ?`,
+      )
+      .run(processedAt, dedupeKey);
+  }
+
+  listStreamsInbox(limit = 50): Array<{
+    id: string;
+    dedupeKey: string;
+    eventName: string;
+    txHash: string | null;
+    signatureOk: boolean;
+    processed: boolean;
+    receivedAt: string;
+  }> {
+    return (
+      this.db
+        .prepare(
+          `SELECT * FROM streams_inbox ORDER BY received_at DESC LIMIT ?`,
+        )
+        .all(limit) as Record<string, unknown>[]
+    ).map((row) => ({
+      id: String(row.id),
+      dedupeKey: String(row.dedupe_key),
+      eventName: String(row.event_name),
+      txHash: row.tx_hash ? String(row.tx_hash) : null,
+      signatureOk: Number(row.signature_ok) === 1,
+      processed: Number(row.processed) === 1,
+      receivedAt: String(row.received_at),
+    }));
+  }
+
   runInTransaction<T>(fn: () => T): T {
     return withTransaction(this.db, fn);
   }

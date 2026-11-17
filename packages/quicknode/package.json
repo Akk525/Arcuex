@@ -8,6 +8,11 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./streams": {
+      "types": "./src/streams.ts",
+      "import": "./src/streams.ts",
+      "default": "./src/streams.ts"
     }
   },
   "files": ["dist", "src"],

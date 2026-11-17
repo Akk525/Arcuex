@@ -6,33 +6,36 @@ Official Arc docs list QuickNode testnet HTTP as:
 
 `https://rpc.quicknode.testnet.arc.io`
 
-Verified 2026-11-16: `eth_chainId` → `0x4cef52`, `eth_blockNumber` → live block.
+Verified 2026-11-17 from this worktree host: `eth_chainId` → `0x4cef52` (`5042002`).
 
 Client: `packages/quicknode` (`QuickNodeClient`)
 
-- Configurable RPC URL
-- Block number + block summary
-- Transaction receipt lookup
-- Typed `QuickNodeError`, timeouts, bounded retries
-- Unit tests with mocked public clients
-- Dashboard panel in `apps/web`
+Override with `NEXT_PUBLIC_QUICKNODE_RPC_URL` or `QUICKNODE_RPC_URL`.
 
-Override with `NEXT_PUBLIC_QUICKNODE_RPC_URL` or `QUICKNODE_RPC_URL` (dashboard endpoint from QuickNode account preferred in production).
+## Streams (receiver implemented; live delivery blocked)
 
-## Streams (not implemented)
+Authenticated webhook receiver:
 
-QuickNode changelog and product pages confirm **Streams & Webhooks support for Arc Testnet**.
+`POST /api/webhooks/quicknode-streams`
 
-### Blocker
+- Verifies `X-QN-Nonce` + `X-QN-Timestamp` + body HMAC-SHA256 vs `QUICKNODE_STREAMS_WEBHOOK_SECRET`
+- Supports gzip bodies (signature over uncompressed JSON)
+- Normalizes events, dedupes into SQLite `streams_inbox`
+- Explicitly does **not** authorize claims/payouts
+- RPC backfill helper: `backfillPoolLogs` in `@arcuex/quicknode` (reconciliation only)
 
-Cannot complete Streams in this foundation because:
+### Exact provisioning steps
 
-1. No QuickNode account API key / Streams credentials in the environment
-2. No publicly reachable webhook host provisioned for this repository
-3. Streams bounty must not be claimed from RPC usage alone
+1. Create a QuickNode account Stream for **Arc Testnet**
+2. Filter logs to the deployed `InsurancePool` address
+3. Destination = Webhook → `https://<public-https-host>/api/webhooks/quicknode-streams`
+4. Copy Stream security token → `QUICKNODE_STREAMS_WEBHOOK_SECRET` (server env only)
+5. Prefer compression `none` during bring-up; gzip supported
+6. Confirm a delivery appears in Integrations → Streams inbox with `signatureOk=true`
 
-Tracked work: open a GitHub issue titled “QuickNode Streams webhook receiver” when `gh` auth is available; until then treat Streams as incomplete.
+### Blocker (unchanged)
 
-### When unblocked
+- No Streams credentials in environment
+- No publicly reachable webhook host provisioned for this repo
 
-Minimal receiver would be a Next.js route verifying QuickNode signatures, accepting block/log payloads, and logging/storing delivery metadata — still without insurance logic.
+**Do not claim Streams bounty from RPC usage alone.**

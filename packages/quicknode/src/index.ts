@@ -13,3 +13,5 @@ export {
   type RecentLogsQuery,
   type RecentReceiptResult,
 } from './events';
+
+export { backfillPoolLogs } from './backfill';
