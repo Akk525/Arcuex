@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Panel } from '@/components/panel';
 import { CaseStatusBadge } from '@/components/claims/case-status-badge';
 import { StatusBadge } from '@/components/status-badge';
+import { claimsFetch } from '@/lib/claims/claims-api';
 
 type CaseRow = {
   id: string;
@@ -20,7 +21,7 @@ export function ReviewerWorkbench() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void fetch('/api/claims/cases?status=REVIEW')
+    void claimsFetch('reviewer', '/api/claims/cases?status=REVIEW')
       .then(async (res) => {
         const json = (await res.json()) as { cases?: CaseRow[]; error?: string };
         if (!res.ok) throw new Error(json.error ?? 'Failed');

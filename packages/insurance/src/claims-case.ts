@@ -77,10 +77,33 @@ export const ClaimsCaseSchema = z.object({
   reviewReasonCode: z.string().nullable(),
   authorityActor: z.string().nullable(),
   settlementPrepId: z.string().nullable(),
+  /** Frozen beneficiary at approval — settlement must match. */
+  payoutTo: z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/)
+    .nullable(),
+  /** Merkle/hash root of evidence digests frozen at approval. */
+  evidenceRoot: z.string().nullable(),
+  /** Immutable JSON snapshot of payable/lossKey/policy/evidence/payout binding. */
+  adjudicationBindingJson: z.string().nullable(),
+  rowVersion: z.number().int().positive(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
 export type ClaimsCase = z.infer<typeof ClaimsCaseSchema>;
+
+export type AdjudicationBinding = {
+  policyId: string;
+  exposureId: string;
+  payableMicros: string;
+  lossKey: string;
+  evidenceRoot: string;
+  payoutTo: string;
+  verifiedLossMicros: string;
+  recoveriesMicros: string;
+  coverageDetermination: 'covered';
+  evidenceAuthenticity: EvidenceAuthenticity;
+};
 
 export const ClaimsCaseEventSchema = z.object({
   id: z.string().uuid(),
@@ -162,6 +185,10 @@ export function createDraftClaimsCase(input: CreateDraftClaimsCaseInput): Claims
     reviewReasonCode: null,
     authorityActor: null,
     settlementPrepId: null,
+    payoutTo: null,
+    evidenceRoot: null,
+    adjudicationBindingJson: null,
+    rowVersion: 1,
     createdAt: now,
     updatedAt: now,
   });
@@ -192,6 +219,9 @@ export type TransitionClaimsCaseInput = {
       | 'reviewReasonCode'
       | 'authorityActor'
       | 'settlementPrepId'
+      | 'payoutTo'
+      | 'evidenceRoot'
+      | 'adjudicationBindingJson'
     >
   >;
 };

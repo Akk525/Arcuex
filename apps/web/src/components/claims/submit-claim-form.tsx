@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Panel } from '@/components/panel';
 import { StatusBadge } from '@/components/status-badge';
+import { claimsFetch } from '@/lib/claims/claims-api';
 
 type PolicyOption = {
   id: string;
@@ -24,7 +25,7 @@ export function SubmitClaimForm() {
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    void fetch('/api/claims/policies')
+    void claimsFetch('claimant', '/api/claims/policies')
       .then(async (res) => {
         const json = (await res.json()) as {
           policies?: PolicyOption[];
@@ -48,7 +49,7 @@ export function SubmitClaimForm() {
     setError(null);
     startTransition(() => {
       void (async () => {
-        const openRes = await fetch('/api/claims/cases', {
+        const openRes = await claimsFetch('claimant', '/api/claims/cases', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
@@ -58,20 +59,18 @@ export function SubmitClaimForm() {
             claimantRef,
             idempotencyKey: `case:${policyId}:${Date.now()}`,
             syntheticDemo: true,
-            actor: claimantRef,
           }),
         });
         const opened = await openRes.json();
         if (!openRes.ok) throw new Error(opened.error ?? 'Open failed');
         const caseId = opened.case.id as string;
 
-        const evidenceRes = await fetch('/api/claims/cases', {
+        const evidenceRes = await claimsFetch('claimant', '/api/claims/cases', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             action: 'attach_evidence',
             caseId,
-            actor: 'system:evidence',
             evidence: {
               source: 'dashboard-submit',
               chain: 'arc-testnet',
@@ -86,13 +85,12 @@ export function SubmitClaimForm() {
         const evidenceJson = await evidenceRes.json();
         if (!evidenceRes.ok) throw new Error(evidenceJson.error ?? 'Evidence failed');
 
-        await fetch('/api/claims/cases', {
+        await claimsFetch('claimant', '/api/claims/cases', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             action: 'complete_evidence',
             caseId,
-            actor: 'system:evidence',
             evidenceComplete: true,
           }),
         });

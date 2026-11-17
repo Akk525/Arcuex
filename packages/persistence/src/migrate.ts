@@ -8,6 +8,7 @@ const MIGRATIONS = [
   '002_onchain.sql',
   '003_streams_inbox.sql',
   '004_claims_cases.sql',
+  '005_claims_case_binding.sql',
 ] as const;
 
 export function migrate(db: SqliteDb): void {

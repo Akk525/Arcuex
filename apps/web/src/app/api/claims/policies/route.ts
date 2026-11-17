@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getRepo } from '@/lib/server/db';
+import { authenticateClaimsRequest } from '@/lib/server/claims-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /** Claims-owned policy picker: active/bound policies with registered exposures. */
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = authenticateClaimsRequest(request, ['claimant', 'reviewer', 'authority', 'system']);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
   const repo = getRepo();
   const policies = repo
     .listPolicies(50)

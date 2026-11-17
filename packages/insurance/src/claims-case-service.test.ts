@@ -1,6 +1,7 @@
 import { ValidationError, parseUsdcDecimal } from '@arcuex/domain';
 import { InsuranceRepository, openDatabase } from '@arcuex/persistence';
 import { describe, expect, it } from 'vitest';
+import type { ClaimsPrincipal } from './claims-auth';
 import {
   adjudicateClaimsCase,
   attachEvidenceManifest,
@@ -15,199 +16,297 @@ import {
 } from './claims-case-service';
 import { acceptAndBindPolicy, requestCoverageQuote } from './quote-to-bind';
 
+const WALLET = '0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760';
+const LOSS_KEY = '0x' + 'ab'.repeat(32);
+
+const claimant: ClaimsPrincipal = {
+  role: 'claimant',
+  subject: 'holder',
+  walletAddress: WALLET,
+};
+
+const reviewer: ClaimsPrincipal = {
+  role: 'reviewer',
+  subject: 'ops',
+};
+
+const authority: ClaimsPrincipal = {
+  role: 'authority',
+  subject: 'claims',
+  allowSyntheticSettlementPrep: true,
+};
+
+const authorityNoSynthetic: ClaimsPrincipal = {
+  role: 'authority',
+  subject: 'claims',
+  allowSyntheticSettlementPrep: false,
+};
+
 async function seed(repo: InsuranceRepository) {
   const quote = requestCoverageQuote(repo, {
     idempotencyKey: `q-${Math.random().toString(16).slice(2)}`,
-    policyholder: { displayName: 'Holder' },
+    policyholder: { displayName: 'Holder', walletAddress: WALLET },
     agent: { externalRef: 'agent', label: 'Agent' },
   });
-  return acceptAndBindPolicy(repo, {
+  const bound = acceptAndBindPolicy(repo, {
     quoteId: quote.id,
     idempotencyKey: `b-${Math.random().toString(16).slice(2)}`,
     fundingVerified: true,
   });
+  const holder = repo.getPolicyholder(bound.policy.policyholderId)!;
+  return { ...bound, holder };
 }
 
-describe('ClaimsCase service', () => {
-  it('runs intake → evidence → adjudication → authority settle prep → paid', async () => {
-    const repo = new InsuranceRepository(openDatabase(':memory:'));
-    const { policy, exposure } = await seed(repo);
-
-    const opened = openClaimsCase(repo, {
+async function openInvestigating(repo: InsuranceRepository) {
+  const { policy, exposure, holder } = await seed(repo);
+  const principal: ClaimsPrincipal = {
+    ...claimant,
+    policyholderId: holder.id,
+    walletAddress: WALLET,
+  };
+  let c = openClaimsCase(
+    repo,
+    {
       policyId: policy.id,
       exposureId: exposure.id,
-      claimantRef: 'claimant:demo',
-      idempotencyKey: 'case-svc-001',
+      claimantRef: `policyholder:${holder.id}`,
+      idempotencyKey: `case-${Math.random().toString(16).slice(2)}`,
       syntheticDemo: true,
-      actor: 'claimant:demo',
-    });
-    expect(opened.status).toBe('DRAFT');
-    expect(openClaimsCase(repo, {
-      policyId: policy.id,
-      exposureId: exposure.id,
-      claimantRef: 'claimant:demo',
-      idempotencyKey: 'case-svc-001',
-      syntheticDemo: true,
-      actor: 'claimant:demo',
-    }).id).toBe(opened.id);
-
-    let c = submitClaimsCase(repo, { caseId: opened.id, actor: 'claimant:demo' });
-    c = beginEvidenceCollection(repo, { caseId: c.id, actor: 'system:intake' });
-    const attached = attachEvidenceManifest(repo, {
+      actor: 'ignored',
+    },
+    principal,
+  );
+  c = submitClaimsCase(repo, { caseId: c.id }, principal);
+  c = beginEvidenceCollection(repo, { caseId: c.id }, { role: 'system', subject: 'intake' });
+  attachEvidenceManifest(
+    repo,
+    {
       caseId: c.id,
-      actor: 'system:evidence',
       source: 'synthetic-fixture',
       chain: 'arc-testnet',
-      blockHash: '0x' + '11'.repeat(32),
-      transactionHash: '0x' + '22'.repeat(32),
       provenance: 'demo-fixture',
       rawEvidence: JSON.stringify({ lossUsdc: '1.0' }),
       verificationMethod: 'fixture_consistency',
       sourceReliability: 'demo_only',
       syntheticFixture: true,
-    });
-    expect(attached.inserted).toBe(true);
-    expect(attached.case.evidenceAuthenticity).toBe('synthetic_fixture');
+    },
+    { role: 'system', subject: 'evidence' },
+  );
+  c = completeEvidenceOrReview(
+    repo,
+    { caseId: c.id, evidenceComplete: true },
+    { role: 'system', subject: 'evidence' },
+  );
+  return { case: c, policy, exposure, holder, principal };
+}
 
-    c = completeEvidenceOrReview(repo, {
-      caseId: c.id,
-      actor: 'system:evidence',
-      evidenceComplete: true,
-    });
-    expect(c.status).toBe('INVESTIGATING');
-
-    c = adjudicateClaimsCase(repo, {
-      caseId: c.id,
-      actor: 'reviewer:ops',
-      coverageDetermination: 'covered',
-      verifiedLossMicros: parseUsdcDecimal('1.000000'),
-      recoveriesMicros: 0n,
-      requestedMicros: parseUsdcDecimal('1.000000'),
-      lossKey: '0x' + 'ab'.repeat(32),
-    });
-    expect(c.status).toBe('APPROVED');
-    expect(c.payableMicros).toBe(1_000_000n);
-    expect(c.settlementAuthorization).toBe('pending_authority');
-
+describe('ClaimsCase service security', () => {
+  it('rejects claimant impersonation of reviewer/authority via role', async () => {
+    const repo = new InsuranceRepository(openDatabase(':memory:'));
+    const { case: c } = await openInvestigating(repo);
     expect(() =>
-      authorizeSettlementPreparation(repo, {
-        caseId: c.id,
-        authorityActor: 'ai_majority_vote',
-        confirmedRecipient: '0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760',
-        confirmedAmountMicros: 1_000_000n,
-        settlementPrepId: 'prep-1',
-      }),
-    ).toThrow(ValidationError);
-
+      adjudicateClaimsCase(
+        repo,
+        {
+          caseId: c.id,
+          coverageDetermination: 'covered',
+          verifiedLossMicros: parseUsdcDecimal('1.000000'),
+          recoveriesMicros: 0n,
+          requestedMicros: parseUsdcDecimal('1.000000'),
+          lossKey: LOSS_KEY,
+        },
+        claimant,
+      ),
+    ).toThrow(/requires role/);
     expect(() =>
-      authorizeSettlementPreparation(repo, {
-        caseId: c.id,
-        authorityActor: 'claimant:demo',
-        confirmedRecipient: '0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760',
-        confirmedAmountMicros: 1_000_000n,
-        settlementPrepId: 'prep-1',
-      }),
-    ).toThrow(/authority:/);
-
-    c = authorizeSettlementPreparation(repo, {
-      caseId: c.id,
-      authorityActor: 'authority:claims',
-      confirmedRecipient: '0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760',
-      confirmedAmountMicros: 1_000_000n,
-      settlementPrepId: 'prep-1',
-    });
-    expect(c.status).toBe('SETTLEMENT_PENDING');
-    expect(c.settlementAuthorization).toBe('authorized');
-
-    c = markClaimsCaseSettlementFailed(repo, {
-      caseId: c.id,
-      actor: 'authority:claims',
-      reasonCode: 'TX_FAILED',
-      detail: 'simulated',
-    });
-    expect(c.status).toBe('SETTLEMENT_FAILED');
-
-    c = authorizeSettlementPreparation(repo, {
-      caseId: c.id,
-      authorityActor: 'authority:claims',
-      confirmedRecipient: '0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760',
-      confirmedAmountMicros: 1_000_000n,
-      settlementPrepId: 'prep-1-retry',
-    });
-    expect(c.status).toBe('SETTLEMENT_PENDING');
-
-    c = markClaimsCasePaid(repo, {
-      caseId: c.id,
-      actor: 'authority:claims',
-      receiptRef: '0x83130e95f5dfb2209a5382524a1ef749dd2f90a605fcf892cf80b333ef3d89c7',
-    });
-    expect(c.status).toBe('PAID');
-
-    const timeline = listClaimsCaseTimeline(repo, c.id);
-    expect(timeline.length).toBeGreaterThanOrEqual(6);
-    expect(timeline.every((e) => e.actor.length > 0 && e.reasonCode.length > 0)).toBe(true);
+      authorizeSettlementPreparation(
+        repo,
+        {
+          caseId: c.id,
+          confirmedRecipient: WALLET,
+          confirmedAmountMicros: 1_000_000n,
+          confirmedLossKey: LOSS_KEY,
+          confirmedEvidenceRoot: 'x',
+          settlementPrepId: 'prep',
+        },
+        claimant,
+      ),
+    ).toThrow(/requires role/);
   });
 
-  it('forces REVIEW for unknown recoveries and incomplete evidence', async () => {
+  it('rejects claim open on another policyholder policy', async () => {
     const repo = new InsuranceRepository(openDatabase(':memory:'));
     const { policy, exposure } = await seed(repo);
-    let c = openClaimsCase(repo, {
-      policyId: policy.id,
-      exposureId: exposure.id,
-      claimantRef: 'claimant:demo',
-      idempotencyKey: 'case-review-001',
-      syntheticDemo: true,
-      actor: 'claimant:demo',
-    });
-    c = submitClaimsCase(repo, { caseId: c.id, actor: 'claimant:demo' });
-    c = beginEvidenceCollection(repo, { caseId: c.id, actor: 'system:intake' });
-    c = completeEvidenceOrReview(repo, {
-      caseId: c.id,
-      actor: 'system:evidence',
-      evidenceComplete: false,
-    });
-    expect(c.status).toBe('REVIEW');
-    expect(c.payableMicros).toBeNull();
-    expect(c.settlementAuthorization).toBe('none');
-
-    // reopen investigate after attaching evidence
-    attachEvidenceManifest(repo, {
-      caseId: c.id,
-      actor: 'system:evidence',
-      source: 'synthetic-fixture',
-      provenance: 'demo',
-      rawEvidence: '{}',
-      verificationMethod: 'fixture_consistency',
-      sourceReliability: 'demo_only',
-      syntheticFixture: true,
-    });
-    // from REVIEW → INVESTIGATING via completeEvidenceOrReview only works from COLLECTING;
-    // adjudicate with unknown recoveries while in REVIEW
-    c = adjudicateClaimsCase(repo, {
-      caseId: c.id,
-      actor: 'reviewer:ops',
-      coverageDetermination: 'covered',
-      verifiedLossMicros: parseUsdcDecimal('1.000000'),
-      recoveriesMicros: null,
-      requestedMicros: parseUsdcDecimal('1.000000'),
-      lossKey: '0x' + 'cd'.repeat(32),
-    });
-    expect(c.status).toBe('REVIEW');
-    expect(c.reviewReasonCode).toBe('UNKNOWN_RECOVERIES');
+    expect(() =>
+      openClaimsCase(
+        repo,
+        {
+          policyId: policy.id,
+          exposureId: exposure.id,
+          claimantRef: 'attacker',
+          idempotencyKey: 'case-steal',
+          syntheticDemo: true,
+          actor: 'x',
+        },
+        {
+          role: 'claimant',
+          subject: 'attacker',
+          policyholderId: '00000000-0000-4000-8000-000000000099',
+          walletAddress: '0x1111111111111111111111111111111111111111',
+        },
+      ),
+    ).toThrow(/not the policyholder/);
   });
 
-  it('denies unregistered exposure at open', async () => {
+  it('freezes binding and rejects settlement tampering / synthetic without flag', async () => {
     const repo = new InsuranceRepository(openDatabase(':memory:'));
-    const { policy } = await seed(repo);
+    const { case: opened } = await openInvestigating(repo);
+
+    const approved = adjudicateClaimsCase(
+      repo,
+      {
+        caseId: opened.id,
+        coverageDetermination: 'covered',
+        verifiedLossMicros: parseUsdcDecimal('1.000000'),
+        recoveriesMicros: 0n,
+        requestedMicros: parseUsdcDecimal('1.000000'),
+        lossKey: LOSS_KEY,
+      },
+      reviewer,
+    );
+    expect(approved.status).toBe('APPROVED');
+    expect(approved.adjudicationBindingJson).toBeTruthy();
+    expect(approved.payoutTo?.toLowerCase()).toBe(WALLET.toLowerCase());
+    const binding = JSON.parse(approved.adjudicationBindingJson!) as {
+      evidenceRoot: string;
+      payableMicros: string;
+    };
+
     expect(() =>
-      openClaimsCase(repo, {
-        policyId: policy.id,
-        exposureId: '00000000-0000-4000-8000-000000000099',
-        claimantRef: 'claimant:demo',
-        idempotencyKey: 'case-bad-exp',
-        syntheticDemo: true,
-        actor: 'claimant:demo',
-      }),
+      authorizeSettlementPreparation(
+        repo,
+        {
+          caseId: approved.id,
+          confirmedRecipient: WALLET,
+          confirmedAmountMicros: 1_000_000n,
+          confirmedLossKey: LOSS_KEY,
+          confirmedEvidenceRoot: binding.evidenceRoot,
+          settlementPrepId: 'prep-1',
+        },
+        authorityNoSynthetic,
+      ),
+    ).toThrow(/Synthetic\/fixture/);
+
+    expect(() =>
+      authorizeSettlementPreparation(
+        repo,
+        {
+          caseId: approved.id,
+          confirmedRecipient: '0x1111111111111111111111111111111111111111',
+          confirmedAmountMicros: 1_000_000n,
+          confirmedLossKey: LOSS_KEY,
+          confirmedEvidenceRoot: binding.evidenceRoot,
+          settlementPrepId: 'prep-2',
+        },
+        authority,
+      ),
+    ).toThrow(/payoutTo/);
+
+    expect(() =>
+      authorizeSettlementPreparation(
+        repo,
+        {
+          caseId: approved.id,
+          confirmedRecipient: WALLET,
+          confirmedAmountMicros: 2_000_000n,
+          confirmedLossKey: LOSS_KEY,
+          confirmedEvidenceRoot: binding.evidenceRoot,
+          settlementPrepId: 'prep-3',
+        },
+        authority,
+      ),
+    ).toThrow(/payable/);
+
+    const pending = authorizeSettlementPreparation(
+      repo,
+      {
+        caseId: approved.id,
+        confirmedRecipient: WALLET,
+        confirmedAmountMicros: BigInt(binding.payableMicros),
+        confirmedLossKey: LOSS_KEY,
+        confirmedEvidenceRoot: binding.evidenceRoot,
+        settlementPrepId: 'prep-ok',
+      },
+      authority,
+    );
+    expect(pending.status).toBe('SETTLEMENT_PENDING');
+
+    const failed = markClaimsCaseSettlementFailed(
+      repo,
+      { caseId: pending.id, reasonCode: 'TX_FAILED' },
+      authority,
+    );
+    expect(failed.status).toBe('SETTLEMENT_FAILED');
+
+    const retried = authorizeSettlementPreparation(
+      repo,
+      {
+        caseId: failed.id,
+        confirmedRecipient: WALLET,
+        confirmedAmountMicros: BigInt(binding.payableMicros),
+        confirmedLossKey: LOSS_KEY,
+        confirmedEvidenceRoot: binding.evidenceRoot,
+        settlementPrepId: 'prep-retry',
+      },
+      authority,
+    );
+    const paid = markClaimsCasePaid(
+      repo,
+      { caseId: retried.id, receiptRef: '0x' + '99'.repeat(32) },
+      authority,
+    );
+    expect(paid.status).toBe('PAID');
+    expect(listClaimsCaseTimeline(repo, paid.id).length).toBeGreaterThan(5);
+  });
+
+  it('forces REVIEW for unknown recoveries and rejects unpaid mark_paid', async () => {
+    const repo = new InsuranceRepository(openDatabase(':memory:'));
+    const { case: c } = await openInvestigating(repo);
+    const reviewed = adjudicateClaimsCase(
+      repo,
+      {
+        caseId: c.id,
+        coverageDetermination: 'covered',
+        verifiedLossMicros: parseUsdcDecimal('1.000000'),
+        recoveriesMicros: null,
+        requestedMicros: parseUsdcDecimal('1.000000'),
+        lossKey: LOSS_KEY,
+      },
+      reviewer,
+    );
+    expect(reviewed.status).toBe('REVIEW');
+    expect(reviewed.payableMicros).toBeNull();
+
+    expect(() =>
+      markClaimsCasePaid(repo, { caseId: reviewed.id, receiptRef: '0xabc' }, authority),
     ).toThrow(ValidationError);
+  });
+
+  it('rejects optimistic updates when row_version is stale', async () => {
+    const repo = new InsuranceRepository(openDatabase(':memory:'));
+    const { case: c } = await openInvestigating(repo);
+    const row = repo.getClaimsCase(c.id)!;
+    expect(
+      repo.updateClaimsCaseOptimistic(
+        { ...row, rowVersion: row.rowVersion + 1, updatedAt: new Date().toISOString() },
+        row.rowVersion,
+      ),
+    ).toBe(true);
+    expect(
+      repo.updateClaimsCaseOptimistic(
+        { ...row, rowVersion: row.rowVersion + 2, updatedAt: new Date().toISOString() },
+        row.rowVersion,
+      ),
+    ).toBe(false);
   });
 });

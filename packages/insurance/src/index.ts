@@ -5,5 +5,6 @@ export * from './demo-adapters';
 export * from './synthetic-oracle-wedge';
 export * from './claims-case';
 export * from './claims-case-service';
+export * from './claims-auth';
 export * from './net-loss';
 export * from './settlement-prep';

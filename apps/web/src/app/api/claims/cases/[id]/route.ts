@@ -6,19 +6,23 @@ import {
   listClaimsCaseTimeline,
   markClaimsCasePaid,
   markClaimsCaseSettlementFailed,
-  transitionClaimsCase,
+  reopenInvestigation,
 } from '@arcuex/insurance';
 import { NextResponse } from 'next/server';
 import { getRepo } from '@/lib/server/db';
+import { authenticateClaimsRequest } from '@/lib/server/claims-auth';
 import { serializeCaseEvent, serializeClaimsCase } from '@/lib/claims/serialize-case';
-import { newId } from '@arcuex/domain';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, ctx: Ctx) {
+export async function GET(request: Request, ctx: Ctx) {
+  const auth = authenticateClaimsRequest(request, ['claimant', 'reviewer', 'authority', 'system']);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
   const { id } = await ctx.params;
   const repo = getRepo();
   const c = getClaimsCase(repo, id);
@@ -37,113 +41,132 @@ export async function POST(request: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   const body = (await request.json()) as {
     action?: string;
-    actor?: string;
     coverageDetermination?: 'covered' | 'not_covered' | 'review_required' | 'unknown';
     verifiedLossUsdc?: string | null;
     recoveriesUsdc?: string | null;
     requestedUsdc?: string;
-    lossKey?: string | null;
+    lossKey?: string;
     forceReviewReason?: string;
-    authorityActor?: string;
     confirmedRecipient?: string;
     confirmedAmountUsdc?: string;
+    confirmedLossKey?: string;
+    confirmedEvidenceRoot?: string;
     receiptRef?: string;
     reasonCode?: string;
     detail?: string;
   };
 
   const repo = getRepo();
-  const actor = body.actor?.trim() || 'reviewer:dashboard';
 
   try {
     if (body.action === 'adjudicate') {
-      if (!body.coverageDetermination || !body.requestedUsdc) {
+      const auth = authenticateClaimsRequest(request, ['reviewer', 'authority']);
+      if (!auth.ok) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+      }
+      if (!body.coverageDetermination || !body.requestedUsdc || !body.lossKey) {
         return NextResponse.json({ error: 'Missing adjudication fields' }, { status: 400 });
       }
-      const next = adjudicateClaimsCase(repo, {
-        caseId: id,
-        actor,
-        coverageDetermination: body.coverageDetermination,
-        verifiedLossMicros:
-          body.verifiedLossUsdc === null || body.verifiedLossUsdc === undefined
-            ? null
-            : parseUsdcDecimal(body.verifiedLossUsdc),
-        recoveriesMicros:
-          body.recoveriesUsdc === null || body.recoveriesUsdc === undefined
-            ? null
-            : parseUsdcDecimal(body.recoveriesUsdc),
-        requestedMicros: parseUsdcDecimal(body.requestedUsdc),
-        lossKey: body.lossKey ?? null,
-        forceReviewReason: body.forceReviewReason,
-      });
+      const next = adjudicateClaimsCase(
+        repo,
+        {
+          caseId: id,
+          coverageDetermination: body.coverageDetermination,
+          verifiedLossMicros:
+            body.verifiedLossUsdc === null || body.verifiedLossUsdc === undefined
+              ? null
+              : parseUsdcDecimal(body.verifiedLossUsdc),
+          recoveriesMicros:
+            body.recoveriesUsdc === null || body.recoveriesUsdc === undefined
+              ? null
+              : parseUsdcDecimal(body.recoveriesUsdc),
+          requestedMicros: parseUsdcDecimal(body.requestedUsdc),
+          lossKey: body.lossKey,
+          forceReviewReason: body.forceReviewReason,
+        },
+        auth.principal,
+      );
       return NextResponse.json({ dataClass: 'claims_case', case: serializeClaimsCase(next) });
     }
 
     if (body.action === 'reopen_investigation') {
-      const current = getClaimsCase(repo, id);
-      if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-      const next = transitionClaimsCase(current, {
-        to: 'INVESTIGATING',
-        actor,
-        reasonCode: 'REOPEN_INVESTIGATION',
-      });
-      repo.runInTransaction(() => {
-        repo.saveClaimsCase(next);
-        repo.appendClaimsCaseEvent({
-          id: newId(),
-          caseId: next.id,
-          fromStatus: current.status,
-          toStatus: next.status,
-          actor,
-          reasonCode: 'REOPEN_INVESTIGATION',
-          payloadJson: '{}',
-          createdAt: next.updatedAt,
-        });
-      });
+      const auth = authenticateClaimsRequest(request, ['reviewer', 'authority']);
+      if (!auth.ok) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+      }
+      const next = reopenInvestigation(repo, { caseId: id }, auth.principal);
       return NextResponse.json({ dataClass: 'claims_case', case: serializeClaimsCase(next) });
     }
 
     if (body.action === 'prepare_settlement') {
-      if (!body.authorityActor || !body.confirmedRecipient || !body.confirmedAmountUsdc) {
+      const auth = authenticateClaimsRequest(request, ['authority']);
+      if (!auth.ok) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+      }
+      if (
+        !body.confirmedRecipient ||
+        !body.confirmedAmountUsdc ||
+        !body.confirmedLossKey ||
+        !body.confirmedEvidenceRoot
+      ) {
         return NextResponse.json(
-          { error: 'authorityActor, confirmedRecipient, confirmedAmountUsdc required' },
+          {
+            error:
+              'confirmedRecipient, confirmedAmountUsdc, confirmedLossKey, confirmedEvidenceRoot required',
+          },
           { status: 400 },
         );
       }
-      const next = authorizeSettlementPreparation(repo, {
-        caseId: id,
-        authorityActor: body.authorityActor,
-        confirmedRecipient: body.confirmedRecipient,
-        confirmedAmountMicros: parseUsdcDecimal(body.confirmedAmountUsdc),
-        settlementPrepId: `prep:${id}:${Date.now()}`,
-      });
+      const next = authorizeSettlementPreparation(
+        repo,
+        {
+          caseId: id,
+          confirmedRecipient: body.confirmedRecipient,
+          confirmedAmountMicros: parseUsdcDecimal(body.confirmedAmountUsdc),
+          confirmedLossKey: body.confirmedLossKey,
+          confirmedEvidenceRoot: body.confirmedEvidenceRoot,
+          settlementPrepId: `prep:${id}:${Date.now()}`,
+        },
+        auth.principal,
+      );
       return NextResponse.json({
         dataClass: 'claims_case',
         case: serializeClaimsCase(next),
         notice:
-          'Settlement prepared only. No on-chain broadcast from this endpoint. Broadcast requires separate explicit authorization outside this UI.',
+          'Settlement prepared only. No on-chain broadcast from this endpoint.',
       });
     }
 
     if (body.action === 'mark_paid') {
+      const auth = authenticateClaimsRequest(request, ['authority']);
+      if (!auth.ok) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+      }
       if (!body.receiptRef) {
         return NextResponse.json({ error: 'receiptRef required' }, { status: 400 });
       }
-      const next = markClaimsCasePaid(repo, {
-        caseId: id,
-        actor: body.authorityActor || actor,
-        receiptRef: body.receiptRef,
-      });
+      const next = markClaimsCasePaid(
+        repo,
+        { caseId: id, receiptRef: body.receiptRef },
+        auth.principal,
+      );
       return NextResponse.json({ dataClass: 'claims_case', case: serializeClaimsCase(next) });
     }
 
     if (body.action === 'mark_failed') {
-      const next = markClaimsCaseSettlementFailed(repo, {
-        caseId: id,
-        actor: body.authorityActor || actor,
-        reasonCode: body.reasonCode ?? 'SETTLEMENT_FAILED',
-        detail: body.detail,
-      });
+      const auth = authenticateClaimsRequest(request, ['authority']);
+      if (!auth.ok) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+      }
+      const next = markClaimsCaseSettlementFailed(
+        repo,
+        {
+          caseId: id,
+          reasonCode: body.reasonCode ?? 'SETTLEMENT_FAILED',
+          detail: body.detail,
+        },
+        auth.principal,
+      );
       return NextResponse.json({ dataClass: 'claims_case', case: serializeClaimsCase(next) });
     }
 

@@ -29,6 +29,10 @@ export type PersistedClaimsCase = {
   reviewReasonCode: string | null;
   authorityActor: string | null;
   settlementPrepId: string | null;
+  payoutTo: string | null;
+  evidenceRoot: string | null;
+  adjudicationBindingJson: string | null;
+  rowVersion: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -91,6 +95,12 @@ export function mapPersistedClaimsCase(row: Record<string, unknown>): PersistedC
     reviewReasonCode: row.review_reason_code ? String(row.review_reason_code) : null,
     authorityActor: row.authority_actor ? String(row.authority_actor) : null,
     settlementPrepId: row.settlement_prep_id ? String(row.settlement_prep_id) : null,
+    payoutTo: row.payout_to ? String(row.payout_to) : null,
+    evidenceRoot: row.evidence_root ? String(row.evidence_root) : null,
+    adjudicationBindingJson: row.adjudication_binding_json
+      ? String(row.adjudication_binding_json)
+      : null,
+    rowVersion: Number(row.row_version ?? 1),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };

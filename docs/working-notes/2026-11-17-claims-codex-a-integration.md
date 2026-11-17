@@ -13,4 +13,12 @@ Claims workflow does **not** edit shared domain claim/incident schemas, `loss-ke
 5. **Claims authority identity** — env/role already used by onchain lifecycle; claims UI will require the same authenticated authority string for `APPROVED` → `SETTLEMENT_PENDING`, never a frontend-only flag.
 6. **Nav entry** — claims owns `/claims*` routes; if Codex A changes `AppShell` nav, keep or add a Claims link without renaming existing claims paths.
 
-Conflict rule: additive migrations only (`004_claims_cases.sql`). If Codex A also adds `004_*`, rename one side before merge.
+Conflict rule: additive migrations only (`004_claims_cases.sql`, `005_claims_case_binding.sql`). If Codex A also adds `004_*`/`005_*`, rename one side before merge.
+
+## Security handoff (2026-11-17 hardening)
+
+- Claims APIs require `Authorization: Bearer` tokens (`CLAIMS_CLAIMANT_API_TOKEN`, `CLAIMS_REVIEWER_API_TOKEN`, `CLAIMS_AUTHORITY_API_TOKEN`). Body `actor` / `authorityActor` fields are ignored.
+- Claim open validates policyholder/agent ownership via `x-arcuex-wallet` / `x-arcuex-policyholder-id` / `x-arcuex-agent-id` against SQLite policy graph.
+- Approval freezes `payoutTo`, `lossKey`, `payableMicros`, and `evidenceRoot` in `adjudication_binding_json`. Settlement prep must echo the frozen binding.
+- Synthetic/fixture settlement prep requires `CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP=1` on the authority principal. Still no broadcast from claims routes.
+- Procurement should continue writing `policyholders.wallet_address` so claims can bind beneficiaries without shared-schema edits.

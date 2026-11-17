@@ -8,10 +8,17 @@ import {
 import type { InsuranceRepository } from '@arcuex/persistence';
 import { createHash } from 'node:crypto';
 import {
+  assertClaimsRole,
+  claimsActorId,
+  normalizeWallet,
+  type ClaimsPrincipal,
+} from './claims-auth';
+import {
   ClaimsCaseSchema,
   buildClaimsCaseEvent,
   createDraftClaimsCase,
   transitionClaimsCase,
+  type AdjudicationBinding,
   type ClaimsCase,
   type ClaimsCaseEvent,
   type CreateDraftClaimsCaseInput,
@@ -30,8 +37,24 @@ function jsonSafe(payload: unknown): string {
   );
 }
 
-function persistCase(repo: InsuranceRepository, c: ClaimsCase): void {
+function persistNewCase(repo: InsuranceRepository, c: ClaimsCase): void {
   repo.saveClaimsCase(c);
+}
+
+function persistUpdatedCase(
+  repo: InsuranceRepository,
+  from: ClaimsCase,
+  to: ClaimsCase,
+): ClaimsCase {
+  const next = ClaimsCaseSchema.parse({
+    ...to,
+    rowVersion: from.rowVersion + 1,
+  });
+  const ok = repo.updateClaimsCaseOptimistic(next, from.rowVersion);
+  if (!ok) {
+    throw new ValidationError('ClaimsCase concurrency conflict — reload and retry');
+  }
+  return next;
 }
 
 function persistTransition(
@@ -41,14 +64,13 @@ function persistTransition(
   actor: string,
   reasonCode: string,
   payload: unknown = {},
-): ClaimsCaseEvent {
-  const event = buildClaimsCaseEvent(from, to, actor, reasonCode, payload);
+): { case: ClaimsCase; event: ClaimsCaseEvent } {
+  const saved = persistUpdatedCase(repo, from, to);
+  const event = buildClaimsCaseEvent(from, saved, actor, reasonCode, payload);
   repo.appendClaimsCaseEvent(event);
-  persistCase(repo, to);
-  return event;
+  return { case: saved, event };
 }
 
-/** Stay in REVIEW while updating determination fields + audit (no illegal self-transition). */
 function remainInReview(
   repo: InsuranceRepository,
   current: ClaimsCase,
@@ -66,6 +88,7 @@ function remainInReview(
     reviewReasonCode: patch?.reviewReasonCode ?? reasonCode,
     updatedAt: now,
   });
+  const saved = persistUpdatedCase(repo, current, next);
   repo.appendClaimsCaseEvent({
     id: newId(),
     caseId: current.id,
@@ -76,8 +99,64 @@ function remainInReview(
     payloadJson: jsonSafe(patch ?? {}),
     createdAt: now,
   });
-  persistCase(repo, next);
-  return next;
+  return saved;
+}
+
+function computeEvidenceRoot(
+  manifests: Array<{ rawEvidenceDigest: string }>,
+): string {
+  const digests = manifests.map((m) => m.rawEvidenceDigest).sort();
+  return `sha256:${createHash('sha256').update(digests.join('|')).digest('hex')}`;
+}
+
+function assertPolicyOwnership(
+  repo: InsuranceRepository,
+  principal: ClaimsPrincipal,
+  policyId: string,
+): { policy: NonNullable<ReturnType<InsuranceRepository['getPolicy']>>; payoutTo: string } {
+  const policy = repo.getPolicy(policyId);
+  if (!policy || (policy.status !== 'active' && policy.status !== 'bound')) {
+    throw new ValidationError('ClaimsCase requires an active or bound policy');
+  }
+  const holder = repo.getPolicyholder(policy.policyholderId);
+  if (!holder) throw new ValidationError('Policyholder missing for policy');
+
+  if (principal.role === 'system') {
+    const payoutTo = holder.walletAddress
+      ? normalizeWallet(holder.walletAddress)
+      : null;
+    if (!payoutTo) {
+      throw new ValidationError('Policyholder wallet required for settlement binding');
+    }
+    return { policy, payoutTo };
+  }
+
+  if (principal.role !== 'claimant') {
+    throw new ValidationError('Only claimant (or system) may open a ClaimsCase');
+  }
+
+  const ownedByPolicyholder =
+    principal.policyholderId === policy.policyholderId ||
+    (principal.walletAddress &&
+      holder.walletAddress &&
+      normalizeWallet(principal.walletAddress) === normalizeWallet(holder.walletAddress));
+
+  const ownedByAgent =
+    principal.agentId !== undefined && principal.agentId === policy.agentId;
+
+  if (!ownedByPolicyholder && !ownedByAgent) {
+    throw new ValidationError('Claimant is not the policyholder or authorized agent for this policy');
+  }
+
+  const payoutTo = holder.walletAddress
+    ? normalizeWallet(holder.walletAddress)
+    : principal.walletAddress
+      ? normalizeWallet(principal.walletAddress)
+      : null;
+  if (!payoutTo) {
+    throw new ValidationError('Policyholder wallet required to bind settlement beneficiary');
+  }
+  return { policy, payoutTo };
 }
 
 export function getClaimsCase(repo: InsuranceRepository, id: string): ClaimsCase | null {
@@ -108,16 +187,17 @@ export function listClaimsCaseTimeline(
   }));
 }
 
-/**
- * Idempotent draft creation. Replays return the existing case for the same key.
- */
 export function openClaimsCase(
   repo: InsuranceRepository,
   input: CreateDraftClaimsCaseInput & {
     incidentId?: string | null;
   },
+  principal: ClaimsPrincipal,
 ): ClaimsCase {
+  assertClaimsRole(principal, ['claimant', 'system']);
   const key = IdempotencyKeySchema.parse(input.idempotencyKey);
+  const actor = claimsActorId(principal);
+
   return repo.runInTransaction(() => {
     const existing = repo.getClaimsCaseByIdempotencyKey(key);
     if (existing) {
@@ -133,28 +213,31 @@ export function openClaimsCase(
       return toCase(existing);
     }
 
-    const policy = repo.getPolicy(input.policyId);
-    if (!policy || (policy.status !== 'active' && policy.status !== 'bound')) {
-      throw new ValidationError('ClaimsCase requires an active or bound policy');
-    }
+    const { policy, payoutTo } = assertPolicyOwnership(repo, principal, input.policyId);
     const exposures = repo.listExposures(policy.id);
     const exposure = exposures.find((e) => e.id === input.exposureId);
     if (!exposure) {
       throw new ValidationError('ClaimsCase requires a registered exposure on the policy');
     }
 
-    let draft = createDraftClaimsCase({ ...input, idempotencyKey: key });
+    let draft = createDraftClaimsCase({
+      ...input,
+      idempotencyKey: key,
+      actor,
+    });
     draft = {
       ...draft,
       incidentId: input.incidentId ?? null,
       remainingLimitMicros: exposure.limitMicros,
       lossCapMicros: policy.terms.limitMicros,
       deductibleMicros: policy.terms.deductibleMicros,
+      payoutTo,
     };
-    persistCase(repo, draft);
+    persistNewCase(repo, draft);
     repo.insertAudit('claims_case', draft.id, 'claims_case.opened', {
       syntheticDemo: draft.syntheticDemo,
-      actor: input.actor,
+      actor,
+      role: principal.role,
     });
     return draft;
   });
@@ -162,41 +245,50 @@ export function openClaimsCase(
 
 export function submitClaimsCase(
   repo: InsuranceRepository,
-  input: { caseId: string; actor: string; reasonCode?: string },
+  input: { caseId: string; reasonCode?: string },
+  principal: ClaimsPrincipal,
 ): ClaimsCase {
+  assertClaimsRole(principal, ['claimant', 'system']);
+  const actor = claimsActorId(principal);
   return repo.runInTransaction(() => {
     const current = getClaimsCase(repo, input.caseId);
     if (!current) throw new ValidationError('Unknown ClaimsCase');
     const next = transitionClaimsCase(current, {
       to: 'SUBMITTED',
-      actor: input.actor,
+      actor,
       reasonCode: input.reasonCode ?? 'CASE_SUBMITTED',
     });
-    persistTransition(repo, current, next, input.actor, input.reasonCode ?? 'CASE_SUBMITTED');
-    return next;
+    return persistTransition(
+      repo,
+      current,
+      next,
+      actor,
+      input.reasonCode ?? 'CASE_SUBMITTED',
+    ).case;
   });
 }
 
 export function beginEvidenceCollection(
   repo: InsuranceRepository,
-  input: { caseId: string; actor: string },
+  input: { caseId: string },
+  principal: ClaimsPrincipal,
 ): ClaimsCase {
+  assertClaimsRole(principal, ['claimant', 'system', 'reviewer']);
+  const actor = claimsActorId(principal);
   return repo.runInTransaction(() => {
     const current = getClaimsCase(repo, input.caseId);
     if (!current) throw new ValidationError('Unknown ClaimsCase');
     const next = transitionClaimsCase(current, {
       to: 'COLLECTING_EVIDENCE',
-      actor: input.actor,
+      actor,
       reasonCode: 'EVIDENCE_COLLECTION_STARTED',
     });
-    persistTransition(repo, current, next, input.actor, 'EVIDENCE_COLLECTION_STARTED');
-    return next;
+    return persistTransition(repo, current, next, actor, 'EVIDENCE_COLLECTION_STARTED').case;
   });
 }
 
 export type EvidenceManifestInput = {
   caseId: string;
-  actor: string;
   source: string;
   chain?: string | null;
   blockHash?: string | null;
@@ -211,7 +303,9 @@ export type EvidenceManifestInput = {
 export function attachEvidenceManifest(
   repo: InsuranceRepository,
   input: EvidenceManifestInput,
+  principal: ClaimsPrincipal,
 ): { case: ClaimsCase; inserted: boolean; digest: string } {
+  assertClaimsRole(principal, ['claimant', 'system', 'reviewer']);
   const digest = `sha256:${createHash('sha256').update(input.rawEvidence).digest('hex')}`;
   return repo.runInTransaction(() => {
     const current = getClaimsCase(repo, input.caseId);
@@ -254,8 +348,11 @@ export function attachEvidenceManifest(
         evidenceAuthenticity: authenticity,
         updatedAt: new Date().toISOString(),
       });
-      persistCase(repo, patched);
-      return { case: patched, inserted, digest };
+      return {
+        case: persistUpdatedCase(repo, current, patched),
+        inserted,
+        digest,
+      };
     }
     return { case: current, inserted, digest };
   });
@@ -265,11 +362,12 @@ export function completeEvidenceOrReview(
   repo: InsuranceRepository,
   input: {
     caseId: string;
-    actor: string;
-    /** When false, forces REVIEW for missing independent evidence. */
     evidenceComplete: boolean;
   },
+  principal: ClaimsPrincipal,
 ): ClaimsCase {
+  assertClaimsRole(principal, ['claimant', 'system', 'reviewer']);
+  const actor = claimsActorId(principal);
   return repo.runInTransaction(() => {
     const current = getClaimsCase(repo, input.caseId);
     if (!current) throw new ValidationError('Unknown ClaimsCase');
@@ -277,47 +375,48 @@ export function completeEvidenceOrReview(
     if (!input.evidenceComplete || manifests.length === 0) {
       const next = transitionClaimsCase(current, {
         to: 'REVIEW',
-        actor: input.actor,
+        actor,
         reasonCode: 'INCOMPLETE_EVIDENCE',
         patch: {
           coverageDetermination: 'review_required',
           reviewReasonCode: 'INCOMPLETE_EVIDENCE',
         },
       });
-      persistTransition(repo, current, next, input.actor, 'INCOMPLETE_EVIDENCE');
-      return next;
+      return persistTransition(repo, current, next, actor, 'INCOMPLETE_EVIDENCE').case;
     }
     const next = transitionClaimsCase(current, {
       to: 'INVESTIGATING',
-      actor: input.actor,
+      actor,
       reasonCode: 'MANIFEST_COMPLETE',
     });
-    persistTransition(repo, current, next, input.actor, 'MANIFEST_COMPLETE');
-    return next;
+    return persistTransition(repo, current, next, actor, 'MANIFEST_COMPLETE').case;
   });
 }
 
 export type AdjudicateInput = {
   caseId: string;
-  actor: string;
   coverageDetermination: CoverageDetermination;
   verifiedLossMicros: UsdcMicros | null;
   recoveriesMicros: UsdcMicros | null;
   priorCompensationMicros?: UsdcMicros;
   requestedMicros: UsdcMicros;
-  /** Durable loss identity — never a claimant-controlled arbitrary id alone. */
-  lossKey: string | null;
+  /** Must be a 0x-prefixed 32-byte hex loss key (canonical). */
+  lossKey: string;
   forceReviewReason?: string;
 };
 
-/**
- * Separates coverage + net-loss from payout authorization.
- * Missing evidence authenticity / unknown recoveries → REVIEW (never silent approve/deny).
- */
 export function adjudicateClaimsCase(
   repo: InsuranceRepository,
   input: AdjudicateInput,
+  principal: ClaimsPrincipal,
 ): ClaimsCase {
+  assertClaimsRole(principal, ['reviewer', 'authority']);
+  const actor = claimsActorId(principal);
+
+  if (!/^0x[a-fA-F0-9]{64}$/.test(input.lossKey)) {
+    throw new ValidationError('lossKey must be 0x-prefixed 32-byte hex');
+  }
+
   return repo.runInTransaction(() => {
     const current = getClaimsCase(repo, input.caseId);
     if (!current) throw new ValidationError('Unknown ClaimsCase');
@@ -339,36 +438,34 @@ export function adjudicateClaimsCase(
       current.evidenceAuthenticity === 'failed'
     ) {
       if (current.status === 'REVIEW') {
-        return remainInReview(repo, current, input.actor, 'EVIDENCE_NOT_AUTHENTICATED', reviewPatch);
+        return remainInReview(repo, current, actor, 'EVIDENCE_NOT_AUTHENTICATED', reviewPatch);
       }
       const next = transitionClaimsCase(current, {
         to: 'REVIEW',
-        actor: input.actor,
+        actor,
         reasonCode: 'EVIDENCE_NOT_AUTHENTICATED',
         patch: reviewPatch,
       });
-      persistTransition(repo, current, next, input.actor, 'EVIDENCE_NOT_AUTHENTICATED');
-      return next;
+      return persistTransition(repo, current, next, actor, 'EVIDENCE_NOT_AUTHENTICATED').case;
     }
 
     if (input.forceReviewReason) {
       if (current.status === 'REVIEW') {
-        return remainInReview(repo, current, input.actor, input.forceReviewReason, reviewPatch);
+        return remainInReview(repo, current, actor, input.forceReviewReason, reviewPatch);
       }
       const next = transitionClaimsCase(current, {
         to: 'REVIEW',
-        actor: input.actor,
+        actor,
         reasonCode: input.forceReviewReason,
         patch: reviewPatch,
       });
-      persistTransition(repo, current, next, input.actor, input.forceReviewReason);
-      return next;
+      return persistTransition(repo, current, next, actor, input.forceReviewReason).case;
     }
 
     if (input.coverageDetermination === 'not_covered') {
       const next = transitionClaimsCase(current, {
         to: 'DENIED',
-        actor: input.actor,
+        actor,
         reasonCode: 'NOT_COVERED',
         patch: {
           coverageDetermination: 'not_covered',
@@ -378,25 +475,26 @@ export function adjudicateClaimsCase(
           denialReasonCode: 'NOT_COVERED',
         },
       });
-      persistTransition(repo, current, next, input.actor, 'NOT_COVERED');
-      return next;
+      return persistTransition(repo, current, next, actor, 'NOT_COVERED').case;
     }
 
-    if (input.coverageDetermination === 'review_required' || input.coverageDetermination === 'unknown') {
+    if (
+      input.coverageDetermination === 'review_required' ||
+      input.coverageDetermination === 'unknown'
+    ) {
       if (current.status === 'REVIEW') {
-        return remainInReview(repo, current, input.actor, 'COVERAGE_REVIEW_REQUIRED', reviewPatch);
+        return remainInReview(repo, current, actor, 'COVERAGE_REVIEW_REQUIRED', reviewPatch);
       }
       const next = transitionClaimsCase(current, {
         to: 'REVIEW',
-        actor: input.actor,
+        actor,
         reasonCode: 'COVERAGE_REVIEW_REQUIRED',
         patch: reviewPatch,
       });
-      persistTransition(repo, current, next, input.actor, 'COVERAGE_REVIEW_REQUIRED');
-      return next;
+      return persistTransition(repo, current, next, actor, 'COVERAGE_REVIEW_REQUIRED').case;
     }
 
-    const alreadyPaid = input.lossKey ? repo.sumPaidForLossKey(input.lossKey) : 0n;
+    const alreadyPaid = repo.sumPaidForLossKey(input.lossKey);
     const net = computeNetLossPayable({
       verifiedLossMicros: input.verifiedLossMicros,
       deductibleMicros: current.deductibleMicros,
@@ -415,57 +513,61 @@ export function adjudicateClaimsCase(
         reviewReasonCode: net.reasonCode,
       };
       if (current.status === 'REVIEW') {
-        return remainInReview(repo, current, input.actor, net.reasonCode, netReviewPatch);
+        return remainInReview(repo, current, actor, net.reasonCode, netReviewPatch);
       }
       const next = transitionClaimsCase(current, {
         to: 'REVIEW',
-        actor: input.actor,
+        actor,
         reasonCode: net.reasonCode,
         patch: netReviewPatch,
       });
-      persistTransition(repo, current, next, input.actor, net.reasonCode);
-      return next;
+      return persistTransition(repo, current, next, actor, net.reasonCode).case;
     }
 
-    if (net.outcome === 'DENIED') {
+    if (net.outcome === 'DENIED' || net.payableMicros === 0n) {
+      const reason = net.outcome === 'DENIED' ? net.reasonCode : 'NET_LOSS_ZERO';
       const next = transitionClaimsCase(current, {
         to: 'DENIED',
-        actor: input.actor,
-        reasonCode: net.reasonCode,
+        actor,
+        reasonCode: reason,
         patch: {
           coverageDetermination: 'covered',
           verifiedLossMicros: input.verifiedLossMicros,
           recoveriesMicros: input.recoveriesMicros,
           lossKey: input.lossKey,
-          denialReasonCode: net.reasonCode,
-          payableMicros: null,
+          denialReasonCode: reason,
+          payableMicros: net.outcome === 'payable' ? 0n : null,
         },
       });
-      persistTransition(repo, current, next, input.actor, net.reasonCode);
-      return next;
+      return persistTransition(repo, current, next, actor, reason).case;
     }
 
-    if (net.payableMicros === 0n) {
-      const next = transitionClaimsCase(current, {
-        to: 'DENIED',
-        actor: input.actor,
-        reasonCode: 'NET_LOSS_ZERO',
-        patch: {
-          coverageDetermination: 'covered',
-          verifiedLossMicros: input.verifiedLossMicros,
-          recoveriesMicros: input.recoveriesMicros,
-          lossKey: input.lossKey,
-          payableMicros: 0n,
-          denialReasonCode: 'NET_LOSS_ZERO',
-        },
-      });
-      persistTransition(repo, current, next, input.actor, 'NET_LOSS_ZERO');
-      return next;
+    if (!current.payoutTo) {
+      throw new ValidationError('Cannot approve without frozen payoutTo from policy ownership');
     }
+
+    const manifests = repo.listEvidenceManifests(current.id);
+    if (manifests.length === 0) {
+      throw new ValidationError('Cannot approve without evidence manifests');
+    }
+    const evidenceRoot = computeEvidenceRoot(manifests);
+
+    const binding: AdjudicationBinding = {
+      policyId: current.policyId,
+      exposureId: current.exposureId,
+      payableMicros: net.payableMicros.toString(),
+      lossKey: input.lossKey,
+      evidenceRoot,
+      payoutTo: normalizeWallet(current.payoutTo),
+      verifiedLossMicros: (input.verifiedLossMicros ?? 0n).toString(),
+      recoveriesMicros: (input.recoveriesMicros ?? 0n).toString(),
+      coverageDetermination: 'covered',
+      evidenceAuthenticity: current.evidenceAuthenticity,
+    };
 
     const next = transitionClaimsCase(current, {
       to: 'APPROVED',
-      actor: input.actor,
+      actor,
       reasonCode: net.reasonCode,
       patch: {
         coverageDetermination: 'covered',
@@ -475,45 +577,62 @@ export function adjudicateClaimsCase(
           input.priorCompensationMicros ?? current.priorCompensationMicros,
         lossKey: input.lossKey,
         payableMicros: net.payableMicros,
+        payoutTo: binding.payoutTo,
+        evidenceRoot,
+        adjudicationBindingJson: jsonSafe(binding),
       },
     });
-    persistTransition(repo, current, next, input.actor, net.reasonCode, {
-      payableMicros: net.payableMicros.toString(),
+    return persistTransition(repo, current, next, actor, net.reasonCode, {
+      binding,
       alreadyPaidForLossMicros: alreadyPaid.toString(),
-    });
-    return next;
+    }).case;
   });
 }
 
-const AI_AUTHORITY_PATTERN = /ai[_-]?majority|llm[_-]?vote|model[_-]?consensus/i;
+export function reopenInvestigation(
+  repo: InsuranceRepository,
+  input: { caseId: string },
+  principal: ClaimsPrincipal,
+): ClaimsCase {
+  assertClaimsRole(principal, ['reviewer', 'authority']);
+  const actor = claimsActorId(principal);
+  return repo.runInTransaction(() => {
+    const current = getClaimsCase(repo, input.caseId);
+    if (!current) throw new ValidationError('Unknown ClaimsCase');
+    const next = transitionClaimsCase(current, {
+      to: 'INVESTIGATING',
+      actor,
+      reasonCode: 'REOPEN_INVESTIGATION',
+      patch: {
+        settlementAuthorization: 'none',
+        payableMicros: null,
+        adjudicationBindingJson: null,
+        evidenceRoot: null,
+      },
+    });
+    return persistTransition(repo, current, next, actor, 'REOPEN_INVESTIGATION').case;
+  });
+}
 
 /**
- * Authenticated claims authority gates settlement preparation.
- * Claimant / frontend / LLM / webhook alone cannot authorize transfer.
+ * Authority-gated settlement preparation. Client cannot forge role via actor strings.
+ * Synthetic/fixture cases cannot authorize unless principal.allowSyntheticSettlementPrep.
  */
 export function authorizeSettlementPreparation(
   repo: InsuranceRepository,
   input: {
     caseId: string;
-    authorityActor: string;
     confirmedRecipient: string;
     confirmedAmountMicros: UsdcMicros;
+    confirmedLossKey: string;
+    confirmedEvidenceRoot: string;
     settlementPrepId: string;
   },
+  principal: ClaimsPrincipal,
 ): ClaimsCase {
-  if (AI_AUTHORITY_PATTERN.test(input.authorityActor)) {
-    throw new ValidationError(
-      'AI majority votes / LLM results cannot authorize settlement',
-    );
-  }
-  if (!input.authorityActor.startsWith('authority:')) {
-    throw new ValidationError(
-      'Settlement authorization requires authenticated authority:* actor',
-    );
-  }
-  if (!/^0x[a-fA-F0-9]{40}$/.test(input.confirmedRecipient)) {
-    throw new ValidationError('confirmedRecipient must be a 0x address');
-  }
+  assertClaimsRole(principal, ['authority']);
+  const actor = claimsActorId(principal);
+  const recipient = normalizeWallet(input.confirmedRecipient);
 
   return repo.runInTransaction(() => {
     const current = getClaimsCase(repo, input.caseId);
@@ -523,71 +642,118 @@ export function authorizeSettlementPreparation(
         `Settlement prep requires APPROVED or SETTLEMENT_FAILED (was ${current.status})`,
       );
     }
-    if (current.payableMicros === null) {
-      throw new ValidationError('Cannot prepare settlement without payableMicros');
+    if (!current.adjudicationBindingJson || !current.payableMicros || !current.lossKey) {
+      throw new ValidationError('Missing frozen adjudication binding');
     }
-    if (input.confirmedAmountMicros !== current.payableMicros) {
-      throw new ValidationError('confirmedAmountMicros must match case payableMicros');
+    if (
+      current.syntheticDemo ||
+      current.evidenceAuthenticity === 'synthetic_fixture'
+    ) {
+      if (!principal.allowSyntheticSettlementPrep) {
+        throw new ValidationError(
+          'Synthetic/fixture evidence cannot authorize settlement preparation',
+        );
+      }
+    } else if (current.evidenceAuthenticity !== 'verified_independent') {
+      throw new ValidationError(
+        'Settlement preparation requires verified_independent evidence authenticity',
+      );
+    }
+
+    const binding = JSON.parse(current.adjudicationBindingJson) as AdjudicationBinding;
+    if (binding.policyId !== current.policyId) {
+      throw new ValidationError('Binding policyId mismatch');
+    }
+    if (input.confirmedAmountMicros.toString() !== binding.payableMicros) {
+      throw new ValidationError('confirmedAmountMicros must match frozen binding payable');
+    }
+    if (current.payableMicros.toString() !== binding.payableMicros) {
+      throw new ValidationError('Case payableMicros diverged from frozen binding');
+    }
+    if (input.confirmedLossKey !== binding.lossKey || current.lossKey !== binding.lossKey) {
+      throw new ValidationError('confirmedLossKey must match frozen binding lossKey');
+    }
+    if (
+      input.confirmedEvidenceRoot !== binding.evidenceRoot ||
+      current.evidenceRoot !== binding.evidenceRoot
+    ) {
+      throw new ValidationError('confirmedEvidenceRoot must match frozen binding');
+    }
+    if (recipient !== normalizeWallet(binding.payoutTo)) {
+      throw new ValidationError('confirmedRecipient must match frozen binding payoutTo');
+    }
+
+    const liveRoot = computeEvidenceRoot(repo.listEvidenceManifests(current.id));
+    if (liveRoot !== binding.evidenceRoot) {
+      throw new ValidationError('Evidence manifests changed after adjudication binding');
+    }
+
+    const alreadyPaid = repo.sumPaidForLossKey(binding.lossKey);
+    if (alreadyPaid + current.payableMicros > (current.lossCapMicros ?? 0n)) {
+      throw new ValidationError('Same-loss payout would exceed loss cap');
     }
 
     const next = transitionClaimsCase(current, {
       to: 'SETTLEMENT_PENDING',
-      actor: input.authorityActor,
+      actor,
       reasonCode: 'SETTLEMENT_PREPARED',
       patch: {
         settlementAuthorization: 'authorized',
-        authorityActor: input.authorityActor,
+        authorityActor: actor,
         settlementPrepId: input.settlementPrepId,
       },
     });
-    persistTransition(repo, current, next, input.authorityActor, 'SETTLEMENT_PREPARED', {
-      confirmedRecipient: input.confirmedRecipient,
-      confirmedAmountMicros: input.confirmedAmountMicros.toString(),
+    return persistTransition(repo, current, next, actor, 'SETTLEMENT_PREPARED', {
+      binding,
       settlementPrepId: input.settlementPrepId,
-      notice:
-        current.syntheticDemo
-          ? 'SYNTHETIC DEMO — fixture consistency only; not independently verified real-world loss. No broadcast from this path.'
-          : 'Settlement prepared; broadcast requires separate explicit authorization.',
-    });
-    return next;
+      notice: current.syntheticDemo
+        ? 'SYNTHETIC DEMO settlement prep only — not independently verified real-world loss. No broadcast.'
+        : 'Settlement prepared; broadcast requires separate explicit authorization.',
+    }).case;
   });
 }
 
 export function markClaimsCasePaid(
   repo: InsuranceRepository,
-  input: { caseId: string; actor: string; receiptRef: string },
+  input: { caseId: string; receiptRef: string },
+  principal: ClaimsPrincipal,
 ): ClaimsCase {
+  assertClaimsRole(principal, ['authority']);
+  const actor = claimsActorId(principal);
   return repo.runInTransaction(() => {
     const current = getClaimsCase(repo, input.caseId);
     if (!current) throw new ValidationError('Unknown ClaimsCase');
+    if (current.settlementAuthorization !== 'authorized') {
+      throw new ValidationError('PAID requires prior authorized settlement preparation');
+    }
     const next = transitionClaimsCase(current, {
       to: 'PAID',
-      actor: input.actor,
+      actor,
       reasonCode: 'SETTLEMENT_RECONCILED',
-      patch: {},
     });
-    persistTransition(repo, current, next, input.actor, 'SETTLEMENT_RECONCILED', {
+    return persistTransition(repo, current, next, actor, 'SETTLEMENT_RECONCILED', {
       receiptRef: input.receiptRef,
-    });
-    return next;
+    }).case;
   });
 }
 
 export function markClaimsCaseSettlementFailed(
   repo: InsuranceRepository,
-  input: { caseId: string; actor: string; reasonCode: string; detail?: string },
+  input: { caseId: string; reasonCode: string; detail?: string },
+  principal: ClaimsPrincipal,
 ): ClaimsCase {
+  assertClaimsRole(principal, ['authority']);
+  const actor = claimsActorId(principal);
   return repo.runInTransaction(() => {
     const current = getClaimsCase(repo, input.caseId);
     if (!current) throw new ValidationError('Unknown ClaimsCase');
     const next = transitionClaimsCase(current, {
       to: 'SETTLEMENT_FAILED',
-      actor: input.actor,
+      actor,
       reasonCode: input.reasonCode,
     });
-    persistTransition(repo, current, next, input.actor, input.reasonCode, {
+    return persistTransition(repo, current, next, actor, input.reasonCode, {
       detail: input.detail ?? null,
-    });
-    return next;
+    }).case;
   });
 }

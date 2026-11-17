@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Panel } from '@/components/panel';
 import { CaseStatusBadge } from '@/components/claims/case-status-badge';
 import { StatusBadge } from '@/components/status-badge';
+import { claimsFetch } from '@/lib/claims/claims-api';
 
 type DetailResponse = {
   case: {
@@ -18,6 +19,9 @@ type DetailResponse = {
     recoveries: { usdc: string | null };
     payable: { usdc: string | null; micros: string | null };
     lossKey: string | null;
+    evidenceRoot: string | null;
+    payoutTo: string | null;
+    adjudicationBindingJson: string | null;
     reviewReasonCode: string | null;
     denialReasonCode: string | null;
     authorityActor: string | null;
@@ -42,9 +46,6 @@ type DetailResponse = {
     verificationMethod: string;
     sourceReliability: string;
     syntheticFixture: boolean;
-    transactionHash: string | null;
-    blockHash: string | null;
-    chain: string | null;
   }>;
   error?: string;
 };
@@ -53,12 +54,10 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   const [data, setData] = useState<DetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [authorityActor, setAuthorityActor] = useState('authority:claims');
-  const [recipient, setRecipient] = useState('0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760');
   const [notice, setNotice] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const res = await fetch(`/api/claims/cases/${caseId}`);
+    const res = await claimsFetch('any', `/api/claims/cases/${caseId}`);
     const json = (await res.json()) as DetailResponse;
     if (!res.ok) throw new Error(json.error ?? 'Failed to load case');
     setData(json);
@@ -68,15 +67,18 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
     void refresh().catch((e) => setError(e instanceof Error ? e.message : 'Failed'));
   }, [refresh]);
 
-  function run(action: string, body: Record<string, unknown> = {}) {
+  function run(
+    role: 'reviewer' | 'authority',
+    body: Record<string, unknown>,
+  ) {
     setError(null);
     setNotice(null);
     startTransition(() => {
       void (async () => {
-        const res = await fetch(`/api/claims/cases/${caseId}`, {
+        const res = await claimsFetch(role, `/api/claims/cases/${caseId}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(body.action ? body : { action, ...body }),
+          body: JSON.stringify(body),
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? 'Action failed');
@@ -106,6 +108,8 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   }
 
   const c = data.case;
+  const lossKey =
+    c.lossKey ?? '0x7a6dfe6606b3c2651a98c69e36d0f4e806ae77f16dea70adcd342ab8a8fa121c';
 
   return (
     <div className="space-y-4">
@@ -127,12 +131,12 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
             <dd className="font-mono text-xs">{c.policyId}</dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-500">Exposure</dt>
-            <dd className="font-mono text-xs">{c.exposureId}</dd>
+            <dt className="text-xs text-zinc-500">Frozen payoutTo</dt>
+            <dd className="font-mono text-xs">{c.payoutTo ?? '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-500">Claimant</dt>
-            <dd>{c.claimantRef}</dd>
+            <dt className="text-xs text-zinc-500">Evidence root</dt>
+            <dd className="break-all font-mono text-xs">{c.evidenceRoot ?? '—'}</dd>
           </div>
           <div>
             <dt className="text-xs text-zinc-500">Loss key</dt>
@@ -169,10 +173,9 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
               {data.evidenceManifests.map((m) => (
                 <li key={m.id} className="rounded-md border border-zinc-100 p-2">
                   <div className="font-medium">{m.source}</div>
-                  <div className="text-zinc-500">{m.provenance}</div>
                   <div className="break-all font-mono">{m.rawEvidenceDigest}</div>
                   <div>
-                    {m.verificationMethod} · {m.sourceReliability}
+                    {m.verificationMethod}
                     {m.syntheticFixture ? ' · SYNTHETIC FIXTURE' : ''}
                   </div>
                 </li>
@@ -197,23 +200,24 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
         </ol>
       </Panel>
 
-      <Panel title="Reviewer / authority actions">
+      <Panel title="Reviewer / authority actions (token-gated)">
+        <p className="mb-3 text-xs text-zinc-500">
+          Buttons call APIs with reviewer/authority Bearer tokens only. Sending actor strings cannot
+          escalate privilege.
+        </p>
         <div className="mb-3 flex flex-wrap gap-2">
           <button
             type="button"
             disabled={pending}
             className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs text-white disabled:opacity-50"
             onClick={() =>
-              run('adjudicate', {
+              run('reviewer', {
                 action: 'adjudicate',
-                actor: 'reviewer:dashboard',
                 coverageDetermination: 'covered',
                 verifiedLossUsdc: '1.000000',
                 recoveriesUsdc: '0.000000',
                 requestedUsdc: '1.000000',
-                lossKey:
-                  c.lossKey ??
-                  '0x7a6dfe6606b3c2651a98c69e36d0f4e806ae77f16dea70adcd342ab8a8fa121c',
+                lossKey,
               })
             }
           >
@@ -224,14 +228,13 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
             disabled={pending}
             className="rounded-md bg-amber-700 px-3 py-1.5 text-xs text-white disabled:opacity-50"
             onClick={() =>
-              run('adjudicate', {
+              run('reviewer', {
                 action: 'adjudicate',
-                actor: 'reviewer:dashboard',
                 coverageDetermination: 'covered',
                 verifiedLossUsdc: '1.000000',
                 recoveriesUsdc: null,
                 requestedUsdc: '1.000000',
-                lossKey: c.lossKey ?? '0x' + '11'.repeat(32),
+                lossKey,
               })
             }
           >
@@ -242,14 +245,13 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
             disabled={pending}
             className="rounded-md bg-rose-800 px-3 py-1.5 text-xs text-white disabled:opacity-50"
             onClick={() =>
-              run('adjudicate', {
+              run('reviewer', {
                 action: 'adjudicate',
-                actor: 'reviewer:dashboard',
                 coverageDetermination: 'not_covered',
                 verifiedLossUsdc: '1.000000',
                 recoveriesUsdc: '0.000000',
                 requestedUsdc: '1.000000',
-                lossKey: c.lossKey ?? '0x' + '22'.repeat(32),
+                lossKey,
               })
             }
           >
@@ -260,50 +262,29 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
               type="button"
               disabled={pending}
               className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs disabled:opacity-50"
-              onClick={() => run('reopen_investigation', { action: 'reopen_investigation' })}
+              onClick={() => run('reviewer', { action: 'reopen_investigation' })}
             >
               Reopen investigation
             </button>
           ) : null}
         </div>
 
-        <div className="space-y-2 border-t border-zinc-100 pt-3 text-sm">
-          <p className="text-xs text-zinc-500">
-            Settlement preparation requires authenticated <code>authority:*</code> actor. This UI
-            never broadcasts on-chain transfers.
-          </p>
-          <label className="block space-y-1">
-            <span className="text-xs text-zinc-600">Authority actor</span>
-            <input
-              className="w-full rounded-md border border-zinc-200 px-2 py-1 font-mono text-xs"
-              value={authorityActor}
-              onChange={(e) => setAuthorityActor(e.target.value)}
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-xs text-zinc-600">Confirm recipient</span>
-            <input
-              className="w-full rounded-md border border-zinc-200 px-2 py-1 font-mono text-xs"
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-            />
-          </label>
-          <button
-            type="button"
-            disabled={pending || !c.payable.usdc}
-            className="rounded-md bg-sky-800 px-3 py-1.5 text-xs text-white disabled:opacity-50"
-            onClick={() =>
-              run('prepare_settlement', {
-                action: 'prepare_settlement',
-                authorityActor,
-                confirmedRecipient: recipient,
-                confirmedAmountUsdc: c.payable.usdc,
-              })
-            }
-          >
-            Prepare settlement (no broadcast)
-          </button>
-        </div>
+        <button
+          type="button"
+          disabled={pending || !c.payable.usdc || !c.evidenceRoot || !c.payoutTo || !c.lossKey}
+          className="rounded-md bg-sky-800 px-3 py-1.5 text-xs text-white disabled:opacity-50"
+          onClick={() =>
+            run('authority', {
+              action: 'prepare_settlement',
+              confirmedRecipient: c.payoutTo,
+              confirmedAmountUsdc: c.payable.usdc,
+              confirmedLossKey: c.lossKey,
+              confirmedEvidenceRoot: c.evidenceRoot,
+            })
+          }
+        >
+          Prepare settlement (authority token, no broadcast)
+        </button>
         {notice ? <p className="mt-2 text-xs text-sky-800">{notice}</p> : null}
         {error ? <p className="mt-2 text-xs text-rose-700">{error}</p> : null}
       </Panel>

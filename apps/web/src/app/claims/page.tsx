@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
+import { ClaimsAuthPanel } from '@/components/claims/claims-auth-panel';
 import { ClaimsCaseList } from '@/components/claims/claims-case-list';
 import { ClaimsPanel } from '@/components/claims/claims-panel';
 import { HistoricSettlementPanel } from '@/components/claims/historic-settlement-panel';
@@ -23,6 +24,9 @@ export default function ClaimsPage() {
             Reviewer workbench
           </Link>
         </div>
+      </div>
+      <div className="mb-4">
+        <ClaimsAuthPanel />
       </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <ClaimsCaseList />

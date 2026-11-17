@@ -125,6 +125,10 @@ describe('InsuranceRepository', () => {
       reviewReasonCode: null,
       authorityActor: null,
       settlementPrepId: null,
+      payoutTo: '0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760',
+      evidenceRoot: null,
+      adjudicationBindingJson: null,
+      rowVersion: 1,
       createdAt: now,
       updatedAt: now,
     };

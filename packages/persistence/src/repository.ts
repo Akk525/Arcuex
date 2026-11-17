@@ -701,6 +701,7 @@ export class InsuranceRepository {
            deductible_micros, prior_compensation_micros, recoveries_micros,
            remaining_limit_micros, loss_cap_micros, payable_micros, loss_key,
            denial_reason_code, review_reason_code, authority_actor, settlement_prep_id,
+           payout_to, evidence_root, adjudication_binding_json, row_version,
            created_at, updated_at
          ) VALUES (
            @id, @schemaVersion, @status, @policyId, @exposureId, @incidentId, @claimId,
@@ -709,6 +710,7 @@ export class InsuranceRepository {
            @deductibleMicros, @priorCompensationMicros, @recoveriesMicros,
            @remainingLimitMicros, @lossCapMicros, @payableMicros, @lossKey,
            @denialReasonCode, @reviewReasonCode, @authorityActor, @settlementPrepId,
+           @payoutTo, @evidenceRoot, @adjudicationBindingJson, @rowVersion,
            @createdAt, @updatedAt
          )`,
       )
@@ -738,9 +740,88 @@ export class InsuranceRepository {
         reviewReasonCode: c.reviewReasonCode,
         authorityActor: c.authorityActor,
         settlementPrepId: c.settlementPrepId,
+        payoutTo: c.payoutTo,
+        evidenceRoot: c.evidenceRoot,
+        adjudicationBindingJson: c.adjudicationBindingJson,
+        rowVersion: c.rowVersion,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
       });
+  }
+
+  /**
+   * Optimistic concurrency: updates only when row_version matches.
+   * Returns false on conflict (caller should abort / retry).
+   */
+  updateClaimsCaseOptimistic(c: PersistedClaimsCase, expectedVersion: number): boolean {
+    const result = this.db
+      .prepare(
+        `UPDATE claims_cases SET
+           schema_version = @schemaVersion,
+           status = @status,
+           policy_id = @policyId,
+           exposure_id = @exposureId,
+           incident_id = @incidentId,
+           claim_id = @claimId,
+           claimant_ref = @claimantRef,
+           idempotency_key = @idempotencyKey,
+           synthetic_demo = @syntheticDemo,
+           evidence_authenticity = @evidenceAuthenticity,
+           coverage_determination = @coverageDetermination,
+           settlement_authorization = @settlementAuthorization,
+           verified_loss_micros = @verifiedLossMicros,
+           deductible_micros = @deductibleMicros,
+           prior_compensation_micros = @priorCompensationMicros,
+           recoveries_micros = @recoveriesMicros,
+           remaining_limit_micros = @remainingLimitMicros,
+           loss_cap_micros = @lossCapMicros,
+           payable_micros = @payableMicros,
+           loss_key = @lossKey,
+           denial_reason_code = @denialReasonCode,
+           review_reason_code = @reviewReasonCode,
+           authority_actor = @authorityActor,
+           settlement_prep_id = @settlementPrepId,
+           payout_to = @payoutTo,
+           evidence_root = @evidenceRoot,
+           adjudication_binding_json = @adjudicationBindingJson,
+           row_version = @rowVersion,
+           updated_at = @updatedAt
+         WHERE id = @id AND row_version = @expectedVersion`,
+      )
+      .run({
+        id: c.id,
+        expectedVersion,
+        schemaVersion: c.schemaVersion,
+        status: c.status,
+        policyId: c.policyId,
+        exposureId: c.exposureId,
+        incidentId: c.incidentId,
+        claimId: c.claimId,
+        claimantRef: c.claimantRef,
+        idempotencyKey: c.idempotencyKey,
+        syntheticDemo: c.syntheticDemo ? 1 : 0,
+        evidenceAuthenticity: c.evidenceAuthenticity,
+        coverageDetermination: c.coverageDetermination,
+        settlementAuthorization: c.settlementAuthorization,
+        verifiedLossMicros: c.verifiedLossMicros?.toString() ?? null,
+        deductibleMicros: c.deductibleMicros.toString(),
+        priorCompensationMicros: c.priorCompensationMicros.toString(),
+        recoveriesMicros: c.recoveriesMicros?.toString() ?? null,
+        remainingLimitMicros: c.remainingLimitMicros?.toString() ?? null,
+        lossCapMicros: c.lossCapMicros?.toString() ?? null,
+        payableMicros: c.payableMicros?.toString() ?? null,
+        lossKey: c.lossKey,
+        denialReasonCode: c.denialReasonCode,
+        reviewReasonCode: c.reviewReasonCode,
+        authorityActor: c.authorityActor,
+        settlementPrepId: c.settlementPrepId,
+        payoutTo: c.payoutTo,
+        evidenceRoot: c.evidenceRoot,
+        adjudicationBindingJson: c.adjudicationBindingJson,
+        rowVersion: c.rowVersion,
+        updatedAt: c.updatedAt,
+      });
+    return Number(result.changes) === 1;
   }
 
   getClaimsCase(id: string): PersistedClaimsCase | null {

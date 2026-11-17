@@ -36,6 +36,10 @@ export function serializeClaimsCase(c: ClaimsCase) {
     reviewReasonCode: c.reviewReasonCode,
     authorityActor: c.authorityActor,
     settlementPrepId: c.settlementPrepId,
+    payoutTo: c.payoutTo,
+    evidenceRoot: c.evidenceRoot,
+    adjudicationBindingJson: c.adjudicationBindingJson,
+    rowVersion: c.rowVersion,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
     labels: {
