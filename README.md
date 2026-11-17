@@ -90,3 +90,17 @@ curl -s http://localhost:3000/api/capital
 - [docs/architecture/trust-boundaries.md](docs/architecture/trust-boundaries.md)
 - [docs/integrations/quicknode.md](docs/integrations/quicknode.md)
 - [AGENTS.md](AGENTS.md)
+
+### Authenticated synthetic procurement beta
+
+`/coverage` now provides wallet authentication, agent/exposure registration,
+validated demo quotes, immutable terms acceptance and explicit wallet-authorized
+USDC approval/binding. `/policies` and `/policies/[id]` expose policy history,
+receipts and read-only chain reconciliation. `/agent` manages owner-authenticated
+backend delegations; `ProcurementApiClient` supports the remote agent workflow.
+
+This covers **synthetic oracle-adapter-induced wrongful lending liquidation** on
+Arc Testnet. Pricing is a demo schedule. Contract commitments and backend-only
+eligibility/delegation controls are different guarantees; the deployed pool is
+permissionless and does not validate signed quotes. Read the [procurement guide](docs/development/procurement-beta.md)
+for endpoints, exact limitations, launch blockers and the claims-sprint handoff.
