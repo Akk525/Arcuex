@@ -356,4 +356,61 @@ contract InsurancePoolTest is Test {
         assertEq(usdc.balanceOf(address(pool)), pool.totalAssets());
         pool.assertSolvent();
     }
+    function test_demoPremiumOwnershipNavAndWithdrawals() public {
+        vm.prank(lp);
+        pool.deposit(5_000_000);
+        vm.prank(agent);
+        pool.bindPolicy(POLICY_ID, TERMS_HASH, beneficiary, 100_000, 2_000_000,
+            uint64(block.timestamp), uint64(block.timestamp + 14 days));
+        assertEq(pool.totalShares(), 5_100_000);
+        assertEq(pool.sharesOf(lp), 5_000_000);
+        assertEq(pool.sharesOf(feeRecipient), 100_000);
+        // Premium mints at pre-premium NAV: no principal dilution, no LP premium yield.
+        assertEq(pool.sharesOf(lp) * pool.totalAssets() / pool.totalShares(), 5_000_000);
+        assertEq(pool.sharesOf(feeRecipient) * pool.totalAssets() / pool.totalShares(), 100_000);
+        _settle(CLAIM_ID, LOSS_KEY, 1_000_000, 1_000_000);
+        assertEq(pool.totalAssets(), 4_100_000);
+        assertEq(pool.totalShares(), pool.sharesOf(lp) + pool.sharesOf(feeRecipient));
+        uint256 feeValue = pool.sharesOf(feeRecipient) * pool.totalAssets() / pool.totalShares();
+        assertEq(feeValue, 80_392); // Fee shares bear the same loss as LP shares.
+        uint256 feeShares = pool.sharesOf(feeRecipient);
+        vm.prank(feeRecipient);
+        uint256 feeOut = pool.withdraw(feeShares);
+        assertEq(feeOut, feeValue);
+        uint256 lpShares = pool.sharesOf(lp);
+        vm.prank(lp);
+        vm.expectRevert(InsurancePool.InsufficientAvailableCapital.selector);
+        pool.withdraw(lpShares);
+        vm.prank(authority);
+        pool.releaseReservation(POLICY_ID);
+        vm.prank(lp);
+        uint256 lpOut = pool.withdraw(lpShares);
+        assertEq(feeOut + lpOut, 4_100_000);
+        assertEq(pool.totalShares(), 0);
+        assertEq(pool.totalAssets(), 0);
+        assertEq(usdc.balanceOf(address(pool)), 0);
+    }
+
+    function testFuzz_premiumMintDoesNotReduceExistingShareValue(uint96 rawPremium) public {
+        uint256 premium = bound(uint256(rawPremium), 1, 10_000_000);
+        vm.prank(lp);
+        pool.deposit(5_000_000);
+        vm.prank(agent);
+        pool.bindPolicy(POLICY_ID, TERMS_HASH, beneficiary, 100_000, 2_000_000,
+            uint64(block.timestamp), uint64(block.timestamp + 14 days));
+        _settle(CLAIM_ID, LOSS_KEY, 1_000_000, 1_000_000);
+        uint256 assetsBefore = pool.totalAssets();
+        uint256 sharesBefore = pool.totalShares();
+        uint256 feeBefore = pool.sharesOf(feeRecipient);
+        vm.prank(agent);
+        pool.bindPolicy(keccak256("second"), TERMS_HASH, beneficiary, premium, 1_000_000,
+            uint64(block.timestamp), uint64(block.timestamp + 14 days));
+        uint256 minted = pool.sharesOf(feeRecipient) - feeBefore;
+        assertEq(minted, premium * sharesBefore / assetsBefore);
+        // Flooring fee shares favors existing holders by rounding, never dilutes NAV.
+        assertGe(pool.totalAssets() * sharesBefore, assetsBefore * pool.totalShares());
+        assertEq(pool.totalShares(), pool.sharesOf(lp) + pool.sharesOf(feeRecipient));
+        pool.assertSolvent();
+    }
+
 }

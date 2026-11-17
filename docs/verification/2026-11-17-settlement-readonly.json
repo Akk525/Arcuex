@@ -1,0 +1,173 @@
+{
+  "verifiedAt": "2026-11-17T17:10:15.117Z",
+  "method": "Public read-only RPC; no environment keys loaded; no broadcasts",
+  "pool": "0x6657974EEdF488380251bDD95A7FFfb0D456E49E",
+  "usdc": "0x3600000000000000000000000000000000000000",
+  "hash": "0x83130e95f5dfb2209a5382524a1ef749dd2f90a605fcf892cf80b333ef3d89c7",
+  "receipt": {
+    "status": "success",
+    "blockNumber": "72712674",
+    "blockHash": "0x779a7237fb8cb0f15607562ab8600d5e3cad6a84877f4f8e9d09e76cbcc44cf8",
+    "from": "0xa6876a60748c638f66b911aaee03bd712d85af36",
+    "to": "0x6657974eedf488380251bdd95a7fffb0d456e49e",
+    "gasUsed": "221434"
+  },
+  "events": [
+    {
+      "eventName": "ClaimSettled",
+      "args": {
+        "policyId": "0x709b9ba707bc439385d46a013efde14b58160bf9d4583f60aa8b932d25ac4f74",
+        "claimId": "0x90651bb69988d9da2cefb04cacb0c066cbd029e0c6bec62ad9a0792e59b7a3c3",
+        "lossKey": "0x7a6dfe6606b3c2651a98c69e36d0f4e806ae77f16dea70adcd342ab8a8fa121c",
+        "beneficiary": "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+        "amount": "1000000",
+        "lossPaidTotal": "1000000",
+        "lossCap": "1000000"
+      }
+    }
+  ],
+  "transfers": [
+    {
+      "from": "0x6657974EEdF488380251bDD95A7FFfb0D456E49E",
+      "to": "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+      "value": "1000000"
+    }
+  ],
+  "checks": {
+    "chain": true,
+    "receiptSuccess": true,
+    "sentToPool": true,
+    "authority": true,
+    "transfer": true,
+    "beneficiaryDelta": true,
+    "assetsDelta": true,
+    "reservationDelta": true,
+    "sharesUnchanged": true,
+    "currentSolvent": true,
+    "currentSettled": true,
+    "currentLossPaid": true
+  },
+  "before": {
+    "blockNumber": "72712673",
+    "totalAssets": "5100000",
+    "totalReserved": "2000000",
+    "totalShares": "5100000",
+    "availableCapital": "3100000",
+    "feeRecipient": "0x69797270A2b8B355D55676787a29D2B1057411C7",
+    "claimsAuthority": "0xA6876A60748c638f66b911aaEe03Bd712D85AF36",
+    "policy": [
+      "0x0f0920a43c75515d8145b18675e9c9cb13ac47afdfd07b0d484d86956d8db4bc",
+      "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+      "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+      "2000000",
+      "100000",
+      "1794935073",
+      "1796144673",
+      "2000000",
+      "0",
+      true,
+      false
+    ],
+    "shares": [
+      {
+        "holder": "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+        "shares": "5000000"
+      },
+      {
+        "holder": "0x69797270A2b8B355D55676787a29D2B1057411C7",
+        "shares": "100000"
+      }
+    ],
+    "loss": [
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "0",
+      "0",
+      false
+    ],
+    "settled": false,
+    "poolUsdc": "5100000",
+    "beneficiaryUsdc": "14866934"
+  },
+  "after": {
+    "blockNumber": "72712674",
+    "totalAssets": "4100000",
+    "totalReserved": "1000000",
+    "totalShares": "5100000",
+    "availableCapital": "3100000",
+    "feeRecipient": "0x69797270A2b8B355D55676787a29D2B1057411C7",
+    "claimsAuthority": "0xA6876A60748c638f66b911aaEe03Bd712D85AF36",
+    "policy": [
+      "0x0f0920a43c75515d8145b18675e9c9cb13ac47afdfd07b0d484d86956d8db4bc",
+      "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+      "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+      "2000000",
+      "100000",
+      "1794935073",
+      "1796144673",
+      "1000000",
+      "1000000",
+      true,
+      false
+    ],
+    "shares": [
+      {
+        "holder": "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+        "shares": "5000000"
+      },
+      {
+        "holder": "0x69797270A2b8B355D55676787a29D2B1057411C7",
+        "shares": "100000"
+      }
+    ],
+    "loss": [
+      "0x709b9ba707bc439385d46a013efde14b58160bf9d4583f60aa8b932d25ac4f74",
+      "1000000",
+      "1000000",
+      true
+    ],
+    "settled": true,
+    "poolUsdc": "4100000",
+    "beneficiaryUsdc": "15866934"
+  },
+  "current": {
+    "blockNumber": "72713224",
+    "totalAssets": "4100000",
+    "totalReserved": "1000000",
+    "totalShares": "5100000",
+    "availableCapital": "3100000",
+    "feeRecipient": "0x69797270A2b8B355D55676787a29D2B1057411C7",
+    "claimsAuthority": "0xA6876A60748c638f66b911aaEe03Bd712D85AF36",
+    "policy": [
+      "0x0f0920a43c75515d8145b18675e9c9cb13ac47afdfd07b0d484d86956d8db4bc",
+      "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+      "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+      "2000000",
+      "100000",
+      "1794935073",
+      "1796144673",
+      "1000000",
+      "1000000",
+      true,
+      false
+    ],
+    "shares": [
+      {
+        "holder": "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+        "shares": "5000000"
+      },
+      {
+        "holder": "0x69797270A2b8B355D55676787a29D2B1057411C7",
+        "shares": "100000"
+      }
+    ],
+    "loss": [
+      "0x709b9ba707bc439385d46a013efde14b58160bf9d4583f60aa8b932d25ac4f74",
+      "1000000",
+      "1000000",
+      true
+    ],
+    "settled": true,
+    "poolUsdc": "4100000",
+    "beneficiaryUsdc": "15866934"
+  }
+}

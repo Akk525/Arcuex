@@ -2,6 +2,8 @@
 
 Branch: `feat/onchain-lifecycle`
 
+Historical matrix below is superseded for deployment/settlement by the [2026-11-17 read-only verification](2026-11-17-settlement-review.md). The pool is deployed and the supplied settlement succeeded.
+
 ## Matrix
 
 | Criterion | Status | Evidence |
