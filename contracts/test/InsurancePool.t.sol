@@ -216,6 +216,50 @@ contract InsurancePoolTest is Test {
         );
     }
 
+    function test_coverageNotStartedReverts() public {
+        uint256 limit = 1_000 * ONE_USDC;
+        vm.prank(lp);
+        pool.deposit(limit + 1_000 * ONE_USDC);
+
+        uint64 start = uint64(block.timestamp + 1 days);
+        uint64 end = uint64(block.timestamp + 7 days);
+        vm.prank(agent);
+        pool.bindPolicy(POLICY_ID, TERMS_HASH, beneficiary, 10 * ONE_USDC, limit, start, end);
+
+        vm.prank(authority);
+        vm.expectRevert(InsurancePool.CoverageNotStarted.selector);
+        pool.settleClaim(POLICY_ID, CLAIM_ID, 10 * ONE_USDC, beneficiary);
+    }
+
+    function test_premiumSharesUseNavAfterLoss() public {
+        uint256 limit = 5_000 * ONE_USDC;
+        _bindHappyPath(limit, 50 * ONE_USDC);
+
+        vm.prank(authority);
+        pool.settleClaim(POLICY_ID, CLAIM_ID, 2_000 * ONE_USDC, beneficiary);
+
+        uint256 assetsBefore = pool.totalAssets();
+        uint256 sharesBefore = pool.totalShares();
+        uint256 feeBefore = pool.sharesOf(feeRecipient);
+
+        bytes32 policy2 = keccak256("policy-2");
+        uint256 premium2 = 100 * ONE_USDC;
+        vm.prank(agent);
+        pool.bindPolicy(
+            policy2,
+            keccak256("terms-2"),
+            beneficiary,
+            premium2,
+            500 * ONE_USDC,
+            uint64(block.timestamp),
+            uint64(block.timestamp + 7 days)
+        );
+
+        uint256 expectedFeeShares = (premium2 * sharesBefore) / assetsBefore;
+        assertEq(pool.sharesOf(feeRecipient), feeBefore + expectedFeeShares);
+        pool.assertSolvent();
+    }
+
     function test_conservationAcrossLifecycle() public {
         uint256 limit = 8_000 * ONE_USDC;
         uint256 premium = 80 * ONE_USDC;

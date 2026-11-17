@@ -174,10 +174,12 @@ contract InsurancePool is Ownable, ReentrancyGuard {
 
         usdc.safeTransferFrom(msg.sender, address(this), premium);
 
-        // Premium increases pool assets; shares minted to fee recipient (surplus accounting).
+        // Premium increases pool assets; fee shares minted at current NAV (same as deposit).
+        uint256 feeShares = totalShares == 0 ? premium : (premium * totalShares) / totalAssets;
+        if (feeShares == 0) revert ZeroAmount();
         totalAssets += premium;
-        totalShares += premium;
-        sharesOf[feeRecipient] += premium;
+        totalShares += feeShares;
+        sharesOf[feeRecipient] += feeShares;
 
         totalReserved += limit;
 
