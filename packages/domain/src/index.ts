@@ -12,3 +12,4 @@ export * from './onchain-ids';
 export * from './loss-key';
 export * from './outcomes';
 
+export * from './procurement';
