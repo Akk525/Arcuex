@@ -1,7 +1,7 @@
 # ClaimsCase adjudication design (v1)
 
-**Date:** 2026-11-17  
-**Branch:** `feat/claims-workflow`  
+**Date:** 2026-11-17
+**Branch:** `feat/claims-workflow`
 **Decision:** Additive `ClaimsCase` in `@arcuex/insurance` — do not alter shared `Claim` / `Incident` schemas.
 
 ## Goal

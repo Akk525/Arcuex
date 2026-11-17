@@ -104,3 +104,12 @@ Arc Testnet. Pricing is a demo schedule. Contract commitments and backend-only
 eligibility/delegation controls are different guarantees; the deployed pool is
 permissionless and does not validate signed quotes. Read the [procurement guide](docs/development/procurement-beta.md)
 for endpoints, exact limitations, launch blockers and the claims-sprint handoff.
+
+### Procurement + claims integration
+
+The integration branch uses one wallet-signature/httpOnly session across
+`/coverage → /policies/[id] → /claims/new → /claims/[id]`. Claims reference the
+immutable procurement policy/exposure directly; reviewer and authority rights
+remain separately provisioned. Legacy claimant tokens and procurement browser
+bearer sessions are retired. No contract changes or broadcasts are part of this
+integration. See the [launch assessment and exact gates](docs/verification/2026-11-17-procurement-claims-integration.md).

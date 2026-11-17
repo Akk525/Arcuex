@@ -1,5 +1,7 @@
 # Procurement beta acceptance — 2026-11-17
 
+Historical procurement checkpoint. Shared authentication and the claims bridge are now implemented; see the [current integration assessment](2026-11-17-procurement-claims-integration.md).
+
 Branch: `feat/onchain-lifecycle`. Baseline commits inspected: `2c8ec30`, `5dd621c`. Existing uncommitted procurement schema/service foundations were inspected and integrated. No contracts changed, no redeployment, no financial broadcasts, no secrets printed or committed.
 
 ## Baseline findings

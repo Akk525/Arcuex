@@ -1,7 +1,7 @@
 # Codex A integration requirements (claims ↔ procurement)
 
-**Date:** 2026-11-17  
-**Claims branch:** `feat/claims-workflow`  
+**Date:** 2026-11-17
+**Claims branch:** `feat/claims-workflow`
 **Peer branch:** `feat/onchain-lifecycle`
 
 Claims workflow does **not** edit shared domain claim/incident schemas, `loss-key` helpers, InsurancePool ABI, or deploy scripts. Needed from procurement / shared surfaces:
