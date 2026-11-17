@@ -81,7 +81,7 @@ if [[ -n "${CLAIMS_AUTHORITY:-}" ]]; then
     echo "FAIL: CLAIMS_AUTHORITY is not a 20-byte hex address" >&2
     exit 1
   fi
-  if [[ "${CLAIMS_AUTHORITY,,}" == "0x0000000000000000000000000000000000000000" ]]; then
+  if [[ "$(printf "%s" "$CLAIMS_AUTHORITY" | tr "[:upper:]" "[:lower:]")" == "0x0000000000000000000000000000000000000000" ]]; then
     echo "FAIL: CLAIMS_AUTHORITY is zero address" >&2
     exit 1
   fi
@@ -93,7 +93,7 @@ if [[ -n "${FEE_RECIPIENT:-}" ]]; then
     echo "FAIL: FEE_RECIPIENT is not a 20-byte hex address" >&2
     exit 1
   fi
-  if [[ "${FEE_RECIPIENT,,}" == "0x0000000000000000000000000000000000000000" ]]; then
+  if [[ "$(printf "%s" "$FEE_RECIPIENT" | tr "[:upper:]" "[:lower:]")" == "0x0000000000000000000000000000000000000000" ]]; then
     echo "FAIL: FEE_RECIPIENT is zero address" >&2
     exit 1
   fi
@@ -101,7 +101,7 @@ if [[ -n "${FEE_RECIPIENT:-}" ]]; then
 fi
 
 if [[ -n "${CLAIMS_AUTHORITY:-}" && -n "${FEE_RECIPIENT:-}" && \
-      "${CLAIMS_AUTHORITY,,}" == "${FEE_RECIPIENT,,}" ]]; then
+      "$(printf "%s" "$CLAIMS_AUTHORITY" | tr "[:upper:]" "[:lower:]")" == "$(printf "%s" "$FEE_RECIPIENT" | tr "[:upper:]" "[:lower:]")" ]]; then
   echo "WARN: CLAIMS_AUTHORITY == FEE_RECIPIENT (allowed but concentrated trust)"
 fi
 
