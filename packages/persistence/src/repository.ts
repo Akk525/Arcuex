@@ -470,6 +470,146 @@ export class InsuranceRepository {
     return row ? mapSettlement(row as Record<string, unknown>) : null;
   }
 
+  /** Durable idempotent on-chain tx record. Returns false if key already succeeded. */
+  upsertOnchainTransaction(input: {
+    id: string;
+    purpose: string;
+    idempotencyKey: string;
+    txHash?: string | null;
+    status: string;
+    fromAddress?: string | null;
+    toAddress?: string | null;
+    policyEntityId?: string | null;
+    claimEntityId?: string | null;
+    payload: unknown;
+    errorMessage?: string | null;
+    nowIso: string;
+  }): { inserted: boolean; existingStatus?: string } {
+    const existing = this.db
+      .prepare(`SELECT status FROM onchain_transactions WHERE idempotency_key = ?`)
+      .get(input.idempotencyKey) as { status: string } | undefined;
+    if (existing) {
+      return { inserted: false, existingStatus: existing.status };
+    }
+    this.db
+      .prepare(
+        `INSERT INTO onchain_transactions (
+          id, purpose, idempotency_key, tx_hash, status, from_address, to_address,
+          policy_entity_id, claim_entity_id, payload_json, error_message, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        input.id,
+        input.purpose,
+        input.idempotencyKey,
+        input.txHash ?? null,
+        input.status,
+        input.fromAddress ?? null,
+        input.toAddress ?? null,
+        input.policyEntityId ?? null,
+        input.claimEntityId ?? null,
+        JSON.stringify(input.payload),
+        input.errorMessage ?? null,
+        input.nowIso,
+        input.nowIso,
+      );
+    return { inserted: true };
+  }
+
+  updateOnchainTransaction(
+    idempotencyKey: string,
+    patch: {
+      txHash?: string | null;
+      status: string;
+      errorMessage?: string | null;
+      nowIso: string;
+    },
+  ): void {
+    this.db
+      .prepare(
+        `UPDATE onchain_transactions
+         SET tx_hash = COALESCE(?, tx_hash),
+             status = ?,
+             error_message = ?,
+             updated_at = ?
+         WHERE idempotency_key = ?`,
+      )
+      .run(patch.txHash ?? null, patch.status, patch.errorMessage ?? null, patch.nowIso, idempotencyKey);
+  }
+
+  saveOnchainPolicyLink(input: {
+    policyEntityId: string;
+    policyIdBytes32: string;
+    termsHash: string;
+    poolAddress: string;
+    chainId: number;
+    boundTxHash?: string | null;
+    boundAt?: string | null;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO onchain_policy_links (
+          policy_entity_id, policy_id_bytes32, terms_hash, pool_address, chain_id,
+          bound_tx_hash, bound_at, last_reconciled_at, last_reconcile_ok, last_mismatch_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)`,
+      )
+      .run(
+        input.policyEntityId,
+        input.policyIdBytes32,
+        input.termsHash,
+        input.poolAddress,
+        input.chainId,
+        input.boundTxHash ?? null,
+        input.boundAt ?? null,
+      );
+  }
+
+  recordReconcileResult(
+    policyEntityId: string,
+    ok: boolean,
+    mismatches: readonly string[],
+    nowIso: string,
+  ): void {
+    this.db
+      .prepare(
+        `UPDATE onchain_policy_links
+         SET last_reconciled_at = ?, last_reconcile_ok = ?, last_mismatch_json = ?
+         WHERE policy_entity_id = ?`,
+      )
+      .run(nowIso, ok ? 1 : 0, JSON.stringify(mismatches), policyEntityId);
+  }
+
+  getOnchainPolicyLink(policyEntityId: string): {
+    policyEntityId: string;
+    policyIdBytes32: string;
+    termsHash: string;
+    poolAddress: string;
+    chainId: number;
+    boundTxHash: string | null;
+    boundAt: string | null;
+    lastReconciledAt: string | null;
+    lastReconcileOk: boolean | null;
+  } | null {
+    const row = this.db
+      .prepare(`SELECT * FROM onchain_policy_links WHERE policy_entity_id = ?`)
+      .get(policyEntityId) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return {
+      policyEntityId: String(row.policy_entity_id),
+      policyIdBytes32: String(row.policy_id_bytes32),
+      termsHash: String(row.terms_hash),
+      poolAddress: String(row.pool_address),
+      chainId: Number(row.chain_id),
+      boundTxHash: row.bound_tx_hash ? String(row.bound_tx_hash) : null,
+      boundAt: row.bound_at ? String(row.bound_at) : null,
+      lastReconciledAt: row.last_reconciled_at ? String(row.last_reconciled_at) : null,
+      lastReconcileOk:
+        row.last_reconcile_ok === null || row.last_reconcile_ok === undefined
+          ? null
+          : Number(row.last_reconcile_ok) === 1,
+    };
+  }
+
   runInTransaction<T>(fn: () => T): T {
     return withTransaction(this.db, fn);
   }

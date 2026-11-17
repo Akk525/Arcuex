@@ -1,0 +1,124 @@
+import {
+  type Address,
+  type PublicClient,
+  type Hex,
+} from 'viem';
+import { insurancePoolAbi } from './abi/insurance-pool';
+import { OnchainError } from './errors';
+
+export type OnchainPolicy = {
+  termsHash: Hex;
+  beneficiary: Address;
+  premiumPayer: Address;
+  limit: bigint;
+  premium: bigint;
+  coverageStart: bigint;
+  coverageEnd: bigint;
+  reserved: bigint;
+  paidOut: bigint;
+  bound: boolean;
+  cancelled: boolean;
+};
+
+export type PoolSnapshot = {
+  totalAssets: bigint;
+  totalReserved: bigint;
+  totalShares: bigint;
+  availableCapital: bigint;
+  usdcBalance: bigint;
+  claimsAuthority: Address;
+};
+
+export function requirePoolAddress(address: Address | null | undefined): Address {
+  if (!address) {
+    throw new OnchainError('NOT_DEPLOYED', 'InsurancePool address is not configured');
+  }
+  return address;
+}
+
+export async function readPoolSnapshot(
+  client: PublicClient,
+  pool: Address,
+): Promise<PoolSnapshot> {
+  const [totalAssets, totalReserved, totalShares, availableCapital, claimsAuthority, usdc] =
+    await Promise.all([
+      client.readContract({ address: pool, abi: insurancePoolAbi, functionName: 'totalAssets' }),
+      client.readContract({ address: pool, abi: insurancePoolAbi, functionName: 'totalReserved' }),
+      client.readContract({ address: pool, abi: insurancePoolAbi, functionName: 'totalShares' }),
+      client.readContract({
+        address: pool,
+        abi: insurancePoolAbi,
+        functionName: 'availableCapital',
+      }),
+      client.readContract({
+        address: pool,
+        abi: insurancePoolAbi,
+        functionName: 'claimsAuthority',
+      }),
+      client.readContract({ address: pool, abi: insurancePoolAbi, functionName: 'usdc' }),
+    ]);
+
+  const usdcBalance = await client.readContract({
+    address: usdc,
+    abi: [
+      {
+        type: 'function',
+        name: 'balanceOf',
+        stateMutability: 'view',
+        inputs: [{ name: 'account', type: 'address' }],
+        outputs: [{ type: 'uint256' }],
+      },
+    ] as const,
+    functionName: 'balanceOf',
+    args: [pool],
+  });
+
+  return {
+    totalAssets,
+    totalReserved,
+    totalShares,
+    availableCapital,
+    usdcBalance,
+    claimsAuthority,
+  };
+}
+
+export async function readOnchainPolicy(
+  client: PublicClient,
+  pool: Address,
+  policyId: Hex,
+): Promise<OnchainPolicy> {
+  const row = await client.readContract({
+    address: pool,
+    abi: insurancePoolAbi,
+    functionName: 'policies',
+    args: [policyId],
+  });
+
+  return {
+    termsHash: row[0],
+    beneficiary: row[1],
+    premiumPayer: row[2],
+    limit: row[3],
+    premium: row[4],
+    coverageStart: row[5],
+    coverageEnd: row[6],
+    reserved: row[7],
+    paidOut: row[8],
+    bound: row[9],
+    cancelled: row[10],
+  };
+}
+
+export async function isClaimSettled(
+  client: PublicClient,
+  pool: Address,
+  claimId: Hex,
+): Promise<boolean> {
+  return client.readContract({
+    address: pool,
+    abi: insurancePoolAbi,
+    functionName: 'settledClaims',
+    args: [claimId],
+  });
+}

@@ -8,4 +8,5 @@ export * from './transitions';
 export * from './capital';
 export * from './synthetic-product';
 export * from './interfaces';
+export * from './onchain-ids';
 
