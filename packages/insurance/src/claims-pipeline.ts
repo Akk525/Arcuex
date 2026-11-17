@@ -19,6 +19,7 @@ import {
   type Incident,
   type IncidentVerifier,
   type Settlement,
+  type TriStateOutcome,
   type UsdcMicros,
 } from '@arcuex/domain';
 import type { InsuranceRepository } from '@arcuex/persistence';
@@ -94,6 +95,7 @@ export async function collectAndValidateCoverage(input: {
   covered: boolean;
   reason: string;
   payableMicros?: UsdcMicros;
+  outcome?: TriStateOutcome;
 }> {
   const { repo } = input;
   const incident = repo.getIncident(input.incidentId);
@@ -118,12 +120,19 @@ export async function collectAndValidateCoverage(input: {
   if (!evidenced) throw new ValidationError('Incident missing after evidence');
 
   const verification = await input.verifier.verify({ incident: evidenced, facts });
-  if (!verification.verified) {
+  const verificationOutcome = verification.outcome ?? (verification.verified ? 'VERIFIED' : 'REJECTED');
+  if (!verification.verified || verificationOutcome !== 'VERIFIED') {
+    repo.insertAudit('incident', evidenced.id, 'incident.verification', {
+      outcome: verificationOutcome,
+      reason: verification.reason,
+      verifierId: input.verifier.id,
+    });
     return {
       incident: evidenced,
       facts,
       covered: false,
       reason: verification.reason,
+      outcome: verificationOutcome,
     };
   }
 
@@ -133,15 +142,24 @@ export async function collectAndValidateCoverage(input: {
     incident: evidenced,
     facts,
   });
+  const ruleOutcome =
+    ruleResult.outcome ?? (ruleResult.covered ? 'VERIFIED' : 'REJECTED');
 
-  if (ruleResult.covered) {
+  if (ruleResult.covered && ruleOutcome === 'VERIFIED') {
     repo.runInTransaction(() => {
       const validated = validateIncident(evidenced);
       repo.saveIncident(validated);
       repo.insertAudit('incident', evidenced.id, 'incident.validated', {
         ruleId: input.coverageRule.id,
         reason: ruleResult.reason,
+        outcome: ruleOutcome,
       });
+    });
+  } else {
+    repo.insertAudit('incident', evidenced.id, 'incident.rule', {
+      ruleId: input.coverageRule.id,
+      reason: ruleResult.reason,
+      outcome: ruleOutcome,
     });
   }
 
@@ -151,9 +169,10 @@ export async function collectAndValidateCoverage(input: {
   return {
     incident: latest,
     facts,
-    covered: ruleResult.covered,
+    covered: ruleResult.covered && ruleOutcome === 'VERIFIED',
     reason: ruleResult.reason,
     payableMicros: ruleResult.payableMicros,
+    outcome: ruleOutcome,
   };
 }
 
