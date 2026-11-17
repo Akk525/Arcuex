@@ -3,7 +3,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { SqliteDb } from './db';
 
-const MIGRATIONS = ['001_init.sql', '002_onchain.sql', '003_streams_inbox.sql'] as const;
+const MIGRATIONS = [
+  '001_init.sql',
+  '002_onchain.sql',
+  '003_streams_inbox.sql',
+  '004_claims_cases.sql',
+] as const;
 
 export function migrate(db: SqliteDb): void {
   db.exec(`

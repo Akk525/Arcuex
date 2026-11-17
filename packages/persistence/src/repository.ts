@@ -23,6 +23,14 @@ import { createHash } from 'node:crypto';
 import type { SqliteDb } from './db';
 import { withTransaction } from './db';
 import {
+  mapPersistedClaimsCase,
+  mapPersistedClaimsCaseEvent,
+  mapPersistedEvidenceManifest,
+  type PersistedClaimsCase,
+  type PersistedClaimsCaseEvent,
+  type PersistedEvidenceManifest,
+} from './claims-case-persistence';
+import {
   mapAgent,
   mapAudit,
   mapClaim,
@@ -681,6 +689,152 @@ export class InsuranceRepository {
       processed: Number(row.processed) === 1,
       receivedAt: String(row.received_at),
     }));
+  }
+
+  saveClaimsCase(c: PersistedClaimsCase): void {
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO claims_cases (
+           id, schema_version, status, policy_id, exposure_id, incident_id, claim_id,
+           claimant_ref, idempotency_key, synthetic_demo, evidence_authenticity,
+           coverage_determination, settlement_authorization, verified_loss_micros,
+           deductible_micros, prior_compensation_micros, recoveries_micros,
+           remaining_limit_micros, loss_cap_micros, payable_micros, loss_key,
+           denial_reason_code, review_reason_code, authority_actor, settlement_prep_id,
+           created_at, updated_at
+         ) VALUES (
+           @id, @schemaVersion, @status, @policyId, @exposureId, @incidentId, @claimId,
+           @claimantRef, @idempotencyKey, @syntheticDemo, @evidenceAuthenticity,
+           @coverageDetermination, @settlementAuthorization, @verifiedLossMicros,
+           @deductibleMicros, @priorCompensationMicros, @recoveriesMicros,
+           @remainingLimitMicros, @lossCapMicros, @payableMicros, @lossKey,
+           @denialReasonCode, @reviewReasonCode, @authorityActor, @settlementPrepId,
+           @createdAt, @updatedAt
+         )`,
+      )
+      .run({
+        id: c.id,
+        schemaVersion: c.schemaVersion,
+        status: c.status,
+        policyId: c.policyId,
+        exposureId: c.exposureId,
+        incidentId: c.incidentId,
+        claimId: c.claimId,
+        claimantRef: c.claimantRef,
+        idempotencyKey: c.idempotencyKey,
+        syntheticDemo: c.syntheticDemo ? 1 : 0,
+        evidenceAuthenticity: c.evidenceAuthenticity,
+        coverageDetermination: c.coverageDetermination,
+        settlementAuthorization: c.settlementAuthorization,
+        verifiedLossMicros: c.verifiedLossMicros?.toString() ?? null,
+        deductibleMicros: c.deductibleMicros.toString(),
+        priorCompensationMicros: c.priorCompensationMicros.toString(),
+        recoveriesMicros: c.recoveriesMicros?.toString() ?? null,
+        remainingLimitMicros: c.remainingLimitMicros?.toString() ?? null,
+        lossCapMicros: c.lossCapMicros?.toString() ?? null,
+        payableMicros: c.payableMicros?.toString() ?? null,
+        lossKey: c.lossKey,
+        denialReasonCode: c.denialReasonCode,
+        reviewReasonCode: c.reviewReasonCode,
+        authorityActor: c.authorityActor,
+        settlementPrepId: c.settlementPrepId,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+      });
+  }
+
+  getClaimsCase(id: string): PersistedClaimsCase | null {
+    const row = this.db.prepare(`SELECT * FROM claims_cases WHERE id = ?`).get(id);
+    return row ? mapPersistedClaimsCase(row as Record<string, unknown>) : null;
+  }
+
+  getClaimsCaseByIdempotencyKey(key: string): PersistedClaimsCase | null {
+    const row = this.db
+      .prepare(`SELECT * FROM claims_cases WHERE idempotency_key = ?`)
+      .get(key);
+    return row ? mapPersistedClaimsCase(row as Record<string, unknown>) : null;
+  }
+
+  listClaimsCases(limit = 50, status?: string): PersistedClaimsCase[] {
+    if (status) {
+      return this.db
+        .prepare(
+          `SELECT * FROM claims_cases WHERE status = ? ORDER BY updated_at DESC LIMIT ?`,
+        )
+        .all(status, limit)
+        .map((row) => mapPersistedClaimsCase(row as Record<string, unknown>));
+    }
+    return this.db
+      .prepare(`SELECT * FROM claims_cases ORDER BY updated_at DESC LIMIT ?`)
+      .all(limit)
+      .map((row) => mapPersistedClaimsCase(row as Record<string, unknown>));
+  }
+
+  appendClaimsCaseEvent(event: PersistedClaimsCaseEvent): void {
+    this.db
+      .prepare(
+        `INSERT INTO claims_case_events
+         (id, case_id, from_status, to_status, actor, reason_code, payload_json, created_at)
+         VALUES (@id, @caseId, @fromStatus, @toStatus, @actor, @reasonCode, @payloadJson, @createdAt)`,
+      )
+      .run(event);
+  }
+
+  listClaimsCaseEvents(caseId: string, limit = 100): PersistedClaimsCaseEvent[] {
+    return this.db
+      .prepare(
+        `SELECT * FROM claims_case_events WHERE case_id = ? ORDER BY created_at ASC LIMIT ?`,
+      )
+      .all(caseId, limit)
+      .map((row) => mapPersistedClaimsCaseEvent(row as Record<string, unknown>));
+  }
+
+  saveEvidenceManifest(m: PersistedEvidenceManifest): { inserted: boolean } {
+    const result = this.db
+      .prepare(
+        `INSERT OR IGNORE INTO claims_evidence_manifests (
+           id, case_id, source, chain, block_hash, transaction_hash, provenance,
+           raw_evidence_digest, verification_method, source_reliability, synthetic_fixture, created_at
+         ) VALUES (
+           @id, @caseId, @source, @chain, @blockHash, @transactionHash, @provenance,
+           @rawEvidenceDigest, @verificationMethod, @sourceReliability, @syntheticFixture, @createdAt
+         )`,
+      )
+      .run({
+        id: m.id,
+        caseId: m.caseId,
+        source: m.source,
+        chain: m.chain,
+        blockHash: m.blockHash,
+        transactionHash: m.transactionHash,
+        provenance: m.provenance,
+        rawEvidenceDigest: m.rawEvidenceDigest,
+        verificationMethod: m.verificationMethod,
+        sourceReliability: m.sourceReliability,
+        syntheticFixture: m.syntheticFixture ? 1 : 0,
+        createdAt: m.createdAt,
+      });
+    return { inserted: Number(result.changes) > 0 };
+  }
+
+  listEvidenceManifests(caseId: string): PersistedEvidenceManifest[] {
+    return this.db
+      .prepare(
+        `SELECT * FROM claims_evidence_manifests WHERE case_id = ? ORDER BY created_at ASC`,
+      )
+      .all(caseId)
+      .map((row) => mapPersistedEvidenceManifest(row as Record<string, unknown>));
+  }
+
+  sumPaidForLossKey(lossKey: string): bigint {
+    const row = this.db
+      .prepare(
+        `SELECT COALESCE(SUM(CAST(payable_micros AS INTEGER)), 0) AS total
+         FROM claims_cases
+         WHERE loss_key = ? AND status = 'PAID' AND payable_micros IS NOT NULL`,
+      )
+      .get(lossKey) as { total: number | string } | undefined;
+    return BigInt(row?.total ?? 0);
   }
 
   runInTransaction<T>(fn: () => T): T {

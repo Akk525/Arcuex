@@ -3,3 +3,7 @@ export * from './claims-pipeline';
 export * from './capital-service';
 export * from './demo-adapters';
 export * from './synthetic-oracle-wedge';
+export * from './claims-case';
+export * from './claims-case-service';
+export * from './net-loss';
+export * from './settlement-prep';
