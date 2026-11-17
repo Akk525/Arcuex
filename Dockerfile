@@ -1,7 +1,9 @@
 # Arcuex public-beta image: Node 20 + native better-sqlite3 + Next.js web app.
 # Persistent ledger must live on a Railway volume mounted at /data — never the container FS.
 
-FROM node:20-bookworm-slim AS base
+# pnpm@11.20 requires Node.js >= 22.13 (uses node:sqlite). Keep engines flexible for local Node 20+
+# tooling, but the production image must match the packageManager major.
+FROM node:22-bookworm-slim AS base
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ ca-certificates \
   && rm -rf /var/lib/apt/lists/*
