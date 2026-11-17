@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "collectedOn": "2026-11-17",
+  "warning": "Integrity manifest only; does not authenticate chain inclusion, state or recovery completeness.",
+  "sha256": {
+    "historical/adapter-verification.json": "65ca915b5c31383bdf29f02f0edb9fec5a5b38d502c4c01458062dedf3bcd7cd",
+    "historical/archive-probes.json": "8c5bcbebbe72070122ed5508fb326bb290ba359d585e04ee55cc68c059fd1503",
+    "historical/discovery.json": "dd2f290587298882b7016aa77bc894e7195a828ca6377a4d55ff5aa8da40957e",
+    "historical/log-scan.json": "dcd6b0cc5d9d21b67ff5a887c4b6e7ff91797d21d38fa0d3f296a77825011b30",
+    "historical/offline-replay.json": "c517321d67f7b29ce856635b4d0bb7d80e3ef0c931f27e6b0ff0fa0e441545fb",
+    "historical/recovery-and-corroboration.json": "348b5dc30bd4cfacbde99d69c70087e00f6435c888a9bc5b7fef477228445775",
+    "historical/recovery-range.json": "679573ac570edded74cf7902338b10278fc53c8fee55177ce817c1cd5682fe77",
+    "historical/rpc-discovery.json": "dc6ba00e9db5ec00b23461ab0c494578083c12aedd97c7f18911fcec71766931",
+    "historical/rpc-first-probe.json": "d18b68f486d8229df8b141fd8acd9d657f7637e9457eeb2ba0b42f19292f06c5",
+    "historical/selected-liquidation.json": "ff68584a98f7df74a4159a522919f61228d5be19b627af9100d6e8ad1d7ca4bf",
+    "historical/source-provenance.json": "f79ac7c2c7d51019ebf87d3fdfe9c8a37b15e0a2724cff1bd9a06b11deb267fc",
+    "historical/state-probes.json": "446d732cba6e047a14884b4fffbaf12ee0520168a78fdeedf40342fe59be5799",
+    "historical/supplemental-code.json": "e5bfb6d9100e157893c4d0a23bd47792ba37f1d14d6ecdf6baa23a1bab4395b9",
+    "synthetic/demonstration.json": "0bf51268fa29179c380c87cddcd0401731cc4347465078ef881d0345793eb7c1"
+  }
+}

@@ -23,7 +23,9 @@ try {
     'latestAnswer() view returns (int256)', 'RATIO_PROVIDER() view returns (address)',
   ]) await request('eth_call', [{ to: adapter, data: encodeFunctionData({ abi: parseAbi([`function ${sig}`]), functionName: sig.split('(')[0] }) }, toHex(n)]);
   await request('eth_getLogs', [{ address: adapter, fromBlock: toHex(24623353), toBlock: toHex(24623402) }]);
-  await request('eth_getLogs', [{ address: adapter, fromBlock: toHex(24623353), toBlock: toHex(24630504), topics: [keccak256(toHex('CapParametersUpdated(uint104,uint48,uint104,uint16)'))] }]);
+  // Signature confirmed from the deployed ABI; the earlier failed probe in the
+  // captured artifact used an unverified signature and is not evidence of absence.
+  await request('eth_getLogs', [{ address: adapter, fromBlock: toHex(24623353), toBlock: toHex(24630504), topics: [keccak256(toHex('CapParametersUpdated(uint256,uint256,uint256,uint16)'))] }]);
 } finally {
   const sourcify = JSON.parse(readFileSync('/private/tmp/arcuex-public-source-cache/sourcify.json', 'utf8'));
   const code = readFileSync('/private/tmp/arcuex-public-source-cache/adapter-code.hex', 'utf8');
