@@ -35,7 +35,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as {
+  const session = authenticateClaimsRequest(request, [
+    'claimant',
+    'reviewer',
+    'authority',
+    'system',
+  ]);
+  if (!session.ok) return NextResponse.json({ error: session.error }, { status: session.status });
+  let body: {
     action?: string;
     policyId?: string;
     exposureId?: string;
@@ -58,6 +65,16 @@ export async function POST(request: Request) {
       syntheticFixture: boolean;
     };
   };
+  try {
+    const raw = await request.text();
+    if (raw.length > 32000)
+      return NextResponse.json({ error: 'Claims request too large' }, { status: 413 });
+    body = JSON.parse(raw);
+    if (!body || typeof body !== 'object' || Array.isArray(body))
+      return NextResponse.json({ error: 'JSON object required' }, { status: 400 });
+  } catch {
+    return NextResponse.json({ error: 'Invalid claims JSON' }, { status: 400 });
+  }
 
   const repo = getRepo();
 
@@ -78,6 +95,14 @@ export async function POST(request: Request) {
       if (!canAccessClaimsPolicy(repo, auth.principal, body.policyId))
         return NextResponse.json({ error: 'Policy not found' }, { status: 404 });
       const procurement = repo.getProcurementPolicy(body.policyId);
+      if (!procurement)
+        return NextResponse.json(
+          {
+            error:
+              'New claims require a confirmed immutable procurement policy; legacy ledger intake is disabled',
+          },
+          { status: 409 },
+        );
       if (procurement) {
         let chain;
         try {

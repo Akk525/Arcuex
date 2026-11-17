@@ -44,8 +44,15 @@ export async function GET(request: Request, ctx: Ctx) {
 }
 
 export async function POST(request: Request, ctx: Ctx) {
+  const session = authenticateClaimsRequest(request, [
+    'claimant',
+    'reviewer',
+    'authority',
+    'system',
+  ]);
+  if (!session.ok) return NextResponse.json({ error: session.error }, { status: session.status });
   const { id } = await ctx.params;
-  const body = (await request.json()) as {
+  let body: {
     action?: string;
     coverageDetermination?: 'covered' | 'not_covered' | 'review_required' | 'unknown';
     verifiedLossUsdc?: string | null;
@@ -61,6 +68,16 @@ export async function POST(request: Request, ctx: Ctx) {
     reasonCode?: string;
     detail?: string;
   };
+  try {
+    const raw = await request.text();
+    if (raw.length > 32000)
+      return NextResponse.json({ error: 'Claims request too large' }, { status: 413 });
+    body = JSON.parse(raw);
+    if (!body || typeof body !== 'object' || Array.isArray(body))
+      return NextResponse.json({ error: 'JSON object required' }, { status: 400 });
+  } catch {
+    return NextResponse.json({ error: 'Invalid claims JSON' }, { status: 400 });
+  }
 
   const repo = getRepo();
 

@@ -76,3 +76,17 @@ it('rejects changed messages, expired nonces and concurrent nonce replay', async
     verifyWalletAndCreateSession(repo, { wallet: account.address, nonce: 'expired', signature }),
   ).rejects.toThrow('expired');
 });
+
+import { createOpsSessionFromBearer } from './claims-session';
+it('fails closed for persisted synthetic authority permission when the server flag is disabled', () => {
+  const repo = new InsuranceRepository(openDatabase());
+  process.env.CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP = '1';
+  const authority = createOpsSessionFromBearer(repo, 'authority');
+  expect(loadPrincipalFromSession(repo, authority.sessionId)?.allowSyntheticSettlementPrep).toBe(
+    true,
+  );
+  delete process.env.CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP;
+  expect(
+    loadPrincipalFromSession(repo, authority.sessionId)?.allowSyntheticSettlementPrep,
+  ).toBeFalsy();
+});

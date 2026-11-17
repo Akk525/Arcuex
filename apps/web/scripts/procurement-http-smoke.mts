@@ -4,8 +4,21 @@ import { ProcurementApiClient } from '@arcuex/agent-sdk';
 const owner = privateKeyToAccount(generatePrivateKey());
 const agent = privateKeyToAccount(generatePrivateKey());
 const baseUrl = process.argv[2] ?? 'http://localhost:3002';
-const ownerApi = new ProcurementApiClient({ baseUrl });
-const agentApi = new ProcurementApiClient({ baseUrl });
+let secureSessionVerified = false;
+const checkedFetch: typeof fetch = async (input, init) => {
+  const response = await fetch(input, init);
+  if (String(input).endsWith('/auth/verify')) {
+    const flags = response.headers.get('set-cookie') ?? '';
+    if (!/httponly/i.test(flags) || !/secure/i.test(flags) || !/samesite=lax/i.test(flags))
+      throw new Error('Secure httpOnly session cookie flags missing');
+    const json = (await response.clone().json()) as Record<string, unknown>;
+    if ('token' in json) throw new Error('Session token exposed in JSON');
+    secureSessionVerified = true;
+  }
+  return response;
+};
+const ownerApi = new ProcurementApiClient({ baseUrl, request: checkedFetch });
+const agentApi = new ProcurementApiClient({ baseUrl, request: checkedFetch });
 const eligibility = {
   positionHealthy: true,
   noKnownIncident: true,
@@ -77,6 +90,7 @@ if (!revokedRejected) throw new Error('Revocation failed');
 console.log(
   JSON.stringify({
     result: 'PASS',
+    secureSessionVerified,
     ownerAuthenticated: true,
     agentAuthenticated: true,
     registeredExposure: true,

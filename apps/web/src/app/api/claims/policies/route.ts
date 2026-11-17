@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     .listClaimsPolicyIds()
     .filter((id) => canAccessClaimsPolicy(repo, auth.principal, id))
     .map((id) => repo.claimsPolicyContext(id)!)
-    .filter((p) => p.confirmed)
+    .filter((p) => p.source === 'procurement' && p.confirmed)
     .map((p) => ({
       id: p.id,
       status: 'bound',

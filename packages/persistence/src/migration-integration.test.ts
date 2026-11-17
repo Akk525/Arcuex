@@ -90,7 +90,7 @@ describe('integration migration histories', () => {
     db.pragma('foreign_keys=ON');
     migrate(db);
     migrate(db);
-    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(9);
+    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(10);
     expect(db.pragma('foreign_key_check')).toEqual([]);
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
   });
@@ -158,5 +158,43 @@ describe('integration migration histories', () => {
         .get(),
     ).toBeUndefined();
     expect(db.prepare('SELECT id FROM claims_cases WHERE id=?').get(id)).toBeTruthy();
+  });
+});
+
+it('retires old claims-only claimant sessions/nonces while preserving ops and newly issued shared sessions', () => {
+  const db = beforeIntegration([...common, ...procurement, ...claims]);
+  db.prepare(
+    "INSERT INTO claims_sessions(id,role,subject,expires_at,created_at) VALUES ('old-wallet','claimant','holder','2099-01-01T00:00:00.000Z','2026-11-01T00:00:00.000Z')",
+  ).run();
+  db.prepare(
+    "INSERT INTO claims_sessions(id,role,subject,expires_at,created_at) VALUES ('ops','authority','ops','2099-01-01T00:00:00.000Z','2026-11-01T00:00:00.000Z')",
+  ).run();
+  db.prepare(
+    "INSERT INTO claims_auth_nonces VALUES ('old-nonce','owner','claims only','2099-01-01T00:00:00.000Z',NULL)",
+  ).run();
+  migrate(db);
+  expect(
+    (
+      db.prepare("SELECT revoked_at FROM claims_sessions WHERE id='old-wallet'").get() as {
+        revoked_at: string;
+      }
+    ).revoked_at,
+  ).toBeTruthy();
+  expect(db.prepare("SELECT revoked_at FROM claims_sessions WHERE id='ops'").get()).toEqual({
+    revoked_at: null,
+  });
+  expect(
+    (
+      db.prepare("SELECT consumed_at FROM claims_auth_nonces WHERE nonce='old-nonce'").get() as {
+        consumed_at: string;
+      }
+    ).consumed_at,
+  ).toBeTruthy();
+  db.prepare(
+    "INSERT INTO claims_sessions(id,role,subject,expires_at,created_at) VALUES ('new-wallet','claimant','holder','2099-01-01T00:00:00.000Z','2026-11-17T00:00:00.000Z')",
+  ).run();
+  migrate(db);
+  expect(db.prepare("SELECT revoked_at FROM claims_sessions WHERE id='new-wallet'").get()).toEqual({
+    revoked_at: null,
   });
 });

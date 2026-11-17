@@ -104,3 +104,19 @@ describe('computeNetLossPayable', () => {
     ).toThrow(ValidationError);
   });
 });
+
+it('subtracts pending/paid compensation from economic loss even when the policy cap has room', () => {
+  const result = computeNetLossPayable({
+    ...base,
+    verifiedLossMicros: 1000000n,
+    deductibleMicros: 100000n,
+    priorCompensationMicros: 0n,
+    recoveriesMicros: 0n,
+    remainingLimitMicros: 1000000n,
+    lossCapMicros: 1000000n,
+    alreadyPaidForLossMicros: 600000n,
+    requestedMicros: 600000n,
+  });
+  expect(result.outcome).toBe('payable');
+  expect(result.payableMicros).toBe(300000n);
+});

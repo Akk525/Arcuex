@@ -751,7 +751,14 @@ export class InsuranceRepository {
       exposures: this.listExposures(id),
     };
   }
-  canonicalLegacyIncident(policyId:string,exposureId:string,event:string) {const row=this.db.prepare('SELECT id FROM incidents WHERE policy_id=? AND exposure_id=? AND observed_event_ref=? ORDER BY created_at,id LIMIT 1').get(policyId,exposureId,event) as {id:string}|undefined;return row?this.getIncident(row.id):null;}
+  canonicalLegacyIncident(policyId: string, exposureId: string, event: string) {
+    const row = this.db
+      .prepare(
+        'SELECT id FROM incidents WHERE policy_id=? AND exposure_id=? AND observed_event_ref=? ORDER BY created_at,id LIMIT 1',
+      )
+      .get(policyId, exposureId, event) as { id: string } | undefined;
+    return row ? this.getIncident(row.id) : null;
+  }
   procurementIncident(input: {
     policyId: string;
     exposureId: string;
@@ -1015,6 +1022,15 @@ export class InsuranceRepository {
   }
 
   /** PAID + SETTLEMENT_PENDING commitments for same economic loss (blocks new payable intents). */
+  sumCommittedForPolicy(policyId: string, excludeCaseId: string): bigint {
+    const rows = this.db
+      .prepare(
+        "SELECT payable_micros FROM claims_cases WHERE policy_id=? AND id<>? AND status IN ('SETTLEMENT_PENDING','PAID')",
+      )
+      .all(policyId, excludeCaseId) as { payable_micros: string | null }[];
+    return rows.reduce((sum, r) => sum + BigInt(r.payable_micros ?? '0'), 0n);
+  }
+
   sumCommittedForLossKey(lossKey: string, excludeCaseId?: string): bigint {
     const row = excludeCaseId
       ? (this.db

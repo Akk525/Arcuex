@@ -79,7 +79,10 @@ export function computeNetLossPayable(input: NetLossInput): NetLossResult {
 
   const economic = afterDeductions > 0n ? afterDeductions : 0n;
 
-  let payable = economic;
+  // Pool-paid/pending commitments are distinct from external prior compensation.
+  // Both reduce economic room; the policy/loss ceiling alone is insufficient.
+  const economicRoom = economic - input.alreadyPaidForLossMicros;
+  let payable = economicRoom > 0n ? economicRoom : 0n;
   if (payable > input.requestedMicros) payable = input.requestedMicros;
   if (payable > input.remainingLimitMicros) payable = input.remainingLimitMicros;
   if (payable > lossRoom) payable = lossRoom;

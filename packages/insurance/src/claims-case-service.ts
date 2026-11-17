@@ -199,7 +199,8 @@ export function intakeClaimsCase(
     const incident =
       policy.source === 'procurement'
         ? repo.procurementIncident(event)
-        : (repo.canonicalLegacyIncident(input.policyId,input.exposureId,event.observedEventRef) ?? intakeObservedEvent(repo, {
+        : (repo.canonicalLegacyIncident(input.policyId, input.exposureId, event.observedEventRef) ??
+          intakeObservedEvent(repo, {
             ...event,
             idempotencyKey: `incident:${input.idempotencyKey}`,
           }));
@@ -437,6 +438,9 @@ export function completeEvidenceOrReview(
     const current = getClaimsCase(repo, input.caseId);
     if (!current) throw new ValidationError('Unknown ClaimsCase');
     assertClaimsCaseAccess(repo, principal, current);
+    // Claimants may add evidence while a reviewer resolves REVIEW, but cannot
+    // use the completion endpoint to bypass reviewer-only reopening.
+    if (current.status === 'REVIEW' && principal.role === 'claimant') return current;
     if (current.status === 'INVESTIGATING' && input.evidenceComplete) return current;
     const manifests = repo.listEvidenceManifests(current.id);
     if (!input.evidenceComplete || manifests.length === 0) {
@@ -777,7 +781,22 @@ export function authorizeSettlementPreparation(
       throw new ValidationError('Evidence manifests changed after adjudication binding');
     }
 
+    const policyCommitted = repo.sumCommittedForPolicy(current.policyId, current.id);
+    if (
+      policyCommitted + current.payableMicros >
+      (repo.claimsPolicyContext(current.policyId)?.limitMicros ?? 0n)
+    )
+      throw new ValidationError('Policy committed payouts would exceed immutable policy limit');
     const committed = repo.sumCommittedForLossKey(binding.lossKey, current.id);
+    const netEconomic =
+      BigInt(binding.verifiedLossMicros) -
+      current.deductibleMicros -
+      current.priorCompensationMicros -
+      BigInt(binding.recoveriesMicros);
+    if (committed + current.payableMicros > netEconomic)
+      throw new ValidationError(
+        'Same-loss committed payouts would exceed frozen net economic loss',
+      );
     if (committed + current.payableMicros > (current.lossCapMicros ?? 0n)) {
       throw new ValidationError('Same-loss committed payouts would exceed loss cap');
     }

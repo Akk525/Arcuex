@@ -156,6 +156,9 @@ describe('canonical procurement → ClaimsCase integration', () => {
     );
     expect(review.status).toBe('REVIEW');
     expect(review.payableMicros).toBeNull();
+    expect(
+      completeEvidenceOrReview(f.repo, { caseId: c.id, evidenceComplete: true }, claimant).status,
+    ).toBe('REVIEW');
   });
   it('preserves canonical keys, frozen bindings, synthetic restrictions and same-loss pending commitments', () => {
     const f = fixture(),
@@ -206,4 +209,82 @@ describe('canonical procurement → ClaimsCase integration', () => {
       ),
     ).toThrow('committed payouts');
   });
+});
+
+it('blocks separately approved partials that together exceed frozen net loss below the policy cap', () => {
+  const f = fixture(),
+    a = investigate(f, 'partial-first'),
+    b = investigate(f, 'partial-second');
+  const approve = (caseId: string, requestedMicros: bigint) =>
+    adjudicateClaimsCase(
+      f.repo,
+      {
+        caseId,
+        coverageDetermination: 'covered',
+        verifiedLossMicros: 1000000n,
+        recoveriesMicros: 0n,
+        requestedMicros,
+      },
+      reviewer,
+    );
+  const aa = approve(a.id, 600000n),
+    bb = approve(b.id, 350000n);
+  const authority = {
+    role: 'authority' as const,
+    subject: 'test',
+    allowSyntheticSettlementPrep: true,
+  };
+  const prep = (c: typeof aa) =>
+    authorizeSettlementPreparation(
+      f.repo,
+      {
+        caseId: c.id,
+        confirmedRecipient: c.payoutTo!,
+        confirmedAmountMicros: c.payableMicros!,
+        confirmedLossKey: c.lossKey!,
+        confirmedEvidenceRoot: c.evidenceRoot!,
+        settlementPrepId: 'test-prep',
+      },
+      authority,
+    );
+  prep(aa);
+  expect(() => prep(bb)).toThrow('frozen net economic loss');
+  expect(f.repo.getClaimsCase(bb.id)?.status).toBe('APPROVED');
+});
+
+it('counts pending commitments across different loss keys against the same policy limit', () => {
+  const f = fixture();
+  const a = investigate(f, 'policy-first');
+  f.input.observedEventRef = 'synthetic:oracle:another-event';
+  const b = investigate(f, 'policy-second');
+  const approve = (id: string) =>
+    adjudicateClaimsCase(
+      f.repo,
+      {
+        caseId: id,
+        coverageDetermination: 'covered',
+        verifiedLossMicros: 1000000n,
+        recoveriesMicros: 0n,
+        requestedMicros: 600000n,
+      },
+      reviewer,
+    );
+  const aa = approve(a.id),
+    bb = approve(b.id);
+  expect(aa.lossKey).not.toBe(bb.lossKey);
+  const prepare = (c: typeof aa) =>
+    authorizeSettlementPreparation(
+      f.repo,
+      {
+        caseId: c.id,
+        confirmedRecipient: c.payoutTo!,
+        confirmedAmountMicros: c.payableMicros!,
+        confirmedLossKey: c.lossKey!,
+        confirmedEvidenceRoot: c.evidenceRoot!,
+        settlementPrepId: 'policy-prep',
+      },
+      { role: 'authority', subject: 'test', allowSyntheticSettlementPrep: true },
+    );
+  prepare(aa);
+  expect(() => prepare(bb)).toThrow('Policy committed payouts');
 });

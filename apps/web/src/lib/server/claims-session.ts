@@ -158,7 +158,11 @@ export function loadPrincipalFromSession(
     role: session.role as ClaimsRole,
     subject: session.subject,
     walletAddress: session.walletAddress ?? undefined,
-    allowSyntheticSettlementPrep: session.allowSyntheticSettlementPrep || undefined,
+    allowSyntheticSettlementPrep:
+      (session.role === 'authority' &&
+        session.allowSyntheticSettlementPrep &&
+        process.env.CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP === '1') ||
+      undefined,
   };
 }
 

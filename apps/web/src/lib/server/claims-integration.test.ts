@@ -189,3 +189,59 @@ describe('one authenticated procurement and claims customer journey', () => {
     expect(getRepo()).toBeTruthy();
   });
 });
+
+import { GET as legacyPolicies } from '@/app/api/policies/route';
+import { GET as legacyCoverage } from '@/app/api/coverage/route';
+import { requestCoverageQuote, acceptAndBindPolicy } from '@arcuex/insurance';
+it('contains legacy policy/quote reads under the same wallet ownership boundary', async () => {
+  expect((await legacyPolicies(request('/api/policies'))).status).toBe(401);
+  expect((await legacyCoverage(request('/api/coverage'))).status).toBe(401);
+  const owner = await login(),
+    other = await login(),
+    repo = getRepo();
+  const q = requestCoverageQuote(repo, {
+    idempotencyKey: crypto.randomUUID(),
+    policyholder: { displayName: 'legacy test', walletAddress: owner.account.address },
+    agent: { externalRef: crypto.randomUUID(), label: 'test' },
+  });
+  const bound = acceptAndBindPolicy(repo, {
+    quoteId: q.id,
+    idempotencyKey: crypto.randomUUID(),
+    fundingVerified: true,
+  });
+  const owned = await (await legacyPolicies(request('/api/policies', owner.cookie))).json();
+  expect(owned.policies.some((p: { id: string }) => p.id === bound.policy.id)).toBe(true);
+  const rejectLegacy = await mutateCases(
+    request('/api/claims/cases', owner.cookie, {
+      action: 'open',
+      policyId: bound.policy.id,
+      exposureId: bound.exposure.id,
+      claimantRef: 'ignored',
+      idempotencyKey: crypto.randomUUID(),
+      observedEventRef: 'synthetic:legacy',
+      observedAt: new Date().toISOString(),
+    }),
+  );
+  expect(rejectLegacy.status).toBe(409);
+  const foreign = await (await legacyCoverage(request('/api/coverage', other.cookie))).json();
+  expect(foreign.policies.some((p: { id: string }) => p.id === bound.policy.id)).toBe(false);
+  expect(foreign.quotes.some((p: { id: string }) => p.id === q.id)).toBe(false);
+});
+
+it('authenticates before parsing claim mutations and models malformed/oversized input', async () => {
+  const bare = new Request('http://localhost/api/claims/cases', { method: 'POST', body: '[' });
+  expect((await mutateCases(bare)).status).toBe(401);
+  const owner = await login();
+  const malformed = new Request('http://localhost/api/claims/cases', {
+    method: 'POST',
+    headers: { cookie: owner.cookie },
+    body: '[',
+  });
+  expect((await mutateCases(malformed)).status).toBe(400);
+  const oversized = new Request('http://localhost/api/claims/cases', {
+    method: 'POST',
+    headers: { cookie: owner.cookie },
+    body: 'x'.repeat(32001),
+  });
+  expect((await mutateCases(oversized)).status).toBe(413);
+});
