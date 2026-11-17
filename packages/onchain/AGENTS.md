@@ -15,6 +15,16 @@ helpers, event decode/dedupe, receipt waiting, and reconciliation against
 - `claimId` is settlement anti-replay; `lossKey` is economic-loss identity
   (partials ≤ immutable `lossCap`). Do not conflate the two.
 
+## Testnet lifecycle
+
+```bash
+pnpm --filter @arcuex/onchain lifecycle:preflight
+# Live broadcasts require --mode=live and per-step --confirm=...
+```
+
+Pool address comes from `docs/deployments/arc-testnet-insurance-pool.json`.
+Do not broadcast without explicit operator approval. Do not print private keys.
+
 ## Tests
 
 ```bash
