@@ -33,3 +33,6 @@ out
 # test
 playwright-report
 test-results
+
+# local git worktrees
+.worktrees/
