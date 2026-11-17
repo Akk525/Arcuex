@@ -158,7 +158,9 @@ export async function executeSettleClaim(
   input: {
     policyId: Hex;
     claimId: Hex;
+    lossKey: Hex;
     amount: bigint;
+    lossCap: bigint;
     payoutTo: Address;
   },
 ): Promise<{ settle: TxResult; settled: boolean }> {
@@ -167,6 +169,16 @@ export async function executeSettleClaim(
   if (!account) throw new OnchainError('VALIDATION', 'Wallet has no account');
 
   await assertArcTestnet(clients.publicClient);
+
+  if (input.lossKey === ('0x' + '00'.repeat(32))) {
+    throw new OnchainError('VALIDATION', 'lossKey must be non-zero');
+  }
+  if (input.lossCap === 0n || input.amount === 0n) {
+    throw new OnchainError('VALIDATION', 'amount and lossCap must be > 0');
+  }
+  if (input.amount > input.lossCap) {
+    throw new OnchainError('VALIDATION', 'amount exceeds lossCap');
+  }
 
   if (await isClaimSettled(clients.publicClient, pool, input.claimId)) {
     throw new OnchainError('VALIDATION', 'Claim already settled (anti-replay)');

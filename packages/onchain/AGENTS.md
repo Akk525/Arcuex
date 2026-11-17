@@ -2,8 +2,9 @@
 
 ## Scope
 
-Typed ABIs, canonical policy/terms hashing, viem read/write helpers, receipt
-waiting, and SQLite reconciliation against `InsurancePool` contract state.
+Typed ABIs, canonical policy/terms hashing, lossKey helpers, viem read/write
+helpers, event decode/dedupe, receipt waiting, and reconciliation against
+`InsurancePool` (contract authoritative).
 
 ## Rules
 
@@ -11,6 +12,8 @@ waiting, and SQLite reconciliation against `InsurancePool` contract state.
 - Never collect private keys; callers supply a wallet client / account.
 - Contract state is authoritative over SQLite on mismatch.
 - `claimsAuthority` settlements only — no AI payout path.
+- `claimId` is settlement anti-replay; `lossKey` is economic-loss identity
+  (partials ≤ immutable `lossCap`). Do not conflate the two.
 
 ## Tests
 

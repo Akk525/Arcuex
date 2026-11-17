@@ -122,3 +122,30 @@ export async function isClaimSettled(
     args: [claimId],
   });
 }
+
+export type OnchainLossAccounting = {
+  policyId: Hex;
+  lossCap: bigint;
+  paid: bigint;
+  exists: boolean;
+};
+
+/** Read cumulative compensation for one economic loss lot. */
+export async function readLossAccounting(
+  client: PublicClient,
+  pool: Address,
+  lossKey: Hex,
+): Promise<OnchainLossAccounting> {
+  const row = await client.readContract({
+    address: pool,
+    abi: insurancePoolAbi,
+    functionName: 'losses',
+    args: [lossKey],
+  });
+  return {
+    policyId: row[0],
+    lossCap: row[1],
+    paid: row[2],
+    exists: row[3],
+  };
+}

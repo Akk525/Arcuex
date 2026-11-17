@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { buildSyntheticTerms } from '@arcuex/domain';
-import { hashCoverageTerms, toClaimIdBytes32, toPolicyIdBytes32 } from './ids';
+import {
+  computeLossKey,
+  computeLossKeyFromEntities,
+  hashCoverageTerms,
+  toClaimIdBytes32,
+  toPolicyIdBytes32,
+} from './ids';
 
 describe('onchain ids', () => {
   it('produces stable 32-byte policy ids', () => {
@@ -23,8 +29,50 @@ describe('onchain ids', () => {
     expect(hashCoverageTerms({ ...terms, notes: 'changed' })).not.toBe(h1);
   });
 
-  it('namesclaims distinctly from policies', () => {
+  it('names claims distinctly from policies and loss keys', () => {
     const id = '11111111-1111-4111-8111-111111111111';
-    expect(toClaimIdBytes32(id)).not.toBe(toPolicyIdBytes32(id));
+    const policyId = toPolicyIdBytes32(id);
+    const claimId = toClaimIdBytes32(id);
+    const lossKey = computeLossKeyFromEntities({
+      chainId: 5042002,
+      policyId,
+      exposureId: id,
+      incidentId: id,
+      lossLotId: id,
+    });
+    expect(claimId).not.toBe(policyId);
+    expect(lossKey).not.toBe(claimId);
+    expect(lossKey).not.toBe(policyId);
+  });
+
+  it('computes lossKey as abi.encode hash (matches LossKey.sol)', () => {
+    const policyId = ('0x' + '11'.repeat(32)) as `0x${string}`;
+    const exposureKey = ('0x' + '22'.repeat(32)) as `0x${string}`;
+    const incidentRef = ('0x' + '33'.repeat(32)) as `0x${string}`;
+    const lossLotId = ('0x' + '44'.repeat(32)) as `0x${string}`;
+    const a = computeLossKey({
+      chainId: 5042002,
+      policyId,
+      exposureKey,
+      incidentRef,
+      lossLotId,
+    });
+    const b = computeLossKey({
+      chainId: 5042002,
+      policyId,
+      exposureKey,
+      incidentRef,
+      lossLotId,
+    });
+    expect(a).toBe(b);
+    expect(
+      computeLossKey({
+        chainId: 1,
+        policyId,
+        exposureKey,
+        incidentRef,
+        lossLotId,
+      }),
+    ).not.toBe(a);
   });
 });

@@ -150,7 +150,11 @@ export function prepareSettleClaim(params: {
   account: Address;
   policyId: Hex;
   claimId: Hex;
+  /** Canonical economic loss lot — distinct from claimId. */
+  lossKey: Hex;
   amount: bigint;
+  /** Immutable max for this lossKey (must match on first and subsequent partials). */
+  lossCap: bigint;
   payoutTo: Address;
 }): PreparedTx {
   return {
@@ -160,7 +164,14 @@ export function prepareSettleClaim(params: {
     data: encodeFunctionData({
       abi: insurancePoolAbi,
       functionName: 'settleClaim',
-      args: [params.policyId, params.claimId, params.amount, params.payoutTo],
+      args: [
+        params.policyId,
+        params.claimId,
+        params.lossKey,
+        params.amount,
+        params.lossCap,
+        params.payoutTo,
+      ],
     }),
   };
 }
