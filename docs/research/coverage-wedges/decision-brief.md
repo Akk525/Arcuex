@@ -1,5 +1,9 @@
 # Decision brief
 
+Phase B update: see [final go/no-go](final-go-no-go.md) and
+[handoff v2](integration-handoff-v2.md). Historical witness replay succeeds, but
+independent authentication and recovery reconciliation remain incomplete.
+
 Research checked 2026-11-16 local / 2026-11-17 UTC. Implement the **synthetic
 oracle exchange-rate liquidation wedge** first (83/100). Strongest fallback:
 **external protocol deposit impairment** (80/100). See [all six scores and

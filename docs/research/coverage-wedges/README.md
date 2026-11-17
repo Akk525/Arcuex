@@ -3,6 +3,14 @@
 Research date: 2026-11-16 America/Indiana/Indianapolis (2026-11-17 UTC at verification).
 Branch: `research/coverage-wedges`; base: `d9d47a5`. Proposals and synthetic experiments only.
 
+Phase B (2026-11-17): **[CONDITIONAL GO](final-go-no-go.md)**. A supplied historical
+witness replays; independent authentication and final net loss remain REVIEW.
+
+- [Historical reconstruction](historical-replay.md) and [evidence register](verified-evidence-register.md)
+- [Causal verifier v2](causal-verifier-spec.md)
+- [Synthetic demonstration](synthetic-demo-contract.md)
+- [Codex A integration handoff v2](integration-handoff-v2.md)
+
 - [Decision and implementation handoff](decision-brief.md)
 - [Six candidates, scoring and disqualifications](candidate-comparison.md)
 - [Oracle adapter liquidation specification](oracle-liquidation.md)
