@@ -14,12 +14,16 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  *
  * Trust boundary: only `claimsAuthority` may settle or release. No on-chain
  * AI/majority-vote role. Coverage evidence stays off-chain.
+ *
+ * Loss uniqueness: claimId anti-replays a settlement record; lossKey tracks
+ * cumulative compensation for one economic loss lot (partials allowed ≤ lossCap).
  */
 contract InsurancePool is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     error ZeroAmount();
     error ZeroAddress();
+    error ZeroLossKey();
     error InsufficientAvailableCapital();
     error InsufficientShares();
     error PolicyAlreadyBound();
@@ -34,6 +38,9 @@ contract InsurancePool is Ownable, ReentrancyGuard {
     error InvalidBeneficiary();
     error PayoutExceedsRemainingLimit();
     error PayoutExceedsReservation();
+    error PayoutExceedsLossCap();
+    error LossCapMismatch();
+    error LossPolicyMismatch();
     error NothingToRelease();
 
     struct Policy {
@@ -48,6 +55,14 @@ contract InsurancePool is Ownable, ReentrancyGuard {
         uint256 paidOut;
         bool bound;
         bool cancelled;
+    }
+
+    /// @dev Cumulative compensation for one economic loss lot.
+    struct LossAccounting {
+        bytes32 policyId;
+        uint256 lossCap;
+        uint256 paid;
+        bool exists;
     }
 
     IERC20 public immutable usdc;
@@ -69,7 +84,10 @@ contract InsurancePool is Ownable, ReentrancyGuard {
 
     mapping(address => uint256) public sharesOf;
     mapping(bytes32 => Policy) public policies;
+    /// @notice claimId → settled (settlement-record anti-replay). Not a loss identity.
     mapping(bytes32 => bool) public settledClaims;
+    /// @notice lossKey → economic-loss accounting (same-loss uniqueness).
+    mapping(bytes32 => LossAccounting) public losses;
 
     event ClaimsAuthorityUpdated(address indexed previous, address indexed next);
     event FeeRecipientUpdated(address indexed previous, address indexed next);
@@ -88,8 +106,11 @@ contract InsurancePool is Ownable, ReentrancyGuard {
     event ClaimSettled(
         bytes32 indexed policyId,
         bytes32 indexed claimId,
-        address indexed beneficiary,
-        uint256 amount
+        bytes32 indexed lossKey,
+        address beneficiary,
+        uint256 amount,
+        uint256 lossPaidTotal,
+        uint256 lossCap
     );
     event ReservationReleased(bytes32 indexed policyId, uint256 amount);
 
@@ -130,7 +151,6 @@ contract InsurancePool is Ownable, ReentrancyGuard {
     function deposit(uint256 amount) external nonReentrant returns (uint256 shares) {
         if (amount == 0) revert ZeroAmount();
         usdc.safeTransferFrom(msg.sender, address(this), amount);
-        // 1:1 when empty; afterward mint at current NAV (assets/shares).
         shares = totalShares == 0 ? amount : (amount * totalShares) / totalAssets;
         if (shares == 0) revert ZeroAmount();
         totalAssets += amount;
@@ -142,7 +162,6 @@ contract InsurancePool is Ownable, ReentrancyGuard {
     function withdraw(uint256 shares) external nonReentrant returns (uint256 amount) {
         if (shares == 0) revert ZeroAmount();
         if (shares > sharesOf[msg.sender]) revert InsufficientShares();
-        // Pro-rata of total assets; still capped by unreserved capital.
         amount = (shares * totalAssets) / totalShares;
         if (amount > availableCapital()) revert InsufficientAvailableCapital();
         sharesOf[msg.sender] -= shares;
@@ -154,8 +173,6 @@ contract InsurancePool is Ownable, ReentrancyGuard {
 
     /**
      * @notice Collect premium and reserve full policy limit. Terms are immutable after bind.
-     * @param policyId Canonical policy id (off-chain hashed commitment).
-     * @param termsHash Hash of immutable coverage terms snapshot.
      */
     function bindPolicy(
         bytes32 policyId,
@@ -174,7 +191,6 @@ contract InsurancePool is Ownable, ReentrancyGuard {
 
         usdc.safeTransferFrom(msg.sender, address(this), premium);
 
-        // Premium increases pool assets; fee shares minted at current NAV (same as deposit).
         uint256 feeShares = totalShares == 0 ? premium : (premium * totalShares) / totalAssets;
         if (feeShares == 0) revert ZeroAmount();
         totalAssets += premium;
@@ -203,14 +219,23 @@ contract InsurancePool is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Authorized claim payout. Anti-replay via claimId. Caps + beneficiary enforced.
+     * @notice Authorized claim payout with same-loss accounting.
+     * @param claimId Settlement-record id (anti-replay). Distinct from lossKey.
+     * @param lossKey Canonical economic loss lot id.
+     * @param lossCap Max indemnifiable micros for this lossKey (immutable once set).
+     *        Partial payouts allowed while paid + amount ≤ lossCap and policy remaining.
      */
-    function settleClaim(bytes32 policyId, bytes32 claimId, uint256 amount, address payoutTo)
-        external
-        nonReentrant
-        onlyClaimsAuthority
-    {
+    function settleClaim(
+        bytes32 policyId,
+        bytes32 claimId,
+        bytes32 lossKey,
+        uint256 amount,
+        uint256 lossCap,
+        address payoutTo
+    ) external nonReentrant onlyClaimsAuthority {
         if (amount == 0) revert ZeroAmount();
+        if (lossKey == bytes32(0)) revert ZeroLossKey();
+        if (lossCap == 0) revert ZeroAmount();
         if (settledClaims[claimId]) revert ClaimAlreadySettled();
 
         Policy storage policy = policies[policyId];
@@ -224,14 +249,27 @@ contract InsurancePool is Ownable, ReentrancyGuard {
         if (amount > remaining) revert PayoutExceedsRemainingLimit();
         if (amount > policy.reserved) revert PayoutExceedsReservation();
 
+        LossAccounting storage loss = losses[lossKey];
+        if (!loss.exists) {
+            loss.exists = true;
+            loss.policyId = policyId;
+            loss.lossCap = lossCap;
+            loss.paid = 0;
+        } else {
+            if (loss.policyId != policyId) revert LossPolicyMismatch();
+            if (loss.lossCap != lossCap) revert LossCapMismatch();
+        }
+        if (loss.paid + amount > loss.lossCap) revert PayoutExceedsLossCap();
+
         settledClaims[claimId] = true;
+        loss.paid += amount;
         policy.paidOut += amount;
         policy.reserved -= amount;
         totalReserved -= amount;
         totalAssets -= amount;
 
         usdc.safeTransfer(payoutTo, amount);
-        emit ClaimSettled(policyId, claimId, payoutTo, amount);
+        emit ClaimSettled(policyId, claimId, lossKey, payoutTo, amount, loss.paid, loss.lossCap);
     }
 
     /// @notice Release unused reservation after cancel or post-expiry cleanup.
@@ -246,7 +284,6 @@ contract InsurancePool is Ownable, ReentrancyGuard {
         emit ReservationReleased(policyId, amount);
     }
 
-    /// @dev Solvency check for off-chain / invariant tests.
     function assertSolvent() external view {
         if (totalAssets < totalReserved) revert UnderfundedReservation();
         uint256 bal = usdc.balanceOf(address(this));
