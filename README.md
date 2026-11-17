@@ -71,9 +71,10 @@ curl -s http://localhost:3000/api/capital
 
 ## Railway public-beta hosting
 
-Volume-backed single-instance deployment packaging lives on `feat/launch-infrastructure`.
-See [docs/deployments/railway-public-beta.md](docs/deployments/railway-public-beta.md) and the
-[infrastructure assessment](docs/verification/2026-11-17-railway-launch-infrastructure.md).
+November 20 release candidate branch: `release/nov20-arc-testnet-beta`.
+Manifest and sanitized Railway env checklist:
+[docs/deployments/nov20-release-candidate.md](docs/deployments/nov20-release-candidate.md).
+Host runbook: [docs/deployments/railway-public-beta.md](docs/deployments/railway-public-beta.md).
 Do not expose the service publicly until those checklists pass.
 
 ## Repository map
