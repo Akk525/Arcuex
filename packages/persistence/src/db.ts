@@ -3,11 +3,11 @@ import { migrate } from './migrate';
 
 export type SqliteDb = Database.Database;
 
-export function openDatabase(path: string = ':memory:'): SqliteDb {
+export function openDatabase(path: string = ':memory:', migrationDirectory?: string): SqliteDb {
   const db = new Database(path);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
-  migrate(db);
+  migrate(db, migrationDirectory);
   return db;
 }
 

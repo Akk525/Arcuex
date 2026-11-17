@@ -11,7 +11,7 @@ const MIGRATIONS = [
   '005_procurement_immutability.sql',
 ] as const;
 
-export function migrate(db: SqliteDb): void {
+export function migrate(db: SqliteDb, migrationDirectory?: string): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id TEXT PRIMARY KEY,
@@ -30,7 +30,7 @@ export function migrate(db: SqliteDb): void {
 
   for (const id of MIGRATIONS) {
     if (applied.has(id)) continue;
-    const sql = readFileSync(join(here, 'migrations', id), 'utf8');
+    const sql = readFileSync(join(migrationDirectory ?? join(here, 'migrations'), id), 'utf8');
     const run = db.transaction(() => {
       db.exec(sql);
       db.prepare('INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)').run(

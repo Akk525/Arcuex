@@ -21,7 +21,10 @@ export function getDb(): SqliteDb {
     if (path !== ':memory:') {
       mkdirSync(dirname(path), { recursive: true });
     }
-    globalStore.__arcuexDb = openDatabase(path);
+    globalStore.__arcuexDb = openDatabase(
+      path,
+      join(process.cwd(), '../../packages/persistence/src/migrations'),
+    );
   }
   return globalStore.__arcuexDb;
 }

@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { privateKeyToAccount } from 'viem/accounts';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { openDatabase, ProcurementStore } from '@arcuex/persistence';
 import { ProcurementService, procurementDigest } from './procurement';
 import { confirmProcurement } from './procurement-confirm';
 import type { PublicClient } from 'viem';
-const owner = privateKeyToAccount(`0x${'11'.repeat(32)}`); // Deterministic test-only account.
-const agentWallet = privateKeyToAccount(`0x${'22'.repeat(32)}`);
+const owner = privateKeyToAccount(generatePrivateKey()); // Ephemeral test identity, never printed or retained.
+const agentWallet = privateKeyToAccount(generatePrivateKey());
 const who = owner.address.toLowerCase(),
   agentWho = agentWallet.address.toLowerCase();
 const pool = '0x6657974EEdF488380251bDD95A7FFfb0D456E49E';
@@ -268,4 +268,27 @@ it('enforces an owner-chosen beneficiary at quote and acceptance, with expiry on
   ).toThrow('beneficiary');
   now += 601;
   expect(() => service.prepare(agentWho, accept)).toThrow('Quote expired');
+});
+
+it('rejects a limit above the registered exposure and unsupported chain registration', () => {
+  const a = service.register(who, {
+    idempotencyKey: 'small',
+    signer: who,
+    label: 'small',
+    position: 'small',
+    exposureMicros: '1000000',
+    ownerAttestsControl: true,
+  });
+  expect(() => quote(a.id, 'overexposed')).toThrow('registered exposure');
+  expect(() =>
+    service.register(who, {
+      idempotencyKey: 'mainnet',
+      signer: who,
+      label: 'bad',
+      position: 'bad',
+      exposureMicros: '1000000',
+      chainId: 1,
+      ownerAttestsControl: true,
+    }),
+  ).toThrow('synthetic Arc');
 });

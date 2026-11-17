@@ -10,14 +10,14 @@ const NAV = [
   { href: '/policies', label: 'Policies' },
   { href: '/capital', label: 'Capital' },
   { href: '/claims', label: 'Claims' },
-  { href: '/agent', label: 'Agent Activity' },
+  { href: '/agent', label: 'Agent Permissions' },
   { href: '/integrations', label: 'Integrations' },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto flex min-h-[100dvh] w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6">
       <header className="space-y-4 border-b border-zinc-200 pb-5">
         <div className="space-y-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">

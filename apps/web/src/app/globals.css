@@ -15,8 +15,7 @@ body {
   margin: 0;
   background:
     radial-gradient(1200px 500px at 10% -10%, #e4e4e7 0%, transparent 55%),
-    radial-gradient(900px 400px at 100% 0%, #dbeafe 0%, transparent 45%),
-    var(--bg);
+    radial-gradient(900px 400px at 100% 0%, #dbeafe 0%, transparent 45%), var(--bg);
   color: var(--fg);
   font-family:
     'IBM Plex Sans',
@@ -26,6 +25,56 @@ body {
     sans-serif;
 }
 
-a {
-  color: inherit;
+@layer base {
+  a { color: inherit; }
+}
+
+.procurement label:not(.proc-check) {
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+.procurement input:not([type='checkbox']),
+.procurement select {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #d4d4d8;
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  background: white;
+  color: #18181b;
+}
+.proc-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.proc-check input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+.proc-btn,
+.proc-btn-secondary {
+  border-radius: 0.5rem;
+  padding: 0.7rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.proc-btn {
+  background: #18181b;
+  color: white;
+}
+.proc-btn-secondary {
+  border: 1px solid #d4d4d8;
+  background: white;
+  color: #27272a;
+}
+.procurement button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.procurement :focus-visible {
+  outline: 2px solid #0369a1;
+  outline-offset: 3px;
 }
