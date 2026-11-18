@@ -1,0 +1,144 @@
+{
+  "status": "synthetic_draft_only",
+  "product": {
+    "content": {
+      "schemaVersion": 1,
+      "organizationId": "synthetic-lab",
+      "productId": "BANK_DISPUTE_AI_LIABILITY_DEMO",
+      "version": 1,
+      "name": "Bank dispute AI liability scenario",
+      "description": "Synthetic, unapproved wording for examiner tests. No insurance offer, legal determination or payment rail.",
+      "synthetic": true,
+      "exposure": {
+        "kind": "exposure",
+        "id": "BANK_DISPUTE_AI_LIABILITY_DEMO.exposure",
+        "version": 1,
+        "digest": "sha256:d3c413edad37d221855bf856b259223ec59d3c292f5a3ae1f9bc5f0cf5789dd0"
+      },
+      "coverage": {
+        "kind": "coverage",
+        "id": "BANK_DISPUTE_AI_LIABILITY_DEMO.coverage",
+        "version": 1,
+        "digest": "sha256:5268277b47e11644dd65f30a6a9c47cd3b0aec374152ea9931caf60c28aa9c8d"
+      },
+      "evidence": {
+        "kind": "evidence",
+        "id": "BANK_DISPUTE_AI_LIABILITY_DEMO.evidence",
+        "version": 1,
+        "digest": "sha256:23cbcbbee3eeada63c205e691193f1f9b0ada510b8dabf84a677b28c066f02b3"
+      },
+      "wording": {
+        "kind": "wording",
+        "id": "BANK_DISPUTE_AI_LIABILITY_DEMO.wording",
+        "version": 1,
+        "digest": "sha256:e52c332bd87aae6fd0e4dc8a22899a90ee695366614032eb361dcf8c9cc586da"
+      }
+    },
+    "digest": "sha256:4cd0b3cd953e35d285a02b6926917c3426e68dc143f0036f8da13fcf547c23ed",
+    "reference": {
+      "organizationId": "synthetic-lab",
+      "productId": "BANK_DISPUTE_AI_LIABILITY_DEMO",
+      "version": 1,
+      "digest": "sha256:4cd0b3cd953e35d285a02b6926917c3426e68dc143f0036f8da13fcf547c23ed"
+    }
+  },
+  "artifacts": {
+    "exposure": {
+      "schemaVersion": 1,
+      "subjectKind": "system",
+      "description": "Bank dispute-resolution system",
+      "requiredFacts": [
+        {
+          "id": "insuredBank",
+          "type": "text"
+        },
+        {
+          "id": "systemId",
+          "type": "text"
+        }
+      ]
+    },
+    "coverage": {
+      "schemaVersion": 1,
+      "agreementId": "ai-decision-liability",
+      "eventClassification": "third_party_claim",
+      "trigger": {
+        "reporting": {
+          "kind": "during_policy_period",
+          "reportDate": "reportedAt",
+          "clauseId": "notice"
+        },
+        "kind": "claims_made_and_reported",
+        "claimDate": "claimFirstMadeAt"
+      },
+      "requiresLiabilityAssessment": true,
+      "clauses": [
+        {
+          "id": "notice",
+          "text": "Synthetic specimen: claim first made and reported in the specified period; actual wording requires review."
+        },
+        {
+          "id": "human-action",
+          "text": "Synthetic specimen human-intervention condition; exact wording and applicability require adjuster review."
+        }
+      ],
+      "exclusions": [
+        {
+          "id": "human-intervention",
+          "clauseId": "human-action",
+          "kind": "human_intervention",
+          "enabled": true,
+          "wording": "Loss attributed to a human overriding an AI recommendation may fall outside the specimen agreement or exclusion, subject to full policy and causation review."
+        }
+      ],
+      "limit": {
+        "units": "100000000",
+        "asset": {
+          "kind": "currency",
+          "code": "USD",
+          "scale": 2
+        }
+      },
+      "deductible": {
+        "units": "10000",
+        "asset": {
+          "kind": "currency",
+          "code": "USD",
+          "scale": 2
+        }
+      },
+      "quantumMethod": {
+        "kind": "indemnity",
+        "methodId": "individually-assessed-net-loss",
+        "version": 1
+      }
+    },
+    "evidence": {
+      "schemaVersion": 1,
+      "requirements": [
+        {
+          "id": "case-audit",
+          "purpose": "attribution",
+          "sourceKind": "execution_log",
+          "requiredFields": [
+            "aiRecommendation",
+            "finalDecision",
+            "actingPrincipal",
+            "recommendedAt",
+            "decidedAt",
+            "modelVersion",
+            "source"
+          ],
+          "verification": "synthetic_attestation",
+          "confidentiality": "restricted",
+          "retentionPolicyRef": "synthetic-test-only",
+          "dependsOn": []
+        }
+      ]
+    },
+    "wording": {
+      "schemaVersion": 1,
+      "text": "SYNTHETIC unapproved liability specimen. Regulatory fines, compensation, recoveries and expenses require individual legal, coverage and quantum assessment. Evidence attribution is not proven causation or fraud."
+    }
+  }
+}

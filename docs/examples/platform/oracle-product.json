@@ -1,0 +1,166 @@
+{
+  "status": "synthetic_draft_only",
+  "product": {
+    "content": {
+      "schemaVersion": 1,
+      "organizationId": "synthetic-lab",
+      "productId": "ARC_ORACLE_LIQUIDATION_DEMO_V1",
+      "version": 1,
+      "name": "Oracle adapter liquidation",
+      "description": "Descriptive compatibility template; existing runtime remains authoritative.",
+      "synthetic": true,
+      "exposure": {
+        "kind": "exposure",
+        "id": "ARC_ORACLE_LIQUIDATION_DEMO_V1.exposure",
+        "version": 1,
+        "digest": "sha256:b1580a519ffd7e81e2746849b137f915c542a5637964e564de72ac8281424956"
+      },
+      "coverage": {
+        "kind": "coverage",
+        "id": "ARC_ORACLE_LIQUIDATION_DEMO_V1.coverage",
+        "version": 1,
+        "digest": "sha256:e217af258b4e5d9bf33de737f1ccb1db5feadb5e25246352abc10110e5083945"
+      },
+      "evidence": {
+        "kind": "evidence",
+        "id": "ARC_ORACLE_LIQUIDATION_DEMO_V1.evidence",
+        "version": 1,
+        "digest": "sha256:f562fe99ddc350560d715ad80232fe36e14915a5a73b7081f4ad5ca44480873b"
+      },
+      "wording": {
+        "kind": "wording",
+        "id": "ARC_ORACLE_LIQUIDATION_DEMO_V1.wording",
+        "version": 1,
+        "digest": "sha256:77b9b5da3c318f7ebc63ec583015693e5d9331be732a188de30d674cbb834705"
+      }
+    },
+    "digest": "sha256:5ea12be7724a9c665ca74ca95b0817733787dc957015a7eb95ad7a31f9a8d797",
+    "reference": {
+      "organizationId": "synthetic-lab",
+      "productId": "ARC_ORACLE_LIQUIDATION_DEMO_V1",
+      "version": 1,
+      "digest": "sha256:5ea12be7724a9c665ca74ca95b0817733787dc957015a7eb95ad7a31f9a8d797"
+    }
+  },
+  "artifacts": {
+    "exposure": {
+      "schemaVersion": 1,
+      "subjectKind": "activity",
+      "description": "arcuex-synthetic-lending-v1",
+      "requiredFacts": [
+        {
+          "id": "position",
+          "type": "text"
+        },
+        {
+          "id": "notionalMicros",
+          "type": "integer"
+        }
+      ]
+    },
+    "coverage": {
+      "schemaVersion": 1,
+      "agreementId": "oracle-liquidation",
+      "eventClassification": "first_party_loss",
+      "trigger": {
+        "reporting": {
+          "kind": "wording_review",
+          "reportDate": "reportedAt",
+          "clauseId": "demo-terms"
+        },
+        "kind": "occurrence",
+        "eventDate": "eventAt"
+      },
+      "requiresLiabilityAssessment": false,
+      "clauses": [
+        {
+          "id": "demo-terms",
+          "text": "Synthetic oracle adapter understates collateral value and causes liquidation of a lending position that remains healthy under the canonical ratio replay."
+        }
+      ],
+      "exclusions": [
+        {
+          "id": "exclusion-1",
+          "clauseId": "demo-terms",
+          "kind": "pre_existing",
+          "enabled": true,
+          "wording": "Pre-existing or known liquidation"
+        },
+        {
+          "id": "exclusion-2",
+          "clauseId": "demo-terms",
+          "kind": "other",
+          "enabled": true,
+          "wording": "Market price movements or ordinary insolvency"
+        },
+        {
+          "id": "exclusion-3",
+          "clauseId": "demo-terms",
+          "kind": "other",
+          "enabled": true,
+          "wording": "Owner or agent misconduct"
+        },
+        {
+          "id": "exclusion-4",
+          "clauseId": "demo-terms",
+          "kind": "other",
+          "enabled": true,
+          "wording": "Non-registered positions or protocols"
+        },
+        {
+          "id": "exclusion-5",
+          "clauseId": "demo-terms",
+          "kind": "other",
+          "enabled": true,
+          "wording": "Non-synthetic evidence; no external loss oracle is integrated"
+        }
+      ],
+      "limit": {
+        "units": "1000000",
+        "asset": {
+          "kind": "token",
+          "chainId": 5042002,
+          "address": "0x3600000000000000000000000000000000000000",
+          "scale": 6
+        }
+      },
+      "deductible": {
+        "units": "100000",
+        "asset": {
+          "kind": "token",
+          "chainId": 5042002,
+          "address": "0x3600000000000000000000000000000000000000",
+          "scale": 6
+        }
+      },
+      "quantumMethod": {
+        "kind": "indemnity",
+        "methodId": "synthetic-oracle-net-loss-v1",
+        "version": 1
+      }
+    },
+    "evidence": {
+      "schemaVersion": 1,
+      "requirements": [
+        {
+          "id": "oracle-replay",
+          "purpose": "causation",
+          "sourceKind": "chain_record",
+          "requiredFields": [
+            "adapterRatioBps",
+            "canonicalRatioBps",
+            "wouldRemainHealthy"
+          ],
+          "verification": "synthetic_attestation",
+          "confidentiality": "public",
+          "retentionPolicyRef": "synthetic-test-only",
+          "dependsOn": []
+        }
+      ]
+    },
+    "wording": {
+      "schemaVersion": 1,
+      "text": "Synthetic oracle adapter understates collateral value and causes liquidation of a lending position that remains healthy under the canonical ratio replay.\nPre-existing or known liquidation\nMarket price movements or ordinary insolvency\nOwner or agent misconduct\nNon-registered positions or protocols\nNon-synthetic evidence; no external loss oracle is integrated\nTestnet demonstration, not legal insurance. Eligibility, ownership attestations, quote expiry, delegation and event evaluation are backend controls. The pool commits a hash without interpreting these terms. A compromised EOA can bypass backend permissions. Claims require the designated claims authority; no AI vote authorizes payment."
+    }
+  }
+}
