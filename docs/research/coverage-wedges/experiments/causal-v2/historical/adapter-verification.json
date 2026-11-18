@@ -1,0 +1,561 @@
+{
+  "match": "exact_match",
+  "creationMatch": "exact_match",
+  "runtimeMatch": "exact_match",
+  "verifiedAt": "2025-07-09T12:10:05Z",
+  "deployment": {
+    "transactionHash": "0x9485a222d3a811bbaa445dfef5a35a0cf63f90e0277e05651b81c6dc3cad6463",
+    "blockNumber": "22219918",
+    "transactionIndex": "72",
+    "deployer": "0xB728809eDbdEC5A369FCF6a28889A85dDA5a9497"
+  },
+  "compilation": {
+    "language": "Solidity",
+    "compiler": "solc",
+    "compilerVersion": "0.8.20+commit.a1b79de6",
+    "compilerSettings": {
+      "viaIR": false,
+      "metadata": {
+        "appendCBOR": true,
+        "bytecodeHash": "ipfs",
+        "useLiteralContent": false
+      },
+      "libraries": {},
+      "optimizer": {
+        "runs": 200,
+        "enabled": true
+      },
+      "evmVersion": "shanghai",
+      "remappings": [
+        "forge-std/=lib/forge-std/src/",
+        "aave-address-book/=lib/aave-address-book/src/",
+        "cl-synchronicity-price-adapter/=lib/cl-synchronicity-price-adapter/src/",
+        "aave-helpers/=lib/aave-helpers/src/",
+        "solidity-utils/=lib/aave-address-book/lib/aave-v3-origin/lib/solidity-utils/src/",
+        "aave-v3-origin/=lib/aave-address-book/lib/aave-v3-origin/src/",
+        "@openzeppelin/contracts-upgradeable/=lib/aave-address-book/lib/aave-v3-origin/lib/solidity-utils/lib/openzeppelin-contracts-upgradeable/contracts/",
+        "@openzeppelin/contracts/=lib/aave-address-book/lib/aave-v3-origin/lib/solidity-utils/lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
+        "aave-v3-origin-tests/=lib/aave-helpers/lib/aave-address-book/lib/aave-v3-origin/tests/",
+        "ds-test/=lib/cl-synchronicity-price-adapter/lib/forge-std/lib/ds-test/src/",
+        "erc4626-tests/=lib/aave-address-book/lib/aave-v3-origin/lib/solidity-utils/lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/",
+        "halmos-cheatcodes/=lib/aave-address-book/lib/aave-v3-origin/lib/solidity-utils/lib/openzeppelin-contracts-upgradeable/lib/halmos-cheatcodes/src/",
+        "openzeppelin-contracts-upgradeable/=lib/aave-address-book/lib/aave-v3-origin/lib/solidity-utils/lib/openzeppelin-contracts-upgradeable/",
+        "openzeppelin-contracts/=lib/aave-address-book/lib/aave-v3-origin/lib/solidity-utils/lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/"
+      ]
+    },
+    "name": "WstETHPriceCapAdapter",
+    "fullyQualifiedName": "src/contracts/lst-adapters/WstETHPriceCapAdapter.sol:WstETHPriceCapAdapter"
+  },
+  "abi": [
+    {
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "capAdapterParams",
+          "type": "tuple",
+          "components": [
+            {
+              "name": "aclManager",
+              "type": "address",
+              "internalType": "contract IACLManager"
+            },
+            {
+              "name": "baseAggregatorAddress",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "ratioProviderAddress",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "pairDescription",
+              "type": "string",
+              "internalType": "string"
+            },
+            {
+              "name": "minimumSnapshotDelay",
+              "type": "uint48",
+              "internalType": "uint48"
+            },
+            {
+              "name": "priceCapParams",
+              "type": "tuple",
+              "components": [
+                {
+                  "name": "snapshotRatio",
+                  "type": "uint104",
+                  "internalType": "uint104"
+                },
+                {
+                  "name": "snapshotTimestamp",
+                  "type": "uint48",
+                  "internalType": "uint48"
+                },
+                {
+                  "name": "maxYearlyRatioGrowthPercent",
+                  "type": "uint16",
+                  "internalType": "uint16"
+                }
+              ],
+              "internalType": "struct IPriceCapAdapter.PriceCapUpdateParams"
+            }
+          ],
+          "internalType": "struct IPriceCapAdapter.CapAdapterParams"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "name": "ACLManagerIsZeroAddress",
+      "type": "error",
+      "inputs": []
+    },
+    {
+      "name": "CallerIsNotRiskOrPoolAdmin",
+      "type": "error",
+      "inputs": []
+    },
+    {
+      "name": "DecimalsAboveLimit",
+      "type": "error",
+      "inputs": []
+    },
+    {
+      "name": "DecimalsNotEqual",
+      "type": "error",
+      "inputs": []
+    },
+    {
+      "name": "InvalidRatioTimestamp",
+      "type": "error",
+      "inputs": [
+        {
+          "name": "timestamp",
+          "type": "uint48",
+          "internalType": "uint48"
+        }
+      ]
+    },
+    {
+      "name": "RatioOutOfBounds",
+      "type": "error",
+      "inputs": []
+    },
+    {
+      "name": "SnapshotMayOverflowSoon",
+      "type": "error",
+      "inputs": [
+        {
+          "name": "snapshotRatio",
+          "type": "uint104",
+          "internalType": "uint104"
+        },
+        {
+          "name": "maxYearlyRatioGrowthPercent",
+          "type": "uint16",
+          "internalType": "uint16"
+        }
+      ]
+    },
+    {
+      "name": "SnapshotRatioIsZero",
+      "type": "error",
+      "inputs": []
+    },
+    {
+      "name": "CapParametersUpdated",
+      "type": "event",
+      "inputs": [
+        {
+          "name": "snapshotRatio",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "snapshotTimestamp",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "maxRatioGrowthPerSecond",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "maxYearlyRatioGrowthPercent",
+          "type": "uint16",
+          "indexed": false,
+          "internalType": "uint16"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "name": "ACL_MANAGER",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "contract IACLManager"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "BASE_TO_USD_AGGREGATOR",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "contract IChainlinkAggregator"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "DECIMALS",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint8",
+          "internalType": "uint8"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "MINIMAL_RATIO_INCREASE_LIFETIME",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "MINIMUM_SNAPSHOT_DELAY",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint48",
+          "internalType": "uint48"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "PERCENTAGE_FACTOR",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "RATIO_DECIMALS",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint8",
+          "internalType": "uint8"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "RATIO_PROVIDER",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "SECONDS_PER_YEAR",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "decimals",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint8",
+          "internalType": "uint8"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "description",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "getMaxRatioGrowthPerSecond",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "getMaxYearlyGrowthRatePercent",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "getRatio",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "int256",
+          "internalType": "int256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "getSnapshotRatio",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "getSnapshotTimestamp",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "isCapped",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "latestAnswer",
+      "type": "function",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "int256",
+          "internalType": "int256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "name": "setCapParameters",
+      "type": "function",
+      "inputs": [
+        {
+          "name": "priceCapParams",
+          "type": "tuple",
+          "components": [
+            {
+              "name": "snapshotRatio",
+              "type": "uint104",
+              "internalType": "uint104"
+            },
+            {
+              "name": "snapshotTimestamp",
+              "type": "uint48",
+              "internalType": "uint48"
+            },
+            {
+              "name": "maxYearlyRatioGrowthPercent",
+              "type": "uint16",
+              "internalType": "uint16"
+            }
+          ],
+          "internalType": "struct IPriceCapAdapter.PriceCapUpdateParams"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    }
+  ],
+  "storageLayout": {
+    "types": {
+      "t_uint16": {
+        "label": "uint16",
+        "encoding": "inplace",
+        "numberOfBytes": "2"
+      },
+      "t_uint48": {
+        "label": "uint48",
+        "encoding": "inplace",
+        "numberOfBytes": "6"
+      },
+      "t_uint104": {
+        "label": "uint104",
+        "encoding": "inplace",
+        "numberOfBytes": "13"
+      },
+      "t_string_storage": {
+        "label": "string",
+        "encoding": "bytes",
+        "numberOfBytes": "32"
+      }
+    },
+    "storage": [
+      {
+        "slot": "0",
+        "type": "t_string_storage",
+        "astId": 3868,
+        "label": "_description",
+        "offset": 0,
+        "contract": "src/contracts/lst-adapters/WstETHPriceCapAdapter.sol:WstETHPriceCapAdapter"
+      },
+      {
+        "slot": "1",
+        "type": "t_uint104",
+        "astId": 3871,
+        "label": "_snapshotRatio",
+        "offset": 0,
+        "contract": "src/contracts/lst-adapters/WstETHPriceCapAdapter.sol:WstETHPriceCapAdapter"
+      },
+      {
+        "slot": "1",
+        "type": "t_uint48",
+        "astId": 3874,
+        "label": "_snapshotTimestamp",
+        "offset": 13,
+        "contract": "src/contracts/lst-adapters/WstETHPriceCapAdapter.sol:WstETHPriceCapAdapter"
+      },
+      {
+        "slot": "1",
+        "type": "t_uint104",
+        "astId": 3877,
+        "label": "_maxRatioGrowthPerSecond",
+        "offset": 19,
+        "contract": "src/contracts/lst-adapters/WstETHPriceCapAdapter.sol:WstETHPriceCapAdapter"
+      },
+      {
+        "slot": "2",
+        "type": "t_uint16",
+        "astId": 3880,
+        "label": "_maxYearlyRatioGrowthPercent",
+        "offset": 0,
+        "contract": "src/contracts/lst-adapters/WstETHPriceCapAdapter.sol:WstETHPriceCapAdapter"
+      }
+    ]
+  },
+  "chainId": "1",
+  "address": "0xe1D97bF61901B075E9626c8A2340a7De385861Ef",
+  "sourceHashes": {
+    "src/contracts/lst-adapters/WstETHPriceCapAdapter.sol": "68e231de5285f9639acbfc6c76a39ef35d48eccef2feebd067bdd992ded4e34a",
+    "lib/aave-address-book/src/AaveV3.sol": "2417484057d0a274bb99d0decddc471579a791ef86aa844d90064c4cbf49db45",
+    "lib/cl-synchronicity-price-adapter/src/interfaces/IStETH.sol": "92a25fa0edb830f4dd75bbf4eb941eb39ac828471fe27d4173b1f837b1d87b3d",
+    "src/contracts/PriceCapAdapterBase.sol": "c66d84e866c1af8a32ac847661c50fca8f46543a440b1ad66f347ca9f3a49a42",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/protocol/libraries/types/DataTypes.sol": "1cc64bd889bf3a098f0c319b34d9949057f754942bfb6445a65c06e3a774ed40",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/protocol/libraries/helpers/Errors.sol": "f422586d68976166bde7c0d47b21a372b10a696a20fbc2f64900211b6bba54e8",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/protocol/libraries/types/ConfiguratorInputTypes.sol": "21a8dc602ce8546c95f31a9b154869797481696ddbdf92a805eb53521a836b28",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/interfaces/IPoolAddressesProvider.sol": "6a44f3a913093d62dd072d1691cf605a76262f56da42cbecdcf80607d8aeef94",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/interfaces/IAToken.sol": "d7dbe9bb8fe715fedd6f6ddfe04ee693b4f48ded4a3fe746d2e9410dc84a0456",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/interfaces/IPool.sol": "39eb302a61506dfd1783adb21d6f1ef7a68b77ba9df00c8cca55e758e96469f9",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/interfaces/IPoolConfigurator.sol": "1629265af29cf4e1171d9e91f7fec9dfe9dabaed920c2c98d3681eaed35afef5",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/interfaces/IPriceOracleGetter.sol": "9bd6289493f501da6c097bedc6a01c69ea67eec5b15e644c585006452354580b",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/interfaces/IAaveOracle.sol": "e55953dba6daa0883e7fb5776c6939cf6d28060e4d7733809a90bf454b31224b",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/interfaces/IACLManager.sol": "079fec6a41263f1794fe150ef72afe3a91206a0e747b08e089a68241054c556a",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/interfaces/IPoolDataProvider.sol": "67cf06d4103f941c44eefa05db71f6f5e826e86d101f18a9767594e086c170f7",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/interfaces/IDefaultInterestRateStrategyV2.sol": "28c7cdc378d6c1882553deb89f344d05bd17be429dc02969aad1d117ff181cf4",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/interfaces/IReserveInterestRateStrategy.sol": "e41e6d44206136dbba842ba00a24e7269ab9640fe81d44b1a51592b5a31b500e",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/dependencies/chainlink/AggregatorInterface.sol": "6bc6f4af61efbc6a572e17db1e3ad682c4b2be22e7638b06567aa7cec06a79a8",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/treasury/ICollector.sol": "7089f9689b61be533db9f7df0e40231bed6191f20257bd94e596e15517946f43",
+    "src/interfaces/IPriceCapAdapter.sol": "622acece6aedd543a690dcce9a90de749702317fd2ee7055fb41ce0479682902",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/dependencies/openzeppelin/contracts/IERC20.sol": "97aad61672b2315121ea4bc75924e0d9c3ba8db260dc79a2d025910faaf4d7ab",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/interfaces/IScaledBalanceToken.sol": "ff2163d0ce74219b0df0211a1684d042aa6e545a01df5a78cef796673711b278",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/interfaces/IInitializableAToken.sol": "49e115134eea649d9052461e7ac0353b17fe3c9da85ff4a9a98b0016014f5b1d",
+    "lib/aave-address-book/lib/aave-v3-origin/lib/solidity-utils/lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol": "30edf7394bab78d48b7db3a059248e1ea7c2c77d2ec0e37a13bb91415aafbe5a",
+    "lib/cl-synchronicity-price-adapter/src/interfaces/ICLSynchronicityPriceAdapter.sol": "bd8d1ae5fa86571e76f5e74249b047851158283be3a375c5f2836867bb2f7162",
+    "lib/cl-synchronicity-price-adapter/src/interfaces/IChainlinkAggregator.sol": "8f89189e0f949f603ce6ca3589c511c771dc5ddde1b2c92aa41dc37836e4c0c1",
+    "lib/aave-address-book/lib/aave-v3-origin/src/contracts/interfaces/IAaveIncentivesController.sol": "9857909e595e80cab4df46c24a08fdcbb09661634da2dbd7fb3db3fc2e9a742f"
+  },
+  "runtimeSha256": "279f3047380c68930751fd6fc605a09f478ca8501de0b9c7f5400a5682bc26b6"
+}

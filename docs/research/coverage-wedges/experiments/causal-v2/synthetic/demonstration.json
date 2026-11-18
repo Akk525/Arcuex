@@ -1,0 +1,129 @@
+{
+  "mode": "SYNTHETIC",
+  "warning": "Fabricated shadow balances and local event. No real chain transaction, collateral or policy.",
+  "transitions": [
+    {
+      "step": "healthy",
+      "healthE18": "1020408163265306122"
+    },
+    {
+      "step": "controlled-adapter-error",
+      "actualRatioE18": "1200000000000000000"
+    },
+    {
+      "step": "emit-local-liquidation-event",
+      "event": {
+        "chainId": 5042002,
+        "blockNumber": 123,
+        "blockHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "transactionHash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "transactionIndex": 3,
+        "logIndex": 7,
+        "timestamp": 100000,
+        "status": 1,
+        "address": "0x1111111111111111111111111111111111111111",
+        "event": "SyntheticLiquidation",
+        "owner": "0x2222222222222222222222222222222222222222",
+        "liquidator": "0x3333333333333333333333333333333333333333",
+        "debtRepaidRaw": "10000000",
+        "seizedRaw": "8750000000000000000"
+      }
+    }
+  ],
+  "terms": {
+    "version": "oracle-causal/2",
+    "mode": "SYNTHETIC",
+    "chainId": 5042002,
+    "pool": "0x1111111111111111111111111111111111111111",
+    "codeHash": "synthetic:mock-single-pair-v1",
+    "owner": "0x2222222222222222222222222222222222222222",
+    "beneficiary": "0x2222222222222222222222222222222222222222",
+    "registeredAt": 100,
+    "startsAt": 100,
+    "endsAt": 9999999,
+    "waitSeconds": 86400,
+    "collateralDecimals": 18,
+    "debtDecimals": 6,
+    "liquidationThresholdBps": 8000,
+    "liquidationBonusBps": 10500,
+    "minimumReferenceHealthE18": "1020000000000000000",
+    "maximumReferenceAgeSeconds": 0,
+    "minimumDeviationBps": 200,
+    "deductibleMicros": "100000",
+    "participationBps": 8000,
+    "policyRemainingMicros": "1000000000",
+    "exposureRemainingMicros": "1000000000",
+    "eventRemainingMicros": "2000000"
+  },
+  "termsDigest": "sha256:37696fd3b6f8f10879d9f59dd280616c2ccc754a1f76b8c7ba21bd4565878acc",
+  "evidence": {
+    "mode": "SYNTHETIC",
+    "termsDigest": "sha256:37696fd3b6f8f10879d9f59dd280616c2ccc754a1f76b8c7ba21bd4565878acc",
+    "beneficiary": "0x2222222222222222222222222222222222222222",
+    "receipt": {
+      "chainId": 5042002,
+      "blockNumber": 123,
+      "blockHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "transactionHash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "transactionIndex": 3,
+      "logIndex": 7,
+      "timestamp": 100000,
+      "status": 1,
+      "address": "0x1111111111111111111111111111111111111111",
+      "event": "SyntheticLiquidation",
+      "owner": "0x2222222222222222222222222222222222222222",
+      "liquidator": "0x3333333333333333333333333333333333333333",
+      "debtRepaidRaw": "10000000",
+      "seizedRaw": "8750000000000000000"
+    },
+    "state": {
+      "method": "mock-single-pair-v1",
+      "collateralRaw": "100000000000000000000",
+      "debtRaw": "98000000",
+      "collateralDecimals": 18,
+      "debtDecimals": 6,
+      "liquidationThresholdBps": 8000,
+      "actualRatioE18": "1200000000000000000",
+      "referenceRatioE18": "1250000000000000000",
+      "referenceAt": 100000,
+      "referencePath": "independent-wrapper",
+      "positionUnchangedSinceRegistration": true,
+      "assetCount": 1,
+      "preTransactionIndex": 3,
+      "preLogIndex": 7
+    },
+    "recoveries": [
+      {
+        "id": "synthetic:grant-1",
+        "micros": "200000"
+      }
+    ]
+  },
+  "cases": {
+    "happy": {
+      "outcome": "VERIFIED",
+      "reason": "SYNTHETIC_CAUSAL_LOSS",
+      "candidatePayableMicros": "510000",
+      "authorizesPayment": false,
+      "mode": "SYNTHETIC",
+      "lossKey": "sha256:ab0fd99b2d5f04ac88491c6db89e88d62e823a7217c3f5a89315c7276c36df9e",
+      "observedHealthE18": "979591836734693877",
+      "referenceHealthE18": "1020408163265306122",
+      "grossLossMicros": "937500"
+    },
+    "rejected": {
+      "outcome": "REJECTED",
+      "reason": "RELATED_LIQUIDATOR",
+      "candidatePayableMicros": "0",
+      "authorizesPayment": false,
+      "mode": "SYNTHETIC"
+    },
+    "review": {
+      "outcome": "REVIEW",
+      "reason": "UNRESOLVED_ECONOMICS",
+      "candidatePayableMicros": "0",
+      "authorizesPayment": false,
+      "mode": "SYNTHETIC"
+    }
+  }
+}

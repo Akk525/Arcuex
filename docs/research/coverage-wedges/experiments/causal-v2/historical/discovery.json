@@ -1,0 +1,481 @@
+[
+  {
+    "id": "capo-tree",
+    "url": "https://api.github.com/repos/aave-dao/aave-price-feeds/git/trees/main?recursive=1",
+    "retrievedAt": "2026-11-17T03:41:35.939208+00:00",
+    "httpStatus": 200,
+    "sha256": "4381c93879341c565e193c361e0d18a54def5a78db003ec883d61e05fc4b8cff",
+    "bytes": 78500,
+    "treeSha": "d1d6a2fb30377c1aaafa77ee91bbb548d98633b5",
+    "truncated": false,
+    "candidates": [
+      {
+        "path": "README.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "d221f58a07bdf1e0f97e2921c17ec4e29e5eb58f",
+        "size": 6976,
+        "url": "https://api.github.com/repos/aave-dao/aave-price-feeds/git/blobs/d221f58a07bdf1e0f97e2921c17ec4e29e5eb58f"
+      },
+      {
+        "path": "security/SigmaPrime/tests/README.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "2542469493bfbe300e8265a3305489513e1e772b",
+        "size": 1521,
+        "url": "https://api.github.com/repos/aave-dao/aave-price-feeds/git/blobs/2542469493bfbe300e8265a3305489513e1e772b"
+      },
+      {
+        "path": "src/contracts/CLRatePriceCapAdapter.sol",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "1eb8feb3c4285cac00ab2c61c1a83f329ccaf8ec",
+        "size": 1404,
+        "url": "https://api.github.com/repos/aave-dao/aave-price-feeds/git/blobs/1eb8feb3c4285cac00ab2c61c1a83f329ccaf8ec"
+      },
+      {
+        "path": "src/contracts/PriceCapAdapterBase.sol",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "901cbbd8e6fd2b34da16f0ea8278246beff76407",
+        "size": 7582,
+        "url": "https://api.github.com/repos/aave-dao/aave-price-feeds/git/blobs/901cbbd8e6fd2b34da16f0ea8278246beff76407"
+      },
+      {
+        "path": "src/contracts/README.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "cfb9d17096d02044eb3c4815f545c45fedf44b6f",
+        "size": 4513,
+        "url": "https://api.github.com/repos/aave-dao/aave-price-feeds/git/blobs/cfb9d17096d02044eb3c4815f545c45fedf44b6f"
+      },
+      {
+        "path": "src/contracts/lst-adapters/WstETHPriceCapAdapter.sol",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "548fdd259b09792e6f5829a2a455f61216c1ec20",
+        "size": 1333,
+        "url": "https://api.github.com/repos/aave-dao/aave-price-feeds/git/blobs/548fdd259b09792e6f5829a2a455f61216c1ec20"
+      },
+      {
+        "path": "src/contracts/misc-adapters/README.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "b79443aaccf2ee22ed4fc85e0a5bffae9e022275",
+        "size": 2580,
+        "url": "https://api.github.com/repos/aave-dao/aave-price-feeds/git/blobs/b79443aaccf2ee22ed4fc85e0a5bffae9e022275"
+      },
+      {
+        "path": "tests/unit-tests/PriceCapAdapterBase.t.sol",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "972b9fd704dc0ce5859dba481c9a530245b5b32b",
+        "size": 10919,
+        "url": "https://api.github.com/repos/aave-dao/aave-price-feeds/git/blobs/972b9fd704dc0ce5859dba481c9a530245b5b32b"
+      }
+    ]
+  },
+  {
+    "id": "proposals-tree",
+    "url": "https://api.github.com/repos/aave-dao/aave-proposals-v3/git/trees/main?recursive=1",
+    "retrievedAt": "2026-11-17T03:41:35.941010+00:00",
+    "httpStatus": 200,
+    "sha256": "7c77229d8aaf004aa146ae14bb8a2dffdeac0f17b6c0bd51c0768ecba64de7ed",
+    "bytes": 400159,
+    "treeSha": "38022b1fe7186df26df8f8fb0994d88d50975e1f",
+    "truncated": false,
+    "candidates": [
+      {
+        "path": "diffs/AaveV3EthereumLido_ReEnableWstETHBorrowCaps_20260316_before_AaveV3EthereumLido_ReEnableWstETHBorrowCaps_20260316_after.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "0cc2f27cc082bed2bccf712a9b3c232decede754",
+        "size": 2308,
+        "url": "https://api.github.com/repos/aave-dao/aave-proposals-v3/git/blobs/0cc2f27cc082bed2bccf712a9b3c232decede754"
+      },
+      {
+        "path": "diffs/AaveV3Ethereum_ReEnableWstETHBorrowCaps_20260316_before_AaveV3Ethereum_ReEnableWstETHBorrowCaps_20260316_after.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "a6067949584b29f46d49dd374352533e80518acc",
+        "size": 2303,
+        "url": "https://api.github.com/repos/aave-dao/aave-proposals-v3/git/blobs/a6067949584b29f46d49dd374352533e80518acc"
+      },
+      {
+        "path": "diffs/AaveV3Ethereum_WstETHCAPOOracleIncidentUserReimbursement_20260312_before_AaveV3Ethereum_WstETHCAPOOracleIncidentUserReimbursement_20260312_after.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "6dc9738f24aa5572be2a7b3c0a29549f159df48b",
+        "size": 2267,
+        "url": "https://api.github.com/repos/aave-dao/aave-proposals-v3/git/blobs/6dc9738f24aa5572be2a7b3c0a29549f159df48b"
+      }
+    ]
+  },
+  {
+    "id": "addressbook-tree",
+    "url": "https://api.github.com/repos/bgd-labs/aave-address-book/git/trees/main?recursive=1",
+    "retrievedAt": "2026-11-17T03:41:35.941487+00:00",
+    "httpStatus": 200,
+    "sha256": "f76f841ae08a4184f7ed0e0cd02129f5bc90e5b1dd445f94d54eb259c7cce2b8",
+    "bytes": 144523,
+    "treeSha": "266429eefae828d52c91ffcb3a75656ab18f7160",
+    "truncated": false,
+    "candidates": [
+      {
+        "path": "src/AaveV3Ethereum.sol",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "60edcbe2a0caedf665e937dd62d2ead9c7df9a19",
+        "size": 82214,
+        "url": "https://api.github.com/repos/aave-dao/aave-address-book/git/blobs/60edcbe2a0caedf665e937dd62d2ead9c7df9a19"
+      },
+      {
+        "path": "src/AaveV3EthereumLido.sol",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "ba0e9bfce9f77533a46bf9929d7ba150d55f230a",
+        "size": 16874,
+        "url": "https://api.github.com/repos/aave-dao/aave-address-book/git/blobs/ba0e9bfce9f77533a46bf9929d7ba150d55f230a"
+      }
+    ]
+  },
+  {
+    "id": "publicnode",
+    "url": "https://ethereum-rpc.publicnode.com",
+    "retrievedAt": "2026-11-17T03:41:36.521476+00:00",
+    "httpStatus": 200,
+    "sha256": "750206a58af43ac5174d9c4bd6c907a909803038edc38c5802a8b80090f8eafa",
+    "bytes": 87,
+    "request": [
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "eth_chainId",
+        "params": []
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "eth_blockNumber",
+        "params": []
+      }
+    ],
+    "response": [
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": "0x1"
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": "0x1935291"
+      }
+    ]
+  },
+  {
+    "id": "llamarpc",
+    "url": "https://eth.llamarpc.com",
+    "retrievedAt": "2026-11-17T03:41:36.787819+00:00",
+    "error": "HTTP Error 525: <none>"
+  },
+  {
+    "id": "report-json",
+    "url": "https://governance.aave.com/t/24269.json",
+    "retrievedAt": "2026-11-17T03:41:36.831894+00:00",
+    "httpStatus": 200,
+    "sha256": "51ddd41d7902fe59ffa9ba84707f19a015b7856b853c79ff1c9c541198937474",
+    "bytes": 117479,
+    "posts": [
+      {
+        "number": 1,
+        "author": "ChaosLabs",
+        "createdAt": "2026-03-10T19:50:36.487Z",
+        "links": [
+          "#p-62314-summary-1",
+          "#p-62314-background-2",
+          "#p-62314-what-happened-3",
+          "#p-62314-root-cause-4",
+          "#p-62314-impact-5",
+          "#p-62314-immediate-steps-taken-6",
+          "#p-62314-recovery-and-compensation-7",
+          "#p-62314-closing-8"
+        ],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 2,
+        "author": "Frida",
+        "createdAt": "2026-03-10T22:33:39.491Z",
+        "links": [],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 3,
+        "author": "pcx",
+        "createdAt": "2026-03-11T04:52:45.881Z",
+        "links": [],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 4,
+        "author": "hsim.dev",
+        "createdAt": "2026-03-11T08:36:05.328Z",
+        "links": [],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 5,
+        "author": "ApuMallku",
+        "createdAt": "2026-03-11T13:13:27.067Z",
+        "links": [],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 6,
+        "author": "PrudentiaLabs",
+        "createdAt": "2026-03-11T14:35:30.441Z",
+        "links": [],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 7,
+        "author": "ST0X",
+        "createdAt": "2026-03-12T07:13:17.263Z",
+        "links": [],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 8,
+        "author": "AlanWestbrook",
+        "createdAt": "2026-03-12T08:34:36.606Z",
+        "links": [],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 9,
+        "author": "MarcZeller",
+        "createdAt": "2026-03-12T09:45:06.995Z",
+        "links": [
+          "/u/tokenlogic"
+        ],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 10,
+        "author": "_LP17",
+        "createdAt": "2026-03-12T15:44:32.155Z",
+        "links": [
+          "/u/chaoslabs"
+        ],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 11,
+        "author": "ChaosLabs",
+        "createdAt": "2026-03-12T16:17:59.445Z",
+        "links": [
+          "#p-62345-operational-track-record-and-qa-testing-1",
+          "/u/apumallku",
+          "/u/hsim.dev",
+          "#p-62345-design-failure-or-edge-case-2",
+          "/u/prudentialabs",
+          "/u/frida",
+          "/u/hsim.dev",
+          "#p-62345-mitigation-3",
+          "#p-62345-prevention-measures-4",
+          "#p-62345-compensation-5",
+          "https://governance.aave.com/t/direct-to-aip-wsteth-capo-oracle-incident-user-reimbursement/24275",
+          "#p-62345-capos-parameter-flexibility-6",
+          "/u/hsim.dev"
+        ],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 12,
+        "author": "eboado",
+        "createdAt": "2026-03-12T16:40:12.322Z",
+        "links": [],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 13,
+        "author": "stani",
+        "createdAt": "2026-03-12T17:19:02.167Z",
+        "links": [],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 14,
+        "author": "abdulwahed",
+        "createdAt": "2026-03-12T20:13:46.362Z",
+        "links": [
+          "#p-62351-the-data-tells-a-different-story-stani-1",
+          "#p-62351-hard-numbers-verified-on-chain-2",
+          "#p-62351-the-question-youre-not-answering-3",
+          "#p-62351-the-wsteth-incident-proves-my-point-4",
+          "#p-62351-edge-case-or-systemic-design-5",
+          "#p-62351-direct-questions-data-based-6",
+          "#p-62351-what-users-actually-need-7",
+          "#p-62351-my-credentials-8",
+          "#p-62351-conclusion-9"
+        ],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 15,
+        "author": "Frida",
+        "createdAt": "2026-03-13T03:31:20.619Z",
+        "links": [
+          "https://governance.aave.com/t/direct-to-aip-wsteth-capo-oracle-incident-user-reimbursement/24275"
+        ],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 16,
+        "author": "abdulwahed",
+        "createdAt": "2026-03-13T13:32:37.731Z",
+        "links": [
+          "#p-62373-a-technical-observation-on-liquidation-design-1",
+          "#p-62373-alternative-models-comparative-perspective-2",
+          "#p-62373-proposed-hybrid-conditional-grace-model-3",
+          "#p-62373-mathematical-expectation-4"
+        ],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 17,
+        "author": "ST0X",
+        "createdAt": "2026-03-15T07:50:36.517Z",
+        "links": [],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 18,
+        "author": "LlamaRisk",
+        "createdAt": "2026-03-16T20:14:57.671Z",
+        "links": [
+          "#p-62409-executive-summary-1",
+          "/u/chaoslabs",
+          "#p-62409-detection-and-initial-response-2",
+          "https://europe1.discourse-cdn.com/flex013/uploads/aave/original/2X/0/09de5198593d4d8b253297d542202285b7e97d53.png",
+          "/uploads/short-url/1piC03AalS7aUrgzSSEMqpVeC9d.png?dl=1",
+          "#far-image",
+          "#discourse-expand",
+          "#p-62409-root-cause-3",
+          "#p-62409-opportunities-to-strengthen-pre-deployment-validation-4",
+          "#p-62409-strengthening-independent-oversight-and-transparency-5",
+          "https://governance.aave.com/t/retro-weth-utilization-spike-and-slope2-risk-oracle-performance/24101",
+          "#p-62409-llamarisks-role-going-forward-6",
+          "/u/bgdlabs",
+          "/u/aci",
+          "/u/bgdlabs",
+          "#p-62409-disclaimer-7"
+        ],
+        "addressesAndHashes": []
+      }
+    ]
+  },
+  {
+    "id": "recovery-json",
+    "url": "https://governance.aave.com/t/24275.json",
+    "retrievedAt": "2026-11-17T03:41:56.155548+00:00",
+    "httpStatus": 200,
+    "sha256": "84b957bf99825f6c7aaac37d50073494e9aad1b6d89916a55f8050f4a7d09695",
+    "bytes": 41757,
+    "posts": [
+      {
+        "number": 1,
+        "author": "TokenLogic",
+        "createdAt": "2026-03-11T20:27:19.911Z",
+        "links": [
+          "#p-62330-direct-to-aip-wsteth-capo-oracle-incident-user-reimbursement-1",
+          "#p-62330-summary-2",
+          "#p-62330-motivation-3",
+          "https://governance.aave.com/t/post-mortem-exchange-rate-misallignment-on-wsteth-core-and-prime-instances/24269",
+          "#p-62330-loss-breakdown-4",
+          "#p-62330-specification-5",
+          "https://etherscan.io/token/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+          "https://etherscan.io/address/0x22740deBa78d5a0c24C58C740e3715ec29de1bFa",
+          "#p-62330-next-steps-6",
+          "#p-62330-disclosure-7",
+          "https://governance.aave.com/t/arfc-service-provider-compensation-reform-for-v4-alignment/23246",
+          "https://governance.aave.com/t/arfc-tokenlogic-phase-ii/23223",
+          "https://governance.aave.com/t/tokenlogic-delegate-platform/12516",
+          "#p-62330-copyright-8",
+          "https://creativecommons.org/publicdomain/zero/1.0/"
+        ],
+        "addressesAndHashes": [
+          "0x22740deBa78d5a0c24C58C740e3715ec29de1bFa",
+          "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+        ]
+      },
+      {
+        "number": 2,
+        "author": "ApuMallku",
+        "createdAt": "2026-03-11T21:51:50.986Z",
+        "links": [],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 3,
+        "author": "TokenLogic",
+        "createdAt": "2026-03-12T18:05:09.305Z",
+        "links": [
+          "/u/bgdlabs"
+        ],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 4,
+        "author": "Frida",
+        "createdAt": "2026-03-13T02:58:06.086Z",
+        "links": [
+          "/u/tokenlogic"
+        ],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 5,
+        "author": "Frida",
+        "createdAt": "2026-03-18T00:56:15.637Z",
+        "links": [
+          "/u/apumallku",
+          "/u/matthewgraham",
+          "/u/efecarranza"
+        ],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 6,
+        "author": "skoreless",
+        "createdAt": "2026-03-26T22:46:50.866Z",
+        "links": [],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 7,
+        "author": "skoreless",
+        "createdAt": "2026-04-01T14:50:43.503Z",
+        "links": [],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 8,
+        "author": "MconnectDAO",
+        "createdAt": "2026-04-01T17:03:24.578Z",
+        "links": [
+          "/u/skoreless"
+        ],
+        "addressesAndHashes": []
+      },
+      {
+        "number": 9,
+        "author": "system",
+        "createdAt": "2026-05-01T17:04:07.970Z",
+        "links": [],
+        "addressesAndHashes": []
+      }
+    ]
+  }
+]

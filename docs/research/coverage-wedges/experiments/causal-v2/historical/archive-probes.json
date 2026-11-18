@@ -1,0 +1,184 @@
+[
+  {
+    "url": "https://eth.drpc.org",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getLogs",
+      "params": [
+        {
+          "address": "0xe1D97bF61901B075E9626c8A2340a7De385861Ef",
+          "fromBlock": "0x177b8f9",
+          "toBlock": "0x177d4e8"
+        }
+      ]
+    },
+    "retrievedAt": "2026-11-17T03:53:26.323739+00:00",
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "url": "https://eth.drpc.org",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getCode",
+      "params": [
+        "0xe1D97bF61901B075E9626c8A2340a7De385861Ef",
+        "0x177b8f9"
+      ]
+    },
+    "retrievedAt": "2026-11-17T03:53:26.324624+00:00",
+    "httpStatus": 200,
+    "sha256": "7f3b72db7f8d536e72624e211148bf000bca3ebd28aeb669dd78e5050df9b4c1",
+    "resultBytes": 3333,
+    "codeSha256": "279f3047380c68930751fd6fc605a09f478ca8501de0b9c7f5400a5682bc26b6"
+  },
+  {
+    "url": "https://1rpc.io/eth",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getLogs",
+      "params": [
+        {
+          "address": "0xe1D97bF61901B075E9626c8A2340a7De385861Ef",
+          "fromBlock": "0x177b8f9",
+          "toBlock": "0x177d4e8"
+        }
+      ]
+    },
+    "retrievedAt": "2026-11-17T03:53:26.324922+00:00",
+    "httpStatus": 200,
+    "sha256": "7f55996675edb3eee641577d5151a17f0793d74ad3f8b47e1066f1b7914692b7",
+    "response": {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32602,
+        "message": "eth_getLogs is limited to 0 - 50 blocks range"
+      },
+      "id": 1
+    }
+  },
+  {
+    "url": "https://1rpc.io/eth",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getCode",
+      "params": [
+        "0xe1D97bF61901B075E9626c8A2340a7De385861Ef",
+        "0x177b8f9"
+      ]
+    },
+    "retrievedAt": "2026-11-17T03:53:26.325195+00:00",
+    "httpStatus": 200,
+    "sha256": "825772cccbc7a1fae9e0c2362f7119a0859b32e0d14b55c899b4441d4a43d2cf",
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "error": {
+        "code": -32000,
+        "message": "historical state dbb46566262e3eb9cc4baf902bd08a54057e0374d3fe1cf15a881cac6cfa352b is not available"
+      }
+    }
+  },
+  {
+    "url": "https://cloudflare-eth.com",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getLogs",
+      "params": [
+        {
+          "address": "0xe1D97bF61901B075E9626c8A2340a7De385861Ef",
+          "fromBlock": "0x177b8f9",
+          "toBlock": "0x177d4e8"
+        }
+      ]
+    },
+    "retrievedAt": "2026-11-17T03:53:26.557201+00:00",
+    "httpStatus": 200,
+    "sha256": "a4aa559988b5727bb4a9caabb03c5ae18592f4da0a6621feeda67bd783237fa6",
+    "response": {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32047,
+        "message": "Invalid eth_getLogs request. 'fromBlock'-'toBlock' range too large. Max range: 800"
+      },
+      "id": 1
+    }
+  },
+  {
+    "url": "https://cloudflare-eth.com",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getCode",
+      "params": [
+        "0xe1D97bF61901B075E9626c8A2340a7De385861Ef",
+        "0x177b8f9"
+      ]
+    },
+    "retrievedAt": "2026-11-17T03:53:26.562826+00:00",
+    "httpStatus": 200,
+    "sha256": "9548a07a5c7c6dde5e697383aed32fb8342f57f751b922ead6aa4826df5ee27e",
+    "response": {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32603,
+        "message": "Internal error"
+      },
+      "id": 1
+    }
+  },
+  {
+    "url": "https://ethereum-rpc.publicnode.com",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getLogs",
+      "params": [
+        {
+          "address": "0xe1D97bF61901B075E9626c8A2340a7De385861Ef",
+          "fromBlock": "0x177b8f9",
+          "toBlock": "0x177d4e8"
+        }
+      ]
+    },
+    "retrievedAt": "2026-11-17T03:53:26.676780+00:00",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "url": "https://ethereum-rpc.publicnode.com",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getCode",
+      "params": [
+        "0xe1D97bF61901B075E9626c8A2340a7De385861Ef",
+        "0x177b8f9"
+      ]
+    },
+    "retrievedAt": "2026-11-17T03:53:26.690072+00:00",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "url": "https://sourcify.dev/server/v2/contract/1/0xe1D97bF61901B075E9626c8A2340a7De385861Ef?fields=all",
+    "request": null,
+    "retrievedAt": "2026-11-17T03:53:26.744866+00:00",
+    "httpStatus": 200,
+    "sha256": "db9e76ebc7a5a7e137db2b59b0dee165d2bec5d79b63c138d55007d7ba8002dc",
+    "summary": {
+      "match": "exact_match",
+      "creationMatch": "exact_match",
+      "runtimeMatch": "exact_match",
+      "verifiedAt": "2025-07-09T12:10:05Z",
+      "deployment": {
+        "transactionHash": "0x9485a222d3a811bbaa445dfef5a35a0cf63f90e0277e05651b81c6dc3cad6463",
+        "blockNumber": "22219918",
+        "transactionIndex": "72",
+        "deployer": "0xB728809eDbdEC5A369FCF6a28889A85dDA5a9497"
+      }
+    }
+  }
+]

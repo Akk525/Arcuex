@@ -1,0 +1,213 @@
+{
+  "endpoint": "https://cloudflare-eth.com",
+  "retrievedAt": "2026-11-17T03:55:36.153225+00:00",
+  "calls": [
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 24623353,
+        "method": "eth_getLogs",
+        "params": [
+          {
+            "address": [
+              "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+              "0x4e033931ad43597d96D6bcc25c280717730B58B1"
+            ],
+            "fromBlock": "0x177b8f9",
+            "toBlock": "0x177bc18",
+            "topics": [
+              "0xe413a321e8681d831f4dbccbca790d2952b56f977908e45be37335533e005286",
+              "0x0000000000000000000000007f39c581f595b53c5cb19bd0b3f8da6c935e2ca0"
+            ]
+          }
+        ]
+      },
+      "error": "HTTP Error 403: Forbidden",
+      "errorBody": "error code: 1010\n"
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 24624153,
+        "method": "eth_getLogs",
+        "params": [
+          {
+            "address": [
+              "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+              "0x4e033931ad43597d96D6bcc25c280717730B58B1"
+            ],
+            "fromBlock": "0x177bc19",
+            "toBlock": "0x177bf38",
+            "topics": [
+              "0xe413a321e8681d831f4dbccbca790d2952b56f977908e45be37335533e005286",
+              "0x0000000000000000000000007f39c581f595b53c5cb19bd0b3f8da6c935e2ca0"
+            ]
+          }
+        ]
+      },
+      "error": "HTTP Error 403: Forbidden",
+      "errorBody": "error code: 1010\n"
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 24624953,
+        "method": "eth_getLogs",
+        "params": [
+          {
+            "address": [
+              "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+              "0x4e033931ad43597d96D6bcc25c280717730B58B1"
+            ],
+            "fromBlock": "0x177bf39",
+            "toBlock": "0x177c258",
+            "topics": [
+              "0xe413a321e8681d831f4dbccbca790d2952b56f977908e45be37335533e005286",
+              "0x0000000000000000000000007f39c581f595b53c5cb19bd0b3f8da6c935e2ca0"
+            ]
+          }
+        ]
+      },
+      "error": "HTTP Error 403: Forbidden",
+      "errorBody": "error code: 1010\n"
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 24625753,
+        "method": "eth_getLogs",
+        "params": [
+          {
+            "address": [
+              "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+              "0x4e033931ad43597d96D6bcc25c280717730B58B1"
+            ],
+            "fromBlock": "0x177c259",
+            "toBlock": "0x177c578",
+            "topics": [
+              "0xe413a321e8681d831f4dbccbca790d2952b56f977908e45be37335533e005286",
+              "0x0000000000000000000000007f39c581f595b53c5cb19bd0b3f8da6c935e2ca0"
+            ]
+          }
+        ]
+      },
+      "error": "HTTP Error 403: Forbidden",
+      "errorBody": "error code: 1010\n"
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 24626553,
+        "method": "eth_getLogs",
+        "params": [
+          {
+            "address": [
+              "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+              "0x4e033931ad43597d96D6bcc25c280717730B58B1"
+            ],
+            "fromBlock": "0x177c579",
+            "toBlock": "0x177c898",
+            "topics": [
+              "0xe413a321e8681d831f4dbccbca790d2952b56f977908e45be37335533e005286",
+              "0x0000000000000000000000007f39c581f595b53c5cb19bd0b3f8da6c935e2ca0"
+            ]
+          }
+        ]
+      },
+      "error": "HTTP Error 403: Forbidden",
+      "errorBody": "error code: 1010\n"
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 24627353,
+        "method": "eth_getLogs",
+        "params": [
+          {
+            "address": [
+              "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+              "0x4e033931ad43597d96D6bcc25c280717730B58B1"
+            ],
+            "fromBlock": "0x177c899",
+            "toBlock": "0x177cbb8",
+            "topics": [
+              "0xe413a321e8681d831f4dbccbca790d2952b56f977908e45be37335533e005286",
+              "0x0000000000000000000000007f39c581f595b53c5cb19bd0b3f8da6c935e2ca0"
+            ]
+          }
+        ]
+      },
+      "error": "HTTP Error 403: Forbidden",
+      "errorBody": "error code: 1010\n"
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 24628153,
+        "method": "eth_getLogs",
+        "params": [
+          {
+            "address": [
+              "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+              "0x4e033931ad43597d96D6bcc25c280717730B58B1"
+            ],
+            "fromBlock": "0x177cbb9",
+            "toBlock": "0x177ced8",
+            "topics": [
+              "0xe413a321e8681d831f4dbccbca790d2952b56f977908e45be37335533e005286",
+              "0x0000000000000000000000007f39c581f595b53c5cb19bd0b3f8da6c935e2ca0"
+            ]
+          }
+        ]
+      },
+      "error": "HTTP Error 403: Forbidden",
+      "errorBody": "error code: 1010\n"
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 24628953,
+        "method": "eth_getLogs",
+        "params": [
+          {
+            "address": [
+              "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+              "0x4e033931ad43597d96D6bcc25c280717730B58B1"
+            ],
+            "fromBlock": "0x177ced9",
+            "toBlock": "0x177d1f8",
+            "topics": [
+              "0xe413a321e8681d831f4dbccbca790d2952b56f977908e45be37335533e005286",
+              "0x0000000000000000000000007f39c581f595b53c5cb19bd0b3f8da6c935e2ca0"
+            ]
+          }
+        ]
+      },
+      "error": "HTTP Error 403: Forbidden",
+      "errorBody": "error code: 1010\n"
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 24629753,
+        "method": "eth_getLogs",
+        "params": [
+          {
+            "address": [
+              "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+              "0x4e033931ad43597d96D6bcc25c280717730B58B1"
+            ],
+            "fromBlock": "0x177d1f9",
+            "toBlock": "0x177d4e8",
+            "topics": [
+              "0xe413a321e8681d831f4dbccbca790d2952b56f977908e45be37335533e005286",
+              "0x0000000000000000000000007f39c581f595b53c5cb19bd0b3f8da6c935e2ca0"
+            ]
+          }
+        ]
+      },
+      "error": "HTTP Error 403: Forbidden",
+      "errorBody": "error code: 1010\n"
+    }
+  ]
+}

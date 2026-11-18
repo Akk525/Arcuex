@@ -1,0 +1,67 @@
+{
+  "retrievedAt": "2026-11-17T03:43:47.584Z",
+  "endpoint": "https://ethereum-rpc.publicnode.com",
+  "calls": [
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "eth_chainId",
+        "params": []
+      },
+      "httpStatus": 200,
+      "response": {
+        "jsonrpc": "2.0",
+        "result": "0x1",
+        "id": 1
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "eth_blockNumber",
+        "params": []
+      },
+      "httpStatus": 200,
+      "response": {
+        "jsonrpc": "2.0",
+        "result": "0x1935298",
+        "id": 2
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "eth_getBlockByNumber",
+        "params": [
+          "0xc9a94c",
+          false
+        ]
+      },
+      "httpStatus": 200,
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "error": {
+          "code": 4444,
+          "message": "pruned history unavailable: requested 13216076, earliest available 15500000"
+        }
+      }
+    },
+    {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "eth_getBlockByNumber",
+        "params": [
+          "0xc9a94c",
+          false
+        ]
+      },
+      "transportError": "Error: {\"code\":4444,\"message\":\"pruned history unavailable: requested 13216076, earliest available 15500000\"}"
+    }
+  ],
+  "blocker": "Error: {\"code\":4444,\"message\":\"pruned history unavailable: requested 13216076, earliest available 15500000\"}"
+}
