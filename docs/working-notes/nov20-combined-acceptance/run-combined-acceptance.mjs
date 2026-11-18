@@ -615,7 +615,17 @@ async function runWizardSuite(browser) {
   );
   state.lifecycleVerified = true;
   state.lifecycleCheckedAt = Math.floor(Date.now() / 1000) - 301;
-  await page.getByRole('button', { name: 'Re-check bind confirmation' }).click();
+  await Promise.all([
+    page
+      .waitForResponse((r) => new URL(r.url()).pathname.endsWith('/lifecycle'))
+      .then((r) => r.finished()),
+    page.getByRole('button', { name: 'Re-check bind confirmation' }).click(),
+  ]);
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll('button')].some(
+      (b) => b.textContent.includes('Re-check bind confirmation') && !b.disabled,
+    ),
+  );
   await page.getByText('Reconciliation pending — no coverage confirmed', { exact: true }).waitFor();
   if (await page.getByText('Policy confirmed on Arc Testnet', { exact: true }).count())
     throw new Error('Stale checkpoint confirmed coverage');
