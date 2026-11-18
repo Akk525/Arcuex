@@ -16,6 +16,7 @@ const MIGRATIONS = [
   '008_shared_wallet_session_scope.sql',
   '009_launch_security.sql',
   '010_policy_reconciliation.sql',
+  '011_claim_verifications.sql',
 ] as const;
 
 export function migrate(db: SqliteDb, migrationDirectory?: string): void {

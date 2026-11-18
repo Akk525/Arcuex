@@ -12,3 +12,5 @@ export * from './settlement-prep';
 export * from './bank-dispute-evidence';
 export * from './bank-dispute-examiner';
 export * from './bank-dispute-fixture';
+
+export * from './claim-verification';

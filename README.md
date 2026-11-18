@@ -163,3 +163,6 @@ Definitions and product publication provenance do not change existing policies o
 authority. The enterprise-AI dossier is synthetic and read-only; it cannot bind, deny, reserve or pay.
 Run `pnpm --filter @arcuex/insurance example:bank-review` to generate the local synthetic evidence
 and review dossier. No model-provider, production or financial integration is required.
+
+Plan B Sprint 1 adds server-side synthetic fixture verification records and authenticated read APIs:
+[implementation and limits](docs/verification/plan-b-sprint1-verification.md). Verification does not approve a claim or authorize settlement.

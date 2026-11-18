@@ -90,7 +90,7 @@ describe('integration migration histories', () => {
     db.pragma('foreign_keys=ON');
     migrate(db);
     migrate(db);
-    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(12);
+    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(13);
     expect(db.pragma('foreign_key_check')).toEqual([]);
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
     expect(

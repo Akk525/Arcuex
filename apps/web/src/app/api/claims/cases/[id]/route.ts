@@ -5,6 +5,7 @@ import { txHash } from '@/lib/server/procurement-chain';
 import { parseUsdcDecimal } from '@arcuex/domain';
 import {
   adjudicateClaimsCase,
+  listClaimVerifications,
   canAccessClaimsPolicy,
   authorizeSettlementPreparation,
   getClaimsCase,
@@ -41,6 +42,7 @@ async function GETHandler(request: Request, ctx: Ctx) {
     case: serializeClaimsCase(c),
     timeline,
     evidenceManifests: manifests,
+    verifications: listClaimVerifications(repo, id, auth.principal),
   });
 }
 

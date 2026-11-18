@@ -49,6 +49,30 @@ import {
 export class InsuranceRepository {
   constructor(private readonly db: SqliteDb) {}
 
+  listClaimVerifications(caseId: string): Array<{ recordJson: string }> {
+    return this.db
+      .prepare(
+        'SELECT record_json AS recordJson FROM claim_verifications WHERE case_id = ? ORDER BY rowid',
+      )
+      .all(caseId) as Array<{ recordJson: string }>;
+  }
+
+  saveClaimVerification(input: {
+    id: string;
+    caseId: string;
+    requestDigest: string;
+    recordJson: string;
+  }): void {
+    this.runInTransaction(() => {
+      this.db
+        .prepare(
+          `INSERT INTO claim_verifications
+        (id, case_id, request_digest, record_json) VALUES (@id, @caseId, @requestDigest, @recordJson)`,
+        )
+        .run(input);
+    });
+  }
+
   insertAudit(
     aggregateType: string,
     aggregateId: string,

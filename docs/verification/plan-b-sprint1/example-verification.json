@@ -1,0 +1,125 @@
+{
+  "id": "6fb84b97-0aaa-4780-9fa5-f7d0dd320ffa",
+  "caseId": "5f7be4fb-950d-4010-9fe3-06d33b8e787e",
+  "requestDigest": "sha256:3420785223eff542974577b9280714524c23987ed89175f1ba07be90d37e1924",
+  "actor": "claimant:0x1111111111111111111111111111111111111111",
+  "createdAt": "2026-11-18T23:09:56.392Z",
+  "verifierVersion": "synthetic-oracle-ratio-v1:verifier:integration-v1",
+  "fixtureReference": "synthetic-oracle-ratio-v1:wrongful-liquidation:v1",
+  "fixtureDigest": "sha256:69923abc94cd83722f8785400ba227849104f71e5697786649f0564626923153",
+  "contextDigest": "sha256:568db49be1a62d58153edce802f92fb0b7d5335bd7330d83f8fbe5a5e912577f",
+  "inputs": {
+    "fixtureRef": "synthetic-oracle-ratio-v1:wrongful-liquidation:v1",
+    "fixtureDigest": "sha256:69923abc94cd83722f8785400ba227849104f71e5697786649f0564626923153",
+    "policyId": "0182e150-a952-404a-9c0e-2766125016e2",
+    "incidentId": "01ff1e49-55c6-42e3-a93a-f8d1211779ea",
+    "observedAt": "2026-11-18T23:09:56.372Z"
+  },
+  "fixtureInputs": {
+    "expectedOutcome": "VERIFIED",
+    "adapterRatioBps": 100,
+    "canonicalRatioBps": 200,
+    "wouldRemainHealthy": true,
+    "seizedMicros": "2000000",
+    "debtExtinguishedMicros": "500000",
+    "deductibleMicros": "100000"
+  },
+  "facts": [
+    {
+      "id": "e21a2314-d2c8-4da3-9125-b09402dd510f",
+      "bundleId": "399721a5-0852-408f-9c84-6920f672dc9f",
+      "key": "mode",
+      "value": "synthetic",
+      "provenance": "synthetic-oracle-fixture",
+      "observedAt": "2026-11-18T23:09:56.372Z"
+    },
+    {
+      "id": "64191f35-3575-450a-8260-5246c932e58f",
+      "bundleId": "399721a5-0852-408f-9c84-6920f672dc9f",
+      "key": "product_code",
+      "value": "oracle-ratio-v1",
+      "provenance": "synthetic-oracle-fixture",
+      "observedAt": "2026-11-18T23:09:56.372Z"
+    },
+    {
+      "id": "d72b0ed7-7c01-4247-ac52-c77d708fab64",
+      "bundleId": "399721a5-0852-408f-9c84-6920f672dc9f",
+      "key": "wedge_label",
+      "value": "SYNTHETIC oracle adapter error — not a real-world loss",
+      "provenance": "synthetic-oracle-fixture",
+      "observedAt": "2026-11-18T23:09:56.372Z"
+    },
+    {
+      "id": "939b3e8e-f216-4012-b295-8bc02bb423d8",
+      "bundleId": "399721a5-0852-408f-9c84-6920f672dc9f",
+      "key": "expected_outcome",
+      "value": "VERIFIED",
+      "provenance": "synthetic-oracle-fixture",
+      "observedAt": "2026-11-18T23:09:56.372Z"
+    },
+    {
+      "id": "e2054aa0-2744-4ae8-b63f-cae3f8451414",
+      "bundleId": "399721a5-0852-408f-9c84-6920f672dc9f",
+      "key": "adapter_ratio_bps",
+      "value": "100",
+      "provenance": "synthetic-oracle-fixture",
+      "observedAt": "2026-11-18T23:09:56.372Z"
+    },
+    {
+      "id": "9398c2d7-e349-430b-bdfd-6c609caed6dc",
+      "bundleId": "399721a5-0852-408f-9c84-6920f672dc9f",
+      "key": "canonical_ratio_bps",
+      "value": "200",
+      "provenance": "synthetic-oracle-fixture",
+      "observedAt": "2026-11-18T23:09:56.372Z"
+    },
+    {
+      "id": "a1ec3c65-868d-4177-8ca2-3adc8c486e14",
+      "bundleId": "399721a5-0852-408f-9c84-6920f672dc9f",
+      "key": "would_remain_healthy",
+      "value": "true",
+      "provenance": "synthetic-oracle-fixture",
+      "observedAt": "2026-11-18T23:09:56.372Z"
+    },
+    {
+      "id": "0e680c87-5048-44c3-8f7f-371b487272c1",
+      "bundleId": "399721a5-0852-408f-9c84-6920f672dc9f",
+      "key": "seized_micros",
+      "value": "2000000",
+      "provenance": "synthetic-oracle-fixture",
+      "observedAt": "2026-11-18T23:09:56.372Z"
+    },
+    {
+      "id": "62c4e3b5-c50b-4bca-8338-7981a72f0a6b",
+      "bundleId": "399721a5-0852-408f-9c84-6920f672dc9f",
+      "key": "debt_extinguished_micros",
+      "value": "500000",
+      "provenance": "synthetic-oracle-fixture",
+      "observedAt": "2026-11-18T23:09:56.372Z"
+    },
+    {
+      "id": "7c2842b9-1df8-412a-a7da-737870107502",
+      "bundleId": "399721a5-0852-408f-9c84-6920f672dc9f",
+      "key": "deductible_micros",
+      "value": "100000",
+      "provenance": "synthetic-oracle-fixture",
+      "observedAt": "2026-11-18T23:09:56.372Z"
+    },
+    {
+      "id": "bdb7956b-3449-41e9-96c1-fceb174a5eea",
+      "bundleId": "399721a5-0852-408f-9c84-6920f672dc9f",
+      "key": "observed_event_ref",
+      "value": "synthetic:example:incident",
+      "provenance": "synthetic-oracle-fixture",
+      "observedAt": "2026-11-18T23:09:56.372Z"
+    }
+  ],
+  "findings": [
+    "SYNTHETIC verification only — adapter understated ratio and replay shows wrongful liquidation. Not external loss proof.",
+    "Synthetic fixture consistency only; policy applicability, external event, causal truth and economic loss remain independently unverified. No decision or settlement authorization."
+  ],
+  "executionStatus": "completed",
+  "evidenceSufficiency": "sufficient",
+  "authenticity": "synthetic_fixture",
+  "independentlyAuthenticated": false
+}

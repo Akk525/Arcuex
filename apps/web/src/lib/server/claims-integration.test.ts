@@ -258,3 +258,48 @@ it('authenticates before parsing claim mutations and models malformed/oversized 
   });
   expect((await mutateCases(oversized)).status).toBe(413);
 });
+
+it('executes catalog verification through the authenticated API and exposes read-only findings only to the owner', async () => {
+  const { CLAIM_FIXTURE, intakeClaimsCase } = await import('@arcuex/insurance');
+  const { POST, GET } = await import('@/app/api/claims/cases/[id]/verification/route');
+  const f = await fixture();
+  const c = intakeClaimsCase(
+    getRepo(),
+    {
+      policyId: f.p.terms.policyId,
+      exposureId: f.agent.id,
+      claimantRef: f.owner.account.address,
+      idempotencyKey: crypto.randomUUID(),
+      syntheticDemo: true,
+      actor: 'ignored',
+      observedEventRef: 'synthetic:api:fixture',
+      observedAt: new Date((f.now - 60) * 1000).toISOString(),
+    },
+    { role: 'claimant', subject: f.owner.account.address, walletAddress: f.owner.account.address },
+  );
+  const ctx = { params: Promise.resolve({ id: c.id }) };
+  const path = `/api/claims/cases/${c.id}/verification`;
+  const envelope = {
+    fixtureRef: CLAIM_FIXTURE.reference,
+    fixtureDigest: CLAIM_FIXTURE.digest,
+    policyId: c.policyId,
+    incidentId: c.incidentId,
+    observedAt: getRepo().getIncident(c.incidentId!)!.observedAt,
+  };
+  expect((await GET(request(path), ctx)).status).toBe(401);
+  expect((await POST(request(path, f.other.cookie, envelope), ctx)).status).toBe(404);
+  const response = await POST(request(path, f.owner.cookie, envelope), ctx);
+  expect(response.status).toBe(200);
+  const result = await response.json();
+  expect(result.verification.evidenceSufficiency).toBe('sufficient');
+  expect(result.verification.independentlyAuthenticated).toBe(false);
+  const read = await (await GET(request(path, f.owner.cookie), ctx)).json();
+  expect(read.verifications).toEqual([result.verification]);
+  expect((await GET(request(path, f.other.cookie), ctx)).status).toBe(404);
+  const caseDetail = await (
+    await detail(request(`/api/claims/cases/${c.id}`, f.owner.cookie), ctx)
+  ).json();
+  expect(caseDetail.verifications).toEqual(read.verifications);
+  expect(getRepo().getClaimsCase(c.id)?.status).toBe(c.status);
+  expect(getRepo().getClaimsCase(c.id)?.settlementAuthorization).toBe('none');
+});
