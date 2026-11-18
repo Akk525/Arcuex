@@ -8,6 +8,17 @@ import {
 } from '@arcuex/domain/procurement';
 import { WalletPanel } from '@/components/wallet/wallet-panel';
 import { useProcurement } from '@/hooks/use-procurement';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Callout } from '@/components/ui/callout';
+import { StatusBadge } from '@/components/status-badge';
+function statusTone(label: string): 'neutral' | 'ok' | 'warn' | 'error' | 'pending' | 'synthetic' {
+  if (label.startsWith('Confirmed')) return 'ok';
+  if (label.includes('Prepared')) return 'pending';
+  if (label.includes('mismatch') || label.includes('exhausted')) return 'warn';
+  if (label.includes('Expired') || label.includes('cancelled')) return 'neutral';
+  return 'synthetic';
+}
+
 type Reconciliation = {
   bound: boolean;
   cancelled: boolean;
@@ -59,67 +70,69 @@ export function PoliciesPanel({ id }: { id?: string }) {
   return (
     <div className="procurement space-y-6">
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div>
-          <h2 className="text-3xl font-semibold">{id ? 'Policy details' : 'My policies'}</h2>
-          <p className="mt-3 text-sm leading-6 text-zinc-600">
-            Immutable synthetic terms with real Arc Testnet transaction references. Prepared records
-            provide no coverage. Refresh details to read current contract state.
-          </p>
-          <button className="proc-btn mt-5" disabled={busy} onClick={() => void run(load)}>
+        <div className="space-y-3">
+          <Callout kind="synthetic" title="Synthetic product terms · live bind receipts">
+            Immutable demo cover wording with real Arc Testnet transaction references when bound.
+            Prepared records provide no coverage.
+          </Callout>
+          <button className="proc-btn" disabled={busy} onClick={() => void run(load)}>
             {busy ? 'Loading…' : 'Sign in & refresh policies'}
           </button>
         </div>
         <WalletPanel />
       </div>
       {chainError && (
-        <p role="status" className="text-sm text-amber-900">
-          {chainError}
-        </p>
+        <Callout kind="warn" title="Chain reconciliation">
+          <p role="status">{chainError}</p>
+        </Callout>
       )}
       {error && (
-        <p role="alert" className="rounded-lg bg-rose-50 p-4 text-sm text-rose-800">
-          {error}
-        </p>
+        <Callout kind="danger" title="Unable to load policies">
+          <p role="alert">{error}</p>
+        </Callout>
       )}
       {policies?.length === 0 && (
-        <p className="py-8 text-sm text-zinc-500">
-          No policies for this wallet.{' '}
-          <Link className="underline" href="/coverage">
-            Discover coverage
-          </Link>
-          .
-        </p>
+        <EmptyState
+          title="No policies for this wallet"
+          description="Bind coverage first. Empty lists come from authenticated API results — not placeholders."
+          action={
+            <Link className="text-sm font-medium text-[var(--accent)] underline" href="/coverage">
+              Obtain coverage
+            </Link>
+          }
+        />
       )}
-      {policies?.map((p) => (
+      {policies?.map((p) => {
+        const label = status(p);
+        return (
         <article
           key={p.terms.policyId}
-          className="space-y-4 rounded-xl border border-zinc-200 p-5 sm:p-6"
+          className="space-y-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6"
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-wide text-amber-800">
-                Synthetic oracle adapter liquidation
-              </p>
+              <StatusBadge label="SYNTHETIC COVER" tone="synthetic" />
               <h3 className="mt-2 break-all font-mono text-sm">
                 <Link className="underline" href={`/policies/${p.terms.policyId}`}>
                   {p.terms.policyId}
                 </Link>
               </h3>
             </div>
-            <span className="rounded-md bg-zinc-100 px-3 py-2 text-sm">{status(p)}</span>
+            <StatusBadge label={label} tone={statusTone(label)} />
           </div>
           <dl className="grid gap-4 text-sm sm:grid-cols-3">
             {[
               ['Premium', `${formatUnits(BigInt(p.terms.premiumMicros), 6)} USDC`],
               ['Limit', `${formatUnits(BigInt(p.terms.limitMicros), 6)} USDC`],
               ['Deductible', `${formatUnits(BigInt(p.terms.deductibleMicros), 6)} USDC`],
+              ['Beneficiary', p.terms.beneficiary],
               ['Effective', new Date(p.terms.effectiveAt * 1000).toLocaleString()],
               ['Expiry', new Date(p.terms.expiresAt * 1000).toLocaleString()],
               ['Position', p.terms.exposure.position],
             ].map(([k, v]) => (
               <div key={k}>
-                <dt className="text-zinc-500">{k}</dt>
-                <dd className="mt-1 break-all">{v}</dd>
+                <dt className="text-[var(--ink-muted)]">{k}</dt>
+                <dd className="mt-1 break-all text-[var(--ink)]">{v}</dd>
               </div>
             ))}
           </dl>
@@ -197,14 +210,15 @@ export function PoliciesPanel({ id }: { id?: string }) {
                 <summary className="cursor-pointer text-sm">
                   Immutable policy terms & digest
                 </summary>
-                <pre className="mt-3 overflow-auto rounded-lg bg-zinc-100 p-4 text-xs">
+                <pre className="mt-3 overflow-auto rounded-lg bg-[var(--surface-inset)] p-4 font-mono text-xs">
                   {JSON.stringify(p, null, 2)}
                 </pre>
               </details>
             </>
           )}
         </article>
-      ))}
+        );
+      })}
     </div>
   );
 }
