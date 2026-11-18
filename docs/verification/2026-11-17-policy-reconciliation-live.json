@@ -1,0 +1,42 @@
+{
+  "recent": {
+    "chainId": 5042002,
+    "pool": "0x6657974EEdF488380251bDD95A7FFfb0D456E49E",
+    "head": "72783023",
+    "fromBlock": "72781022",
+    "toBlock": "72783021",
+    "first": {
+      "observed": 0,
+      "orphaned": 0,
+      "throughBlock": "72783021"
+    },
+    "second": {
+      "observed": 0,
+      "orphaned": 0,
+      "throughBlock": "72783021"
+    },
+    "records": 0,
+    "statuses": [],
+    "verifiedAt": "2026-11-18T03:03:12.924Z"
+  },
+  "historical": {
+    "chainId": 5042002,
+    "pool": "0x6657974EEdF488380251bDD95A7FFfb0D456E49E",
+    "head": "72783159",
+    "fromBlock": "72712560",
+    "toBlock": "72712560",
+    "first": {
+      "observed": 1,
+      "orphaned": 0,
+      "throughBlock": "72712560"
+    },
+    "second": {
+      "observed": 1,
+      "orphaned": 0,
+      "throughBlock": "72712560"
+    },
+    "records": 1,
+    "statuses": ["ONCHAIN_UNLINKED"],
+    "verifiedAt": "2026-11-18T03:04:24.686Z"
+  }
+}

@@ -13,3 +13,4 @@ export * from './loss-key';
 export * from './outcomes';
 
 export * from './procurement';
+export * from './backend-contracts';

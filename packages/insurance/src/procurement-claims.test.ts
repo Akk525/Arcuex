@@ -17,7 +17,7 @@ const foreign = {
   walletAddress: '0x3333333333333333333333333333333333333333',
 };
 const reviewer = { role: 'reviewer' as const, subject: 'reviewer' };
-function fixture(confirmed = true) {
+function fixture(confirmed = true, reconciled = confirmed) {
   const db = openDatabase(),
     repo = new InsuranceRepository(db),
     store = new ProcurementStore(db),
@@ -64,6 +64,16 @@ function fixture(confirmed = true) {
   };
   store.insertPolicy(p);
   if (confirmed) store.confirm(policyId, `0x${'cd'.repeat(32)}`, now - 2400);
+  if (reconciled) {
+    db.transaction(() => {
+      db.prepare(
+        "INSERT OR REPLACE INTO policy_reconciliation_scopes(scope,healthy,checked_at) VALUES ('fixture',1,?)",
+      ).run(Math.floor(Date.now() / 1000));
+      db.prepare(
+        "INSERT INTO policy_bind_events VALUES (?, 'fixture', ?, ?, 'VERIFIED_LINKED', 1, '1', 'fixture', '{}')",
+      ).run(policyId, policyId, policyId);
+    })();
+  }
   const input = {
     policyId,
     exposureId: agentId,
@@ -124,6 +134,31 @@ describe('canonical procurement → ClaimsCase integration', () => {
       { observedAt: new Date(Date.now() + 60000).toISOString() },
     ])
       expect(() => intakeClaimsCase(f.repo, { ...f.input, ...patch }, claimant)).toThrow();
+  });
+  it('blocks claims and replay when canonical evidence is missing, incomplete, stale or unhealthy', () => {
+    const missing = fixture(true, false);
+    expect(() => intakeClaimsCase(missing.repo, missing.input, claimant)).toThrow(
+      'active or bound',
+    );
+    expect(() =>
+      intakeClaimsCase(missing.repo, missing.input, { role: 'system', subject: 'system' }),
+    ).toThrow('active or bound');
+    expect(missing.repo.listIncidents()).toHaveLength(0);
+    missing.db.close();
+    for (const invalidation of [
+      "UPDATE policy_bind_events SET status='INCOMPLETE'",
+      "UPDATE policy_bind_events SET canonical=0,status='ORPHANED'",
+      'UPDATE policy_reconciliation_scopes SET healthy=0',
+      'UPDATE policy_reconciliation_scopes SET checked_at=0',
+    ]) {
+      const f = fixture();
+      const existing = intakeClaimsCase(f.repo, f.input, claimant);
+      f.db.transaction(() => f.db.exec(invalidation))();
+      expect(() => intakeClaimsCase(f.repo, f.input, claimant)).toThrow('active or bound');
+      expect(f.repo.getClaimsCase(existing.id)?.id).toBe(existing.id);
+      expect(f.repo.listIncidents()).toHaveLength(1);
+      f.db.close();
+    }
   });
   it('deduplicates economic incidents across intake keys and rejects changed-event retries', () => {
     const f = fixture();

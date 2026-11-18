@@ -1,4 +1,4 @@
-import {sessionStoreId} from './claims-session';
+import { sessionStoreId } from './claims-session';
 import { describe, it, expect, vi } from 'vitest';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { ProcurementService } from '@arcuex/agent-sdk';
@@ -87,6 +87,18 @@ async function fixture() {
     `0x${p.terms.policyId.replace(/-/g, '').repeat(2)}`,
     now - 1100,
   );
+  getDb().transaction(() => {
+    getDb()
+      .prepare(
+        "INSERT OR REPLACE INTO policy_reconciliation_scopes(scope,healthy,checked_at) VALUES ('fixture',1,?)",
+      )
+      .run(Math.floor(Date.now() / 1000));
+    getDb()
+      .prepare(
+        "INSERT INTO policy_bind_events VALUES (?, 'fixture', ?, ?, 'VERIFIED_LINKED', 1, '1', 'fixture', '{}')",
+      )
+      .run(p.terms.policyId, p.terms.policyId, p.terms.policyId);
+  })();
   return { owner, other, p, agent, now };
 }
 describe('one authenticated procurement and claims customer journey', () => {

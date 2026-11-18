@@ -709,14 +709,29 @@ export class InsuranceRepository {
   claimsPolicyContext(id: string) {
     const procurement = this.getProcurementPolicy(id);
     if (procurement) {
+      if (this.getPolicy(id)) return null; // Ambiguous cross-ledger identity is never claimable.
       const t = procurement.terms;
+      // Partial historical snapshots are reconciliation-only, never claim contexts.
+      if (
+        !t?.exposure?.position ||
+        !t.exposure.protocol ||
+        !t.owner ||
+        !t.beneficiary ||
+        !t.agentId ||
+        !/^[0-9]+$/.test(t.limitMicros) ||
+        !/^[0-9]+$/.test(t.deductibleMicros) ||
+        !Number.isSafeInteger(t.effectiveAt) ||
+        !Number.isSafeInteger(t.expiresAt)
+      )
+        return null;
       return {
         source: 'procurement' as const,
         id,
         owner: t.owner,
         beneficiary: t.beneficiary,
         agentId: t.agentId,
-        confirmed: procurement.state === 'confirmed',
+        confirmed:
+          procurement.state === 'confirmed' && new ProcurementStore(this.db).claimsEligible(id),
         synthetic: true,
         limitMicros: BigInt(t.limitMicros),
         deductibleMicros: BigInt(t.deductibleMicros),
