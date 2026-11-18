@@ -1,0 +1,41 @@
+PASS Ungated liveness
+PASS Public access denied without gate
+PASS Ungated / is restricted
+PASS Ungated /coverage is restricted
+PASS Ungated /claims is restricted
+PASS Ungated /api/procurement/products is restricted
+PASS Invalid gate denied
+PASS Anonymous authoritative session
+PASS Unauthenticated reconciliation is denied
+PASS Real wallet challenge issued
+PASS Real signed-wallet authentication
+PASS Session cookie retains HttpOnly and Secure
+PASS Authoritative identity and capabilities
+PASS Real synthetic exposure registration
+PASS Real immutable synthetic quote
+PASS Read-only chain preflight and offchain preparation
+PASS Prepared SQLite record grants no confirmation or claims
+PASS Fabricated successful wallet hash rejected by real receipt verifier
+PASS Failed receipt cannot mutate authoritative lifecycle
+PASS Session boundary protects policy lifecycle
+PASS Gated anonymous claims write rejected
+PASS Client role header cannot grant authority
+PASS Claimant denied privileged adjudicate despite forged role
+PASS Claimant denied privileged prepare_settlement despite forged role
+PASS Claimant denied privileged mark_paid despite forged role
+PASS Provisioned reviewer session login
+PASS Server reviewer identity
+PASS reviewer cannot act as claimant
+PASS Reviewer denied authority settlement preparation
+PASS Nonverified historical records stay nonclaimable for reviewer
+PASS reviewer Ops navigation uses real session
+PASS Provisioned authority session login
+PASS Server authority identity
+PASS authority cannot act as claimant
+PASS Nonverified historical records stay nonclaimable for authority
+PASS authority Ops navigation uses real session
+PASS Policy frontend consumes real session and lifecycle APIs
+PASS Prepared policy has no claim action
+PASS Claimant cannot select Ops workspace
+PASS Logout revokes real session and refreshes AccountBar
+Hosted real backend acceptance: 40 PASS

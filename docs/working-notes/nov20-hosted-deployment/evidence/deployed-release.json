@@ -1,0 +1,19 @@
+{
+  "decision": "CONDITIONAL GO: existing gated private Railway deployment",
+  "deployedSha": "f8365a85f0c4a6298f713be7e799cb7538ca1fc7",
+  "testedApplicationSha": "ef3d0d1041e5cdc6fa9dea4e2906c3094e45bf00",
+  "priorReportTip": "8d5fdaaeaa04d45955416dfbed2ca9f423d6b0d3",
+  "deploymentId": "88f62d34-0dd9-4d66-9630-1e3491b54b8d",
+  "projectId": "03848637-de2d-497f-8308-f8f3ccf06f07",
+  "serviceId": "1280c69e-abbc-4d06-8ecc-93bf4a6ed226",
+  "volumeId": "b92846ec-9a00-40b6-80a9-bc9dce1e69a2",
+  "verifiedAt": "2026-11-18T05:49:31.929222+00:00",
+  "hostedBrowserAssertions": 40,
+  "postRestartHttpChecks": 7,
+  "indexerTests": 4,
+  "sourceFilesVerified": 289,
+  "activeFabricatedPolicies": 0,
+  "financialBroadcasts": 0,
+  "contractChanges": false,
+  "publicLaunchAuthorized": false
+}

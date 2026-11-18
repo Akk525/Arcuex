@@ -1,0 +1,98 @@
+{
+  "service": {
+    "id": "1280c69e-abbc-4d06-8ecc-93bf4a6ed226",
+    "name": "arcuex-nov20-beta",
+    "state": "live"
+  },
+  "environment": {
+    "id": "6dca510e-fe00-4478-8d8d-ef65fd5bc4d7",
+    "name": "production"
+  },
+  "latestDeployment": {
+    "createdAt": "2026-11-18T05:39:28.441Z",
+    "id": "88f62d34-0dd9-4d66-9630-1e3491b54b8d",
+    "status": "SUCCESS",
+    "url": null
+  },
+  "config": {
+    "build": {
+      "buildEnvironment": "V3",
+      "builder": "RAILPACK"
+    },
+    "deploy": {
+      "drainingSeconds": 20,
+      "healthcheckPath": "/api/health/live",
+      "healthcheckTimeout": 300,
+      "ipv6EgressEnabled": false,
+      "multiRegionConfig": {
+        "us-west2": {
+          "numReplicas": 1
+        }
+      },
+      "overlapSeconds": 0,
+      "restartPolicyMaxRetries": 3,
+      "runtime": "V2",
+      "startCommand": "/entrypoint.sh node /app/deploy/railway/supervisor.cjs",
+      "useLegacyStacker": false
+    },
+    "networking": {
+      "serviceDomains": {
+        "arcuex-nov20-beta-production.up.railway.app": {
+          "port": 8080
+        }
+      }
+    },
+    "volumeMounts": {
+      "b92846ec-9a00-40b6-80a9-bc9dce1e69a2": {
+        "mountPath": "/data"
+      }
+    }
+  },
+  "volumes": [
+    {
+      "id": "b92846ec-9a00-40b6-80a9-bc9dce1e69a2",
+      "mountPath": "/data",
+      "name": "arcuex-nov20-beta-volume",
+      "region": "us-west2",
+      "sizeMB": 5000,
+      "state": "live"
+    }
+  ],
+  "domains": {
+    "customDomains": [],
+    "serviceDomains": [
+      {
+        "domain": "arcuex-nov20-beta-production.up.railway.app",
+        "id": "41816c8e-9f8a-4d01-8565-fb1df6e573d9",
+        "targetPort": 8080
+      }
+    ]
+  },
+  "variableNames": [
+    "ARCUEX_ACCEPTANCE_GATE_TOKEN",
+    "ARCUEX_CHAIN_ID",
+    "ARCUEX_DATA_DIR",
+    "ARCUEX_DEPLOYMENT_MODE",
+    "ARCUEX_GIT_SHA",
+    "ARCUEX_PUBLIC_HOST",
+    "ARCUEX_PUBLIC_ORIGIN",
+    "ARCUEX_RATE_LIMIT_SECRET",
+    "ARCUEX_RECONCILIATION_ENABLED",
+    "ARCUEX_RECONCILIATION_START_BLOCK",
+    "ARCUEX_SESSION_EPOCH",
+    "ARCUEX_STORAGE_ID",
+    "ARCUEX_TLS_SERVER_NAME",
+    "ARCUE_X_POOL_ADDRESS",
+    "ARCUE_X_SQLITE_PATH",
+    "ARC_TESTNET_RPC_URL",
+    "CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP",
+    "CLAIMS_AUTHORITY_API_TOKEN",
+    "CLAIMS_COOKIE_SECURE",
+    "CLAIMS_REVIEWER_API_TOKEN",
+    "NEXT_PUBLIC_ARCUE_X_POOL_ADDRESS",
+    "NEXT_PUBLIC_ARC_RPC_URL",
+    "NODE_ENV",
+    "QUICKNODE_RPC_URL",
+    "RAILWAY_RUN_UID"
+  ]
+}

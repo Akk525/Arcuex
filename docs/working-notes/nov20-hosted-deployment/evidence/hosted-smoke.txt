@@ -1,0 +1,3 @@
+$ pnpm --filter @arcuex/onchain exec tsx ../../apps/web/scripts/launch-release-smoke.mts -- https://arcuex-nov20-beta-production.up.railway.app
+smoke: durable sqlite path assertion skipped (ARCUE_X_SQLITE_PATH unset)
+launch-release-smoke: PASS
