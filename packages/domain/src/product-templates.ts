@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { PROCUREMENT_PRODUCT } from './procurement';
 import {
   artifactDigest,
+  canonicalProductJson,
   freezeProductContent,
   snapshotProduct,
   type InsuranceProduct,
@@ -55,7 +56,7 @@ export function validateProductTemplate(input: ProductTemplate): ProductTemplate
   const artifacts = ProductArtifactsSchema.parse(input.artifacts);
   if (
     product.digest !== input.product.digest ||
-    JSON.stringify(product.reference) !== JSON.stringify(input.product.reference)
+    canonicalProductJson(product.reference) !== canonicalProductJson(input.product.reference)
   )
     throw new Error('Product snapshot mismatch');
   if (product.content.underwriting || product.content.workflow)
