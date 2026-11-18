@@ -6,8 +6,9 @@ import { createWagmiConfig } from '@/lib/wagmi';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Arcuex — Arc Testnet Dashboard',
-  description: 'Developer dashboard for Arc Testnet connectivity, wallets, and QuickNode RPC.',
+  title: 'Arcuex — Arc Testnet',
+  description:
+    'Programmable financial protection for humans and autonomous agents on Arc Testnet.',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
