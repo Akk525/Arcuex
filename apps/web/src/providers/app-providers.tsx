@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { WagmiProvider, type State } from 'wagmi';
 import { createWagmiConfig } from '@/lib/wagmi';
+import { WorkspaceProvider } from '@/components/workspace-provider';
 
 export function AppProviders({
   children,
@@ -27,7 +28,9 @@ export function AppProviders({
 
   return (
     <WagmiProvider config={config} initialState={initialState}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <WorkspaceProvider>{children}</WorkspaceProvider>
+      </QueryClientProvider>
     </WagmiProvider>
   );
 }

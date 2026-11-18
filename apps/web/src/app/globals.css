@@ -2,8 +2,29 @@
 
 :root {
   color-scheme: light;
-  --bg: #f4f4f5;
-  --fg: #18181b;
+  /* Institutional desk: cool paper, ink, single steel-teal accent */
+  --ink: #0f1720;
+  --ink-muted: #5c6b7a;
+  --paper: #f3f5f7;
+  --surface: #ffffff;
+  --surface-inset: #eef1f4;
+  --line: rgba(15, 23, 32, 0.1);
+  --line-strong: rgba(15, 23, 32, 0.18);
+  --accent: #0f5c66;
+  --accent-hover: #0a4850;
+  --accent-soft: #e6f2f3;
+  --live: #0f5c66;
+  --synthetic: #9a6700;
+  --ok: #0d6b4c;
+  --warn: #9a6700;
+  --danger: #b42318;
+  --pending: #1d4f91;
+  --focus: #0f5c66;
+  --radius: 0.5rem;
+  --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --bg: var(--paper);
+  --fg: var(--ink);
 }
 
 html,
@@ -14,35 +35,53 @@ body {
 body {
   margin: 0;
   background:
-    radial-gradient(1200px 500px at 10% -10%, #e4e4e7 0%, transparent 55%),
-    radial-gradient(900px 400px at 100% 0%, #dbeafe 0%, transparent 45%), var(--bg);
-  color: var(--fg);
-  font-family:
-    'IBM Plex Sans',
-    'Segoe UI',
-    system-ui,
-    -apple-system,
-    sans-serif;
+    linear-gradient(180deg, #e8eef1 0%, transparent 280px),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 @layer base {
-  a { color: inherit; }
+  a {
+    color: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+  }
+
+  .font-mono,
+  code {
+    font-family: var(--font-mono);
+  }
 }
 
+/* Procurement form controls — aligned to tokens */
 .procurement label:not(.proc-check) {
   display: grid;
   gap: 0.5rem;
   font-size: 0.875rem;
+  color: var(--ink);
 }
 .procurement input:not([type='checkbox']),
-.procurement select {
+.procurement select,
+.procurement textarea {
   min-width: 0;
   width: 100%;
-  border: 1px solid #d4d4d8;
-  border-radius: 0.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
   padding: 0.65rem 0.75rem;
-  background: white;
-  color: #18181b;
+  background: var(--surface-inset);
+  color: var(--ink);
+}
+.procurement input:not([type='checkbox']):focus-visible,
+.procurement select:focus-visible,
+.procurement textarea:focus-visible {
+  background: var(--surface);
 }
 .proc-check {
   display: flex;
@@ -55,26 +94,26 @@ body {
 }
 .proc-btn,
 .proc-btn-secondary {
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   padding: 0.7rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
 }
 .proc-btn {
-  background: #18181b;
+  background: var(--accent);
   color: white;
+  border: none;
+}
+.proc-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
 }
 .proc-btn-secondary {
-  border: 1px solid #d4d4d8;
-  background: white;
-  color: #27272a;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
 }
 .procurement button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
-}
-.procurement :focus-visible {
-  outline: 2px solid #0369a1;
-  outline-offset: 3px;
 }

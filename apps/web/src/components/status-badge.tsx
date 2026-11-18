@@ -1,11 +1,13 @@
-type Tone = 'neutral' | 'ok' | 'warn' | 'error' | 'pending';
+type Tone = 'neutral' | 'ok' | 'warn' | 'error' | 'pending' | 'live' | 'synthetic';
 
 const toneClass: Record<Tone, string> = {
-  neutral: 'bg-zinc-100 text-zinc-700 ring-zinc-200',
-  ok: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
-  warn: 'bg-amber-50 text-amber-900 ring-amber-200',
-  error: 'bg-rose-50 text-rose-800 ring-rose-200',
-  pending: 'bg-sky-50 text-sky-800 ring-sky-200',
+  neutral: 'bg-[var(--surface-inset)] text-[var(--ink-muted)] ring-[var(--line)]',
+  ok: 'bg-emerald-50 text-[var(--ok)] ring-emerald-200',
+  warn: 'bg-amber-50 text-[var(--warn)] ring-amber-200',
+  error: 'bg-rose-50 text-[var(--danger)] ring-rose-200',
+  pending: 'bg-sky-50 text-[var(--pending)] ring-sky-200',
+  live: 'bg-[var(--accent-soft)] text-[var(--live)] ring-[var(--accent)]/25',
+  synthetic: 'bg-amber-50 text-[var(--synthetic)] ring-amber-200',
 };
 
 export function StatusBadge({ label, tone = 'neutral' }: { label: string; tone?: Tone }) {
