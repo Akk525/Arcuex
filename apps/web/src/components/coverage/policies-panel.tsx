@@ -226,8 +226,10 @@ export function PoliciesPanel({ id }: { id?: string }) {
               </a>
             )}
             {id &&
-              label.startsWith('Confirmed') &&
-              lifecycles[p.terms.policyId]?.claimsEligible && (
+              lifecycle?.claimsEligible &&
+              lifecycle.completeness === 'VERIFIED_LINKED' &&
+              lifecycle.checkedAt !== null &&
+              now / 1000 <= lifecycle.checkedAt + 300 && (
                 <Link
                   className="inline-block rounded-md bg-zinc-900 px-4 py-2 text-sm text-white"
                   href={`/claims/new?policyId=${p.terms.policyId}`}

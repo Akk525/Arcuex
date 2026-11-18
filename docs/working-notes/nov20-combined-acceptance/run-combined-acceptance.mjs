@@ -178,7 +178,9 @@ async function installApiMocks(page, fixtures, state) {
         version: 1,
         policyId: terms.policyId,
         onchainPolicyId: '0x' + 'ab'.repeat(32),
-        state: state.lifecycleVerified ? 'confirmed' : 'reconciliation_pending',
+        state:
+          state.lifecycleState ??
+          (state.lifecycleVerified ? 'confirmed' : 'reconciliation_pending'),
         completeness: state.lifecycleVerified ? 'VERIFIED_LINKED' : null,
         chainId: 5042002,
         pool: '0x6657974EEdF488380251bDD95A7FFfb0D456E49E',
@@ -188,6 +190,11 @@ async function installApiMocks(page, fixtures, state) {
         settlements: [],
         notice: 'MOCK synthetic lifecycle; no financial proof',
       });
+    // Functional tests use the declared system fallback fonts; no third-party load dependency.
+    if (url.hostname === 'fonts.googleapis.com')
+      return route.fulfill({ status: 200, contentType: 'text/css', body: '' });
+    if (url.hostname === 'fonts.gstatic.com') return route.abort();
+
     // Session
     if (url.pathname === '/api/session/me') {
       if (!state.session)
@@ -1015,6 +1022,44 @@ async function runA11yMobileSuite(browser) {
   await context.close();
 }
 
+async function runPolicyEligibilitySuite(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  const start = Math.floor(Date.now() / 1000);
+  const fixtures = buildFixtures(start);
+  const state = {
+    start,
+    session: { role: 'claimant', wallet: OWNER.toLowerCase() },
+    lifecycleVerified: true,
+    lifecycleState: 'expired',
+  };
+  await installMockWallet(page, { rejectFirstSend: false });
+  await installApiMocks(page, fixtures, state);
+  await page.goto(`${BASE}/policies/e2e-policy`, { waitUntil: 'load' });
+  await connectAndSignIn(page);
+  await page.getByRole('button', { name: 'Refresh my policies' }).click();
+  await page.getByText('Expired', { exact: true }).waitFor();
+  await page.getByRole('link', { name: 'Submit a synthetic claim' }).waitFor();
+  record(
+    'INT-03',
+    'PASS',
+    'Fresh server eligibility preserves historical incident intake for expired verified policy',
+  );
+  state.lifecycleCheckedAt = Math.floor(Date.now() / 1000) - 301;
+  await page.getByRole('button', { name: 'Refresh my policies' }).click();
+  await page.getByText('Expired', { exact: true }).waitFor();
+  await page.waitForFunction(
+    () =>
+      ![...document.querySelectorAll('button')].find((b) =>
+        b.textContent.includes('Refresh my policies'),
+      )?.disabled,
+  );
+  if (await page.getByRole('link', { name: 'Submit a synthetic claim' }).count())
+    throw new Error('Stale expired policy allowed claim action');
+  record('INT-04', 'PASS', 'Stale checkpoint hides claim action even for historical policy');
+  await context.close();
+}
+
 async function main() {
   if (!EXE || !fs.existsSync(EXE)) {
     console.error('PLAYWRIGHT_CHROME_PATH required and must exist');
@@ -1033,6 +1078,7 @@ async function main() {
       ['wizard', runWizardSuite],
       ['session-nav', runSessionAndNavSuite],
       ['claims', runClaimsSuite],
+      ['policy-eligibility', runPolicyEligibilitySuite],
       ['a11y-mobile', runA11yMobileSuite],
     ]) {
       try {
