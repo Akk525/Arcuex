@@ -12,7 +12,7 @@ import { ARC_TESTNET_FAUCET } from '@arcuex/chain';
 
 /**
  * Persistent wallet + claims-session controls for the shell.
- * Session identity comes from GET /api/claims/auth/session (server cookie).
+ * Session identity comes from GET /api/session/me (server cookie).
  */
 export function AccountBar() {
   const wallet = useWalletStatus();
@@ -36,6 +36,8 @@ export function AccountBar() {
         return;
       }
       await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Session request failed');
     } finally {
       setBusy(false);
     }
@@ -47,6 +49,8 @@ export function AccountBar() {
     try {
       await claimsLogout();
       await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Session request failed');
     } finally {
       setBusy(false);
     }
@@ -55,7 +59,10 @@ export function AccountBar() {
   return (
     <div className="flex flex-col items-stretch gap-2 sm:items-end">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <StatusBadge label={walletStatusLabel(wallet.uiStatus)} tone={wallet.uiStatus === 'ready' ? 'ok' : 'neutral'} />
+        <StatusBadge
+          label={walletStatusLabel(wallet.uiStatus)}
+          tone={wallet.uiStatus === 'ready' ? 'ok' : 'neutral'}
+        />
         {wallet.address ? (
           <span className="font-mono text-xs text-[var(--ink-muted)]">
             {shortAddress(wallet.address)}
@@ -65,11 +72,7 @@ export function AccountBar() {
           <span className="text-xs text-[var(--ink-muted)]">Session…</span>
         ) : session ? (
           <StatusBadge
-            label={
-              session.role === 'claimant'
-                ? 'Signed in'
-                : `Session · ${session.role}`
-            }
+            label={session.role === 'claimant' ? 'Signed in' : `Session · ${session.role}`}
             tone="live"
           />
         ) : (
@@ -87,7 +90,8 @@ export function AccountBar() {
             Switch to Arc
           </Button>
         ) : null}
-        {wallet.uiStatus === 'ready' && !session ? (
+        {wallet.uiStatus === 'ready' &&
+        (!session || session.wallet?.toLowerCase() !== address?.toLowerCase()) ? (
           <Button
             size="sm"
             onClick={() => void signIn()}

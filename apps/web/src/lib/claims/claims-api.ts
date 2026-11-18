@@ -2,17 +2,19 @@
 
 /** Cookie-session claims API helper — credentials include httpOnly session. */
 
-export function claimsFetch(
+export async function claimsFetch(
   _role: 'claimant' | 'reviewer' | 'authority' | 'any',
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<Response> {
   const headers = new Headers(init.headers);
-  return fetch(input, {
+  const response = await fetch(input, {
     ...init,
     headers,
     credentials: 'include',
   });
+  if (response.status === 401) window.dispatchEvent(new Event('arcuex-session-changed'));
+  return response;
 }
 
 export async function claimsOpsLogin(
@@ -32,6 +34,7 @@ export async function claimsOpsLogin(
     const json = (await res.json()) as { error?: string };
     return { ok: false, error: json.error ?? 'Ops login failed' };
   }
+  window.dispatchEvent(new Event('arcuex-session-changed'));
   return { ok: true };
 }
 
@@ -65,9 +68,15 @@ export async function claimsWalletLogin(input: {
   });
   const verifyJson = await verifyRes.json();
   if (!verifyRes.ok) return { ok: false, error: verifyJson.error ?? 'Verify failed' };
+  window.dispatchEvent(new Event('arcuex-session-changed'));
   return { ok: true };
 }
 
 export async function claimsLogout(): Promise<void> {
-  await fetch('/api/claims/auth/logout', { method: 'POST', credentials: 'include' });
+  const response = await fetch('/api/claims/auth/logout', {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Sign out failed');
+  window.dispatchEvent(new Event('arcuex-session-changed'));
 }

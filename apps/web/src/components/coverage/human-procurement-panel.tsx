@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import type { PolicyLifecycle } from '@arcuex/domain';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePublicClient, useWalletClient } from 'wagmi';
 import { formatUnits, type Hex, type Address } from 'viem';
 import {
@@ -52,10 +53,27 @@ export function HumanProcurementPanel() {
   const [prep, setPrep] = useState<Preparation | null>(null);
   const [approved, setApproved] = useState(false);
   const [hash, setHash] = useState<Hex | null>(null);
-  const [confirmed, setConfirmed] = useState<Policy | null>(null);
+  const identityRevision = useRef(0);
+  const [lifecycle, setLifecycle] = useState<PolicyLifecycle | null>(null);
   const [notice, setNotice] = useState('');
   const [now, setNow] = useState(Date.now());
+  const confirmed =
+    lifecycle?.state === 'confirmed' &&
+    lifecycle.completeness === 'VERIFIED_LINKED' &&
+    lifecycle.checkedAt !== null &&
+    now / 1000 <= lifecycle.checkedAt + 300
+      ? prep?.policy
+      : null;
   const [stepError, setStepError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const reset = () => {
+      identityRevision.current++;
+      setLifecycle(null);
+    };
+    window.addEventListener('arcuex-session-changed', reset);
+    return () => window.removeEventListener('arcuex-session-changed', reset);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -63,18 +81,19 @@ export function HumanProcurementPanel() {
   }, []);
 
   useEffect(() => {
+    identityRevision.current++;
     setAgents([]);
     setAgentId('');
     setQuote(null);
     setPrep(null);
     setHash(null);
-    setConfirmed(null);
+    setLifecycle(null);
     setAccepted(false);
     setApproved(false);
     setStage(1);
     setBeneficiary(wallet.address ?? '');
     setSigner(wallet.address ?? '');
-  }, [wallet.address]);
+  }, [wallet.address, wallet.chainId]);
 
   useEffect(() => {
     if (stage <= 2) {
@@ -106,6 +125,21 @@ export function HumanProcurementPanel() {
     ];
   }, [stage, agentId, agents.length, quote, prep, confirmed, error]);
 
+  async function refreshLifecycle(policyId: string) {
+    const revision = identityRevision.current;
+    setLifecycle(null);
+    const response = await fetch(`/api/policies/${policyId}/lifecycle`, {
+      credentials: 'include',
+      cache: 'no-store',
+    });
+    if (response.status === 401) window.dispatchEvent(new Event('arcuex-session-changed'));
+    if (!response.ok) throw new Error('Policy verification unavailable; no coverage confirmed.');
+    const result = (await response.json()) as PolicyLifecycle;
+    if (result.version !== 1 || result.policyId !== policyId)
+      throw new Error('Invalid lifecycle response');
+    if (revision === identityRevision.current) setLifecycle(result);
+  }
+
   async function loadAgents() {
     const rows = await api<Agent[]>('agents');
     setAgents(rows);
@@ -124,7 +158,7 @@ export function HumanProcurementPanel() {
       acceptedDigest: quote.digest,
     });
     if (fresh.policy.state === 'confirmed') {
-      setConfirmed(fresh.policy);
+      await refreshLifecycle(fresh.policy.terms.policyId);
       return;
     }
     const tx = fresh.transactions[kind === 'approve' ? 0 : 1];
@@ -161,10 +195,11 @@ export function HumanProcurementPanel() {
     if (receipt.status !== 'success')
       throw new Error('Transaction reverted. No coverage confirmed.');
     if (kind === 'bind') {
-      setConfirmed(
-        await api<Policy>('confirm', { policyId: prep.policy.terms.policyId, hash: txHash }),
+      await api<Policy>('confirm', { policyId: prep.policy.terms.policyId, hash: txHash });
+      await refreshLifecycle(prep.policy.terms.policyId);
+      setNotice(
+        'Bind receipt checked. Canonical reconciliation must verify the policy before coverage is confirmed.',
       );
-      setNotice('Bind receipt verified. Coverage begins at the scheduled effective time.');
     } else {
       await api('approvals', { policyId: prep.policy.terms.policyId, hash: txHash });
       setApproved(true);
@@ -259,7 +294,9 @@ export function HumanProcurementPanel() {
         {approved && !confirmed ? (
           <StatusBadge label="Allowance confirmed · bind required" tone="pending" />
         ) : null}
-        {hash && !confirmed ? <StatusBadge label="Transaction submitted" tone="pending" /> : null}
+        {hash && !confirmed ? (
+          <StatusBadge label="Reconciliation pending — no coverage confirmed" tone="pending" />
+        ) : null}
         {confirmed ? <StatusBadge label="Policy confirmed on Arc Testnet" tone="ok" /> : null}
       </div>
 
@@ -424,7 +461,10 @@ export function HumanProcurementPanel() {
               ['Premium', usdc(quote.terms.premiumMicros)],
               ['Limit', usdc(quote.terms.limitMicros)],
               ['Deductible', usdc(quote.terms.deductibleMicros)],
-              ['Effective after binding', new Date(quote.terms.effectiveAt * 1000).toLocaleString()],
+              [
+                'Effective after binding',
+                new Date(quote.terms.effectiveAt * 1000).toLocaleString(),
+              ],
               ['Coverage expiry', new Date(quote.terms.expiresAt * 1000).toLocaleString()],
               ['Quote expires', new Date(quote.terms.quoteExpiresAt * 1000).toLocaleString()],
             ].map(([k, v]) => (
@@ -445,8 +485,8 @@ export function HumanProcurementPanel() {
             </ul>
           </div>
           <Callout kind="warn" title="Limitations">
-            {PRODUCT.limitations} Coverage begins only after a matching successful receipt and the
-            scheduled start. Late binds are ineligible.
+            {PRODUCT.limitations} Coverage begins only after canonical reconciliation verifies a
+            matching bind and the scheduled start. Late binds are ineligible.
           </Callout>
           <details>
             <summary className="cursor-pointer text-sm">Full versioned terms & digest</summary>
@@ -484,7 +524,7 @@ export function HumanProcurementPanel() {
             </li>
             <li>
               <strong className="text-[var(--ink)]">Confirm:</strong> verify the Arc Testnet receipt
-              before treating the policy as confirmed.
+              and canonical reconciliation before treating the policy as confirmed.
             </li>
           </ol>
           <div className="flex flex-wrap gap-3">
@@ -506,14 +546,10 @@ export function HumanProcurementPanel() {
                 variant="secondary"
                 disabled={busy}
                 onClick={() =>
-                  void run(async () =>
-                    setConfirmed(
-                      await api<Policy>('confirm', {
-                        policyId: prep.policy.terms.policyId,
-                        hash,
-                      }),
-                    ),
-                  )
+                  void run(async () => {
+                    await api<Policy>('confirm', { policyId: prep.policy.terms.policyId, hash });
+                    await refreshLifecycle(prep.policy.terms.policyId);
+                  })
                 }
               >
                 Re-check bind confirmation
@@ -550,7 +586,7 @@ export function HumanProcurementPanel() {
               setAccepted(false);
               setApproved(false);
               setHash(null);
-              setConfirmed(null);
+              setLifecycle(null);
               setStage(2);
             }}
           >

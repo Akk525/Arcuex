@@ -237,6 +237,21 @@ it('adds reconciliation to the release database without rewriting historical pol
     '008_shared_wallet_session_scope.sql',
     '009_launch_security.sql',
   ]);
+  seedClaims(db);
+  const preservedTables = [
+    'claims_cases',
+    'claims_case_events',
+    'claims_sessions',
+    'policies',
+    'covered_exposures',
+    'capital_pools',
+    'capital_reservations',
+    'settlements',
+    'onchain_claim_settlements',
+  ];
+  const snapshots = preservedTables.map(
+    (table) => [table, db.prepare(`SELECT * FROM ${table}`).all()] as const,
+  );
   const policyId = newId();
   const payload = JSON.stringify({
     terms: { policyId, owner: 'historical-owner' },
@@ -252,7 +267,34 @@ it('adds reconciliation to the release database without rewriting historical pol
   migrate(db);
   expect(db.prepare('SELECT * FROM procurement_policies').all()).toEqual(before);
   expect(db.prepare('SELECT * FROM policy_bind_events').all()).toEqual([]);
+  for (const [table, snapshot] of snapshots)
+    expect(db.prepare(`SELECT * FROM ${table}`).all()).toEqual(snapshot);
   expect(new InsuranceRepository(db).claimsPolicyContext(policyId)).toBeNull();
+  expect(db.pragma('foreign_key_check')).toEqual([]);
+  db.close();
+});
+
+it('enforces one canonical bind while retaining orphaned provenance and the local lookup index', () => {
+  const db = new Database(':memory:');
+  db.pragma('foreign_keys=ON');
+  migrate(db);
+  db.transaction(() => {
+    db.prepare(
+      'INSERT INTO policy_reconciliation_scopes(scope,healthy,checked_at) VALUES (?,0,0)',
+    ).run('scope');
+    const insert = db.prepare(
+      `INSERT INTO policy_bind_events(event_key,scope,onchain_policy_id,status,canonical,block_number,block_hash,payload) VALUES (?,'scope','policy',?, ?,'1','block','{}')`,
+    );
+    insert.run('one', 'ONCHAIN_UNLINKED', 1);
+    expect(() => insert.run('duplicate', 'ONCHAIN_UNLINKED', 1)).toThrow('UNIQUE');
+    insert.run('historic', 'ORPHANED', 0);
+  })();
+  expect(db.prepare('SELECT * FROM policy_bind_events').all()).toHaveLength(2);
+  expect(
+    db
+      .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='policy_bind_local'")
+      .get(),
+  ).toBeTruthy();
   expect(db.pragma('foreign_key_check')).toEqual([]);
   db.close();
 });

@@ -11,20 +11,22 @@ export function useProcurement() {
     if (wallet.uiStatus !== 'ready' || !wallet.address)
       throw new Error('Connect your wallet on Arc Testnet first.');
     async function send(path: string, body?: unknown) {
-      const response = await fetch(`/api/procurement/${path}`, {
+      const response = await fetch(path.startsWith('/api/') ? path : `/api/procurement/${path}`, {
         method: body === undefined ? 'GET' : 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', 'x-arcuex-wallet': wallet.address! },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
       const json = await response.json();
+      if (response.status === 401) window.dispatchEvent(new Event('arcuex-session-changed'));
       if (!response.ok) throw new Error(json.error ?? 'Request failed');
       return json;
     }
-    const identityResponse = await fetch('/api/claims/auth/session', { credentials: 'include' });
+    const identityResponse = await fetch('/api/session/me', { credentials: 'include' });
     const identity = await identityResponse.json();
     if (
       !identityResponse.ok ||
+      identity.state !== 'authenticated' ||
       identity.wallet?.toLowerCase() !== wallet.address.toLowerCase() ||
       identity.role !== 'claimant'
     ) {
@@ -34,6 +36,7 @@ export function useProcurement() {
         account: wallet.address,
       });
       await send('auth/verify', { id: challenge.id, signature });
+      window.dispatchEvent(new Event('arcuex-session-changed'));
     }
     const payload =
       body && typeof body === 'object' && ['agents', 'delegations', 'quotes'].includes(path)
