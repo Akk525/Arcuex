@@ -14,3 +14,4 @@ export * from './outcomes';
 
 export * from './procurement';
 export * from './backend-contracts';
+export * from './product-definition';
