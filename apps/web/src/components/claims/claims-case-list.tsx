@@ -12,6 +12,8 @@ import {
   readClaimsClientResponse,
   type ClaimsCaseListRow,
 } from '@/lib/claims/claims-client-response';
+import { AuthRequired } from '@/components/ui/auth-required';
+import { EmptyState } from '@/components/ui/empty-state';
 
 const FILTERS = [
   'ALL',
@@ -90,18 +92,20 @@ export function ClaimsCaseList() {
         ))}
       </div>
 
-      {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+      {error && !authRequired ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
       {authRequired ? (
-        <p className="text-sm text-zinc-600">
-          Sign in with your wallet session to load claims cases. Unauthorized responses are not shown
-          as an empty list.
-        </p>
+        <AuthRequired
+          description="Sign in with your wallet session to load claims cases. Unauthorized responses are not shown as an empty list."
+        />
       ) : null}
-      {pending && !cases && !error ? <p className="text-sm text-zinc-500">Loading cases…</p> : null}
+      {pending && !cases && !error ? (
+        <p className="text-sm text-[var(--ink-muted)]">Loading cases…</p>
+      ) : null}
       {cases && cases.length === 0 ? (
-        <p className="text-sm text-zinc-500">
-          No claims cases yet. Submit a claim against an active synthetic policy.
-        </p>
+        <EmptyState
+          title="No claims cases yet"
+          description="Submit a claim against a confirmed policy you own. This empty state is an authenticated result."
+        />
       ) : null}
 
       <ul className="divide-y divide-zinc-100">
