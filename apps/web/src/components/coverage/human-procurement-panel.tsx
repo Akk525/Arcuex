@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePublicClient, useWalletClient } from 'wagmi';
 import { formatUnits, type Hex, type Address } from 'viem';
 import {
@@ -12,6 +12,9 @@ import {
 import { ARC_MIN_MAX_FEE_PER_GAS } from '@arcuex/chain';
 import { useProcurement } from '@/hooks/use-procurement';
 import { WalletPanel } from '@/components/wallet/wallet-panel';
+import { Callout } from '@/components/ui/callout';
+import { Stepper, type StepItem } from '@/components/ui/stepper';
+import { StatusBadge } from '@/components/status-badge';
 const usdc = (value: string) => `${formatUnits(BigInt(value), 6)} USDC`;
 type Preparation = {
   policy: Policy;
@@ -59,6 +62,45 @@ export function HumanProcurementPanel() {
     setAccepted(false);
   }, [agentId, limit, days, beneficiary, checks]);
   const expired = !!quote && now / 1000 >= quote.terms.quoteExpiresAt;
+  const txPhase = useMemo(() => {
+    if (confirmed) return 'confirmed' as const;
+    if (error && (prep || hash)) return 'failed' as const;
+    if (hash || notice.includes('Transaction submitted')) return 'submitted' as const;
+    if (prep && notice.toLowerCase().includes('approve')) return 'approval_pending' as const;
+    if (prep) return 'prepared' as const;
+    if (accepted && quote) return 'quote_accepted' as const;
+    if (quote) return 'quote_created' as const;
+    return 'idle' as const;
+  }, [confirmed, error, prep, hash, notice, accepted, quote]);
+  const steps: StepItem[] = useMemo(() => {
+    const registered = agents.length > 0 && !!agentId;
+    const quoted = !!quote;
+    const termsAccepted = accepted && !!quote;
+    const done = !!confirmed;
+    const failed = txPhase === 'failed';
+    return [
+      {
+        id: 'register',
+        label: 'Register exposure',
+        state: registered ? 'complete' : 'current',
+      },
+      {
+        id: 'quote',
+        label: 'Build quote',
+        state: quoted ? 'complete' : registered ? 'current' : 'upcoming',
+      },
+      {
+        id: 'accept',
+        label: 'Accept terms',
+        state: termsAccepted ? 'complete' : quoted ? 'current' : 'upcoming',
+      },
+      {
+        id: 'bind',
+        label: 'Approve & bind',
+        state: done ? 'complete' : failed ? 'error' : termsAccepted ? 'current' : 'upcoming',
+      },
+    ];
+  }, [agents.length, agentId, quote, accepted, confirmed, txPhase]);
   async function loadAgents() {
     const rows = await api<Agent[]>('agents');
     setAgents(rows);
@@ -128,41 +170,54 @@ export function HumanProcurementPanel() {
   return (
     <div className="procurement space-y-6">
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <section className="rounded-xl bg-zinc-950 p-6 text-white sm:p-8">
-          <p className="text-xs font-medium uppercase tracking-widest text-amber-300">
-            Synthetic product · real testnet transfers
-          </p>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight">
-            Protection for an oracle adapter failure.
+        <section className="space-y-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-6">
+          <div className="flex flex-wrap gap-2">
+            <StatusBadge label="SYNTHETIC PRODUCT" tone="synthetic" />
+            <StatusBadge label="REAL TESTNET TRANSFERS" tone="live" />
+          </div>
+          <h2 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">
+            Protection for an oracle adapter failure
           </h2>
-          <p className="mt-4 max-w-xl text-sm leading-6 text-zinc-300">
+          <p className="max-w-xl text-sm leading-relaxed text-[var(--ink-muted)]">
             Cover a registered demo lending position against wrongful liquidation caused by an
-            oracle adapter. Arc Testnet only. No legal insurance or external loss oracle.
+            oracle adapter. Arc Testnet only. No legal insurance or external loss oracle. A policy
+            is not active until bind confirmation succeeds on chain.
           </p>
-          <p className="mt-5 text-sm text-amber-200">{PRODUCT.pricing}</p>
+          <p className="text-sm text-[var(--ink)]">{PRODUCT.pricing}</p>
         </section>
         <WalletPanel />
       </div>
-      <ol
-        className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4"
-        aria-label="Procurement progress"
-      >
-        {['Register exposure', 'Build quote', 'Accept terms', 'Approve & bind'].map((s, i) => (
-          <li key={s} className="border-b-2 border-zinc-300 py-3">
-            <span className="mr-2 text-zinc-500">{i + 1}</span>
-            {s}
-          </li>
-        ))}
-      </ol>
+      <Stepper steps={steps} ariaLabel="Coverage procurement progress" />
+      <div className="flex flex-wrap gap-2" aria-live="polite">
+        {txPhase === 'quote_created' ? <StatusBadge label="Quote created" tone="pending" /> : null}
+        {txPhase === 'quote_accepted' ? (
+          <StatusBadge label="Terms accepted — not yet coverage" tone="pending" />
+        ) : null}
+        {txPhase === 'prepared' ? (
+          <StatusBadge label="Wallet approval pending" tone="pending" />
+        ) : null}
+        {txPhase === 'approval_pending' ? (
+          <StatusBadge label="Wallet approval pending" tone="pending" />
+        ) : null}
+        {txPhase === 'submitted' ? (
+          <StatusBadge label="Transaction submitted" tone="pending" />
+        ) : null}
+        {txPhase === 'confirmed' ? (
+          <StatusBadge label="Policy confirmed on Arc Testnet" tone="ok" />
+        ) : null}
+        {txPhase === 'failed' ? <StatusBadge label="Transaction failed" tone="error" /> : null}
+      </div>
       {error && (
-        <p role="alert" className="rounded-lg bg-rose-50 p-4 text-sm text-rose-800">
-          {error} You can retry the same step.
-        </p>
+        <Callout kind="danger" title="Transaction or request failed">
+          <p role="alert">
+            {error} You can retry the same step. No coverage is confirmed after a failed bind.
+          </p>
+        </Callout>
       )}
       {notice && (
-        <p role="status" className="rounded-lg bg-sky-50 p-4 text-sm text-sky-900">
-          {notice}
-        </p>
+        <Callout kind={confirmed ? 'live' : 'info'} title="Status">
+          <p role="status">{notice}</p>
+        </Callout>
       )}
       <fieldset disabled={busy || !!prep} className="space-y-5">
         <legend className="text-xl font-semibold">1. Agent & exposure</legend>
