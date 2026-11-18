@@ -1,0 +1,82 @@
+$ pnpm -r --filter './packages/*' typecheck && pnpm --filter @arcuex/web build
+Scope: 7 of 9 workspace projects
+packages/chain typecheck$ tsc -p tsconfig.json --noEmit
+packages/domain typecheck$ tsc -p tsconfig.json --noEmit
+packages/domain typecheck: Done
+packages/chain typecheck: Done
+packages/onchain typecheck$ tsc -p tsconfig.json --noEmit
+packages/persistence typecheck$ tsc -p tsconfig.json --noEmit
+packages/quicknode typecheck$ tsc -p tsconfig.json --noEmit
+packages/persistence typecheck: Done
+packages/quicknode typecheck: Done
+packages/onchain typecheck: Done
+packages/insurance typecheck$ tsc -p tsconfig.json --noEmit
+packages/insurance typecheck: Done
+packages/agent-sdk typecheck$ tsc -p tsconfig.json --noEmit
+packages/agent-sdk typecheck: Done
+$ next build
+   ▲ Next.js 15.5.29
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 6.9min
+   Linting and checking validity of types ...
+
+ ⚠ The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/app/api-reference/config/eslint#migrating-existing-config
+   Collecting page data ...
+   Generating static pages (0/16) ...
+   Generating static pages (4/16) 
+   Generating static pages (8/16) 
+   Generating static pages (12/16) 
+ ✓ Generating static pages (16/16)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ƒ /                                    3.73 kB         136 kB
+├ ƒ /_not-found                             1 kB         104 kB
+├ ƒ /agent                               4.06 kB         136 kB
+├ ƒ /api/agent/procure                     199 B         103 kB
+├ ƒ /api/capital                           199 B         103 kB
+├ ƒ /api/claims                            199 B         103 kB
+├ ƒ /api/claims/auth/logout                199 B         103 kB
+├ ƒ /api/claims/auth/nonce                 199 B         103 kB
+├ ƒ /api/claims/auth/ops-login             199 B         103 kB
+├ ƒ /api/claims/auth/session               199 B         103 kB
+├ ƒ /api/claims/auth/verify                199 B         103 kB
+├ ƒ /api/claims/cases                      199 B         103 kB
+├ ƒ /api/claims/cases/[id]                 199 B         103 kB
+├ ƒ /api/claims/demo                       199 B         103 kB
+├ ƒ /api/claims/policies                   199 B         103 kB
+├ ƒ /api/claims/settlements/historic       199 B         103 kB
+├ ƒ /api/coverage                          199 B         103 kB
+├ ƒ /api/health                            199 B         103 kB
+├ ƒ /api/health/live                       199 B         103 kB
+├ ƒ /api/health/ready                      199 B         103 kB
+├ ƒ /api/integrations/health               199 B         103 kB
+├ ƒ /api/overview                          199 B         103 kB
+├ ƒ /api/policies                          199 B         103 kB
+├ ƒ /api/policies/[policyId]/lifecycle     199 B         103 kB
+├ ƒ /api/policies/reconciliation           199 B         103 kB
+├ ƒ /api/procurement                       199 B         103 kB
+├ ƒ /api/procurement/[...path]             199 B         103 kB
+├ ƒ /api/session/me                        199 B         103 kB
+├ ƒ /api/webhooks/quicknode-streams        199 B         103 kB
+├ ƒ /capital                             1.37 kB         133 kB
+├ ƒ /claims                              4.42 kB         136 kB
+├ ƒ /claims/[id]                         3.51 kB         135 kB
+├ ƒ /claims/new                          3.74 kB         136 kB
+├ ƒ /claims/review                       4.83 kB         168 kB
+├ ƒ /coverage                            6.57 kB         237 kB
+├ ƒ /integrations                        3.53 kB         180 kB
+├ ƒ /policies                              180 B         137 kB
+└ ƒ /policies/[id]                         191 B         137 kB
++ First Load JS shared by all             103 kB
+  ├ chunks/4901-128b5083e0998cd6.js      46.8 kB
+  ├ chunks/e7e3044d-ec7544bca37e86f6.js  54.2 kB
+  └ other shared chunks (total)             2 kB
+
+
+ƒ Middleware                             36.4 kB
+
+ƒ  (Dynamic)  server-rendered on demand
+

@@ -1,0 +1,116 @@
+$ pnpm -r test
+Scope: 8 of 9 workspace projects
+packages/chain test$ vitest run
+packages/domain test$ vitest run
+packages/domain test:  RUN  v3.2.7 /private/tmp/arcuex-plan-b-settlement/packages/domain
+packages/chain test:  RUN  v3.2.7 /private/tmp/arcuex-plan-b-settlement/packages/chain
+packages/domain test:  ✓ src/money.test.ts (4 tests) 13ms
+packages/domain test:  ✓ src/capital.test.ts (3 tests) 22ms
+packages/domain test:  ✓ src/loss-key.test.ts (2 tests) 8ms
+packages/domain test:  ✓ src/product-definition.test.ts (6 tests) 84ms
+packages/domain test:  ✓ src/transitions.test.ts (6 tests) 39ms
+packages/domain test:  ✓ src/product-coverage.test.ts (4 tests) 47ms
+packages/domain test:  Test Files  6 passed (6)
+packages/domain test:       Tests  25 passed (25)
+packages/domain test:    Start at  17:54:33
+packages/domain test:    Duration  3.90s (transform 1.58s, setup 0ms, collect 3.59s, tests 214ms, environment 3ms, prepare 4.31s)
+packages/domain test: Done
+packages/chain test:  ✓ src/config.test.ts (2 tests) 6ms
+packages/chain test:  ✓ src/client.test.ts (3 tests) 7ms
+packages/chain test:  Test Files  2 passed (2)
+packages/chain test:       Tests  5 passed (5)
+packages/chain test:    Start at  17:54:33
+packages/chain test:    Duration  5.78s (transform 443ms, setup 0ms, collect 5.96s, tests 14ms, environment 1ms, prepare 1.56s)
+packages/chain test: Done
+packages/onchain test$ vitest run
+packages/quicknode test$ vitest run
+packages/persistence test$ vitest run
+packages/quicknode test:  RUN  v3.2.7 /private/tmp/arcuex-plan-b-settlement/packages/quicknode
+packages/persistence test:  RUN  v3.2.7 /private/tmp/arcuex-plan-b-settlement/packages/persistence
+packages/onchain test:  RUN  v3.2.7 /private/tmp/arcuex-plan-b-settlement/packages/onchain
+packages/quicknode test:  ✓ src/streams.test.ts (2 tests) 20ms
+packages/quicknode test:  ✓ src/events.test.ts (2 tests) 14ms
+packages/quicknode test:  ✓ src/backfill.test.ts (1 test) 18ms
+packages/quicknode test:  ✓ src/client.test.ts (4 tests) 618ms
+packages/quicknode test:    ✓ QuickNodeClient > retries then surfaces typed error  459ms
+packages/quicknode test:  Test Files  4 passed (4)
+packages/quicknode test:       Tests  9 passed (9)
+packages/quicknode test:    Start at  17:54:41
+packages/quicknode test:    Duration  6.58s (transform 822ms, setup 0ms, collect 9.42s, tests 671ms, environment 2ms, prepare 3.39s)
+packages/onchain test:  ✓ src/tx.test.ts (2 tests) 107ms
+packages/quicknode test: Done
+packages/onchain test:  ✓ src/reconcile-events.test.ts (2 tests) 104ms
+packages/onchain test:  ✓ src/events.test.ts (4 tests) 164ms
+packages/onchain test:  ✓ src/lifecycle-plan.test.ts (16 tests) 146ms
+packages/onchain test:  ✓ src/lifecycle-runner.test.ts (12 tests) 163ms
+packages/persistence test:  ✓ src/repository.test.ts (4 tests) 335ms
+packages/persistence test:  ✓ src/migration-integration.test.ts (9 tests) 600ms
+packages/persistence test:  ✓ src/product-publications.test.ts (5 tests) 919ms
+packages/persistence test:    ✓ opt-in immutable product publication provenance > supports review withdrawal and rejects backdated, stale or retired transitions  374ms
+packages/onchain test:  ✓ src/synthetic-claim-fixture.test.ts (2 tests) 34ms
+packages/onchain test:  ✓ src/ids.test.ts (4 tests) 52ms
+packages/persistence test:  Test Files  3 passed (3)
+packages/persistence test:       Tests  18 passed (18)
+packages/persistence test:    Start at  17:54:41
+packages/persistence test:    Duration  9.44s (transform 2.15s, setup 0ms, collect 17.73s, tests 1.85s, environment 1ms, prepare 1.96s)
+packages/onchain test:  ✓ src/reconcile.test.ts (2 tests) 7ms
+packages/persistence test: Done
+packages/onchain test:  ✓ src/deployment-manifest.test.ts (2 tests) 10ms
+packages/onchain test:  ✓ src/testnet-adapter.test.ts (1 test) 10ms
+packages/onchain test:  Test Files  10 passed (10)
+packages/onchain test:       Tests  47 passed (47)
+packages/onchain test:    Start at  17:54:41
+packages/onchain test:    Duration  10.03s (transform 3.72s, setup 0ms, collect 42.30s, tests 796ms, environment 6ms, prepare 5.46s)
+packages/onchain test: Done
+packages/insurance test$ vitest run
+packages/insurance test:  RUN  v3.2.7 /private/tmp/arcuex-plan-b-settlement/packages/insurance
+packages/insurance test:  ✓ src/net-loss.test.ts (8 tests) 14ms
+packages/insurance test:  ✓ src/claims-case-transitions.test.ts (6 tests) 35ms
+packages/insurance test:  ✓ src/claims-pipeline.test.ts (1 test) 116ms
+packages/insurance test:  ✓ src/synthetic-oracle-wedge.test.ts (2 tests) 202ms
+packages/insurance test:  ✓ src/quote-to-bind.test.ts (4 tests) 289ms
+packages/insurance test:  ✓ src/canonical-loss-key.test.ts (3 tests) 31ms
+packages/insurance test:  ✓ src/claims-case-service.test.ts (6 tests) 339ms
+packages/insurance test:  ✓ src/procurement-claims.test.ts (9 tests) 600ms
+packages/insurance test:  ✓ src/bank-dispute-examiner.test.ts (9 tests) 8096ms
+packages/insurance test:    ✓ synthetic enterprise-AI read-only examination > identifies 1350 overrides from 1800 authenticated case records without using fixture counts  7701ms
+packages/insurance test:  Test Files  9 passed (9)
+packages/insurance test:       Tests  48 passed (48)
+packages/insurance test:    Start at  17:54:53
+packages/insurance test:    Duration  10.16s (transform 2.93s, setup 0ms, collect 13.50s, tests 9.72s, environment 5ms, prepare 3.32s)
+packages/insurance test: Done
+packages/agent-sdk test$ vitest run
+packages/agent-sdk test:  RUN  v3.2.7 /private/tmp/arcuex-plan-b-settlement/packages/agent-sdk
+packages/agent-sdk test:  ✓ src/platform-compatibility.test.ts (2 tests) 44ms
+packages/agent-sdk test:  ✓ src/client.test.ts (1 test) 80ms
+packages/agent-sdk test:  ✓ src/procurement.test.ts (9 tests) 364ms
+packages/agent-sdk test:  Test Files  3 passed (3)
+packages/agent-sdk test:       Tests  12 passed (12)
+packages/agent-sdk test:    Start at  17:55:07
+packages/agent-sdk test:    Duration  3.15s (transform 1.43s, setup 0ms, collect 6.24s, tests 489ms, environment 2ms, prepare 648ms)
+packages/agent-sdk test: Done
+apps/web test$ vitest run
+apps/web test:  RUN  v3.2.7 /private/tmp/arcuex-plan-b-settlement/apps/web
+apps/web test:  ✓ src/lib/claims/claims-client-response.test.ts (8 tests) 65ms
+apps/web test:  ✓ src/lib/server/claims-session.test.ts (4 tests) 378ms
+apps/web test:  ✓ src/lib/server/runtime-config.test.ts (6 tests) 28ms
+apps/web test:  ✓ src/lib/server/request-boundary.test.ts (5 tests) 13ms
+apps/web test:  ✓ src/lib/server/procurement-api.test.ts (5 tests) 456ms
+apps/web test:    ✓ runs authenticated registration, quote, acceptance and idempotent preparation through HTTP  364ms
+apps/web test:  ✓ src/lib/server/claims-integration.test.ts (5 tests) 630ms
+apps/web test:    ✓ one authenticated procurement and claims customer journey > reuses the procurement httpOnly session for owned policy options and claims intake/read; isolates other owners  502ms
+apps/web test:  ✓ src/lib/server/procurement-chain.test.ts (14 tests) 534ms
+apps/web test:  ✓ src/lib/server/policy-read-api.test.ts (5 tests) 490ms
+apps/web test:  ✓ src/lib/server/policy-reconciliation.test.ts (19 tests) 1744ms
+apps/web test:    ✓ canonical policy reconciliation > links full authenticated records, records provenance, confirms once and deduplicates repeated runs  340ms
+apps/web test:  ✓ src/lib/workspace.test.ts (3 tests) 7ms
+apps/web test:  ✓ src/lib/server/rate-limit.test.ts (3 tests) 45ms
+apps/web test:  ✓ src/lib/format.test.ts (1 test) 82ms
+apps/web test:  ✓ src/lib/server/claims-auth.test.ts (3 tests) 152ms
+apps/web test:  ✓ src/app/api/claims/legacy-mutations.test.ts (2 tests) 27ms
+apps/web test:  ✓ src/lib/server/claims-chain.test.ts (7 tests) 24ms
+apps/web test:  Test Files  15 passed (15)
+apps/web test:       Tests  90 passed (90)
+apps/web test:    Start at  17:55:12
+apps/web test:    Duration  27.25s (transform 9.33s, setup 0ms, collect 37.14s, tests 4.68s, environment 5ms, prepare 17.24s)
+apps/web test: Done

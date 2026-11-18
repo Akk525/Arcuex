@@ -166,3 +166,5 @@ and review dossier. No model-provider, production or financial integration is re
 
 Plan B Sprint 1 adds server-side synthetic fixture verification records and authenticated read APIs:
 [implementation and limits](docs/verification/plan-b-sprint1-verification.md). Verification does not approve a claim or authorize settlement.
+Plan B Sprint 1 offline settlement feasibility and authorization boundaries:
+[settlement review](docs/verification/plan-b-sprint1-settlement.md). No deployment or live operation is authorized by this review.
