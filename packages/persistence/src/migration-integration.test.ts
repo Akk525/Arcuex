@@ -90,7 +90,7 @@ describe('integration migration histories', () => {
     db.pragma('foreign_keys=ON');
     migrate(db);
     migrate(db);
-    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(11);
+    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(12);
     expect(db.pragma('foreign_key_check')).toEqual([]);
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
     expect(
@@ -102,7 +102,13 @@ describe('integration migration histories', () => {
   });
 
   it('applies 009_launch_security onto an already-integrated database', () => {
-    const db = beforeIntegration([...common, ...procurement, ...claims, '007_procurement_claims_integration.sql', '008_shared_wallet_session_scope.sql']);
+    const db = beforeIntegration([
+      ...common,
+      ...procurement,
+      ...claims,
+      '007_procurement_claims_integration.sql',
+      '008_shared_wallet_session_scope.sql',
+    ]);
     migrate(db);
     const applied = db
       .prepare('SELECT id FROM schema_migrations WHERE id=?')
@@ -220,4 +226,33 @@ it('retires old claims-only claimant sessions/nonces while preserving ops and ne
   expect(db.prepare("SELECT revoked_at FROM claims_sessions WHERE id='new-wallet'").get()).toEqual({
     revoked_at: null,
   });
+});
+
+it('adds reconciliation to the release database without rewriting historical policy, settlement, or loss bindings', () => {
+  const db = beforeIntegration([
+    ...common,
+    ...procurement,
+    ...claims,
+    '007_procurement_claims_integration.sql',
+    '008_shared_wallet_session_scope.sql',
+    '009_launch_security.sql',
+  ]);
+  const policyId = newId();
+  const payload = JSON.stringify({
+    terms: { policyId, owner: 'historical-owner' },
+    payer: 'historical-payer',
+  });
+  db.transaction(() => {
+    db.prepare(
+      'INSERT INTO procurement_policies(id,owner,quote_id,payload,bind_tx,confirmed_at) VALUES (?,?,?,?,?,?)',
+    ).run(policyId, 'historical-owner', newId(), payload, 'historic-bind', 100);
+  })();
+  const before = db.prepare('SELECT * FROM procurement_policies').all();
+  migrate(db);
+  migrate(db);
+  expect(db.prepare('SELECT * FROM procurement_policies').all()).toEqual(before);
+  expect(db.prepare('SELECT * FROM policy_bind_events').all()).toEqual([]);
+  expect(new InsuranceRepository(db).claimsPolicyContext(policyId)).toBeNull();
+  expect(db.pragma('foreign_key_check')).toEqual([]);
+  db.close();
 });

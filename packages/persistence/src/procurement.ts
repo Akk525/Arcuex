@@ -57,6 +57,18 @@ export class ProcurementStore {
         ),
     )();
   }
+  /** Fail closed on missing, stale, failed or reorged canonical evidence. */
+  claimsEligible(id: string, now = Math.floor(Date.now() / 1000)): boolean {
+    const rows = this.db
+      .prepare(
+        `SELECT e.event_key FROM policy_bind_events e
+      JOIN policy_reconciliation_scopes s ON s.scope=e.scope
+      WHERE e.local_policy_id=? AND e.canonical=1 AND e.status='VERIFIED_LINKED'
+      AND s.healthy=1 AND s.checked_at<=? AND s.checked_at>=?`,
+      )
+      .all(id, now, now - 300);
+    return rows.length === 1;
+  }
   confirm(id: string, hash: string, at: number) {
     this.db.transaction(() =>
       this.db
