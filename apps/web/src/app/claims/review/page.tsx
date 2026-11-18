@@ -10,17 +10,16 @@ export default function ClaimsReviewPage() {
     <AppShell>
       <div className="mb-3">
         <Link href="/claims" className="text-xs text-[var(--accent)] underline">
-          ← Claims
+          ← My claims
         </Link>
       </div>
       <PageHeader
-        eyebrow="Ops workspace"
+        eyebrow="Ops"
         title="Reviewer workbench"
-        description="Privileged REVIEW queue. Switching to Ops does not grant access — exchange a provisioned reviewer session."
+        description="Privileged REVIEW queue. Exchange a provisioned ops session below — wallet Sign in alone never grants reviewer rights."
       />
       <Callout kind="warn" title="Role-gated">
-        Wallet sessions alone never grant reviewer or authority privileges. Settlement preparation
-        does not broadcast transfers.
+        Settlement preparation does not broadcast transfers. Server authorization decides access.
       </Callout>
       <div className="mt-6 space-y-4">
         <ClaimsAuthPanel ops />

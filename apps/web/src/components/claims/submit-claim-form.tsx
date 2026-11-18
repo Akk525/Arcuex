@@ -10,6 +10,9 @@ import {
   parsePolicyOptionsPayload,
   readClaimsClientResponse,
 } from '@/lib/claims/claims-client-response';
+import { AuthRequired } from '@/components/ui/auth-required';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Callout } from '@/components/ui/callout';
 
 type PolicyOption = {
   id: string;
@@ -127,26 +130,29 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
   }
 
   return (
-    <Panel title="Submit claim" action={<StatusBadge label="SYNTHETIC DEMO MODE" tone="warn" />}>
-      <p className="mb-3 text-xs text-amber-800">
-        Synthetic fixture submissions prove workflow consistency only. They are not independently
-        verified real-world losses and cannot authorize payout without claims authority.
-      </p>
-      {error ? <p className="mb-3 text-sm text-rose-700">{error}</p> : null}
+    <Panel title="Submit claim" action={<StatusBadge label="SYNTHETIC DEMO MODE" tone="synthetic" />}>
+      <Callout kind="synthetic" title="Synthetic fixture mode">
+        Submissions prove workflow consistency only. They are not independently verified real-world
+        losses and cannot authorize payout without claims authority.
+      </Callout>
+      {error && !authRequired ? (
+        <p className="mb-3 mt-3 text-sm text-[var(--danger)]">{error}</p>
+      ) : null}
       {authRequired ? (
-        <p className="mb-3 text-sm text-zinc-600">
-          Sign in with the claimant wallet session to load insured policies. Authorization failures
-          are not treated as an empty policy list.
-        </p>
+        <div className="mt-3">
+          <AuthRequired description="Sign in from the header with the claimant wallet session. Authorization failures are not treated as an empty policy list." />
+        </div>
       ) : null}
       {!policies && !error ? (
-        <p className="text-sm text-zinc-500">Loading insured policies…</p>
+        <p className="mt-3 text-sm text-[var(--ink-muted)]">Loading insured policies…</p>
       ) : null}
       {policies && policies.length === 0 ? (
-        <p className="text-sm text-zinc-500">
-          No owned, confirmed policies found. Sign in with the same wallet used for procurement,
-          bind coverage, then refresh this page.
-        </p>
+        <div className="mt-3">
+          <EmptyState
+            title="No owned, confirmed policies"
+            description="Bind coverage with this wallet first, then refresh. Empty results are authenticated API responses."
+          />
+        </div>
       ) : null}
       {policies && policies.length > 0 ? (
         <form onSubmit={onSubmit} className="space-y-3 text-sm">
