@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useWorkspace } from '@/components/workspace-provider';
+import { AccountBar } from '@/components/shell/account-bar';
+import { useClaimsSession } from '@/hooks/use-claims-session';
 import {
   WORKSPACE_LABEL,
   WORKSPACE_NAV,
@@ -21,6 +23,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { workspace, hydrated, setWorkspace } = useWorkspace();
+  const { session } = useClaimsSession();
+  const opsSession =
+    session?.role === 'reviewer' ||
+    session?.role === 'authority' ||
+    session?.role === 'system';
+  const switcherIds: WorkspaceId[] = opsSession
+    ? ['protect', 'build', 'ops']
+    : ['protect', 'build'];
   const items = workspace ? WORKSPACE_NAV[workspace] : [];
 
   function switchWorkspace(next: WorkspaceId) {
@@ -34,22 +44,27 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto flex min-h-[100dvh] w-full max-w-6xl flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
       <header className="space-y-4 border-b border-[var(--line)] pb-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
             <Link href="/" className="inline-flex items-baseline gap-2">
               <span className="text-xl font-semibold tracking-tight text-[var(--ink)]">Arcuex</span>
               <StatusBadge label="Arc Testnet" tone="live" />
             </Link>
             <p className="max-w-xl text-sm text-[var(--ink-muted)]">
-              Programmable financial protection for humans and autonomous agents.
+              Insurance-style protection for autonomous agents — bind coverage, manage policies,
+              investigate claims.
             </p>
           </div>
+          <AccountBar />
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div
             role="group"
             aria-label="Workspace"
             className="inline-flex rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--surface)] p-0.5"
           >
-            {(['protect', 'build', 'ops'] as const).map((id) => {
+            {switcherIds.map((id) => {
               const selected = hydrated && workspace === id;
               return (
                 <button
@@ -68,6 +83,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               );
             })}
           </div>
+          {!opsSession ? (
+            <p className="text-xs text-[var(--ink-muted)]">
+              Ops tools appear after a provisioned reviewer/authority session. URLs are still
+              server-authorized.
+            </p>
+          ) : null}
         </div>
 
         {workspace ? (
@@ -91,15 +112,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
         ) : (
           <p className="text-xs text-[var(--ink-muted)]">
-            Choose Protect or Build to open a workspace. Ops stays separate and role-gated on the
-            server.
+            Choose Protect or Build to open a workspace. Privileges are never granted by the UI
+            alone.
           </p>
         )}
 
         {workspace === 'ops' ? (
           <p className="text-xs text-[var(--ink-muted)]">
-            Ops workspace is for provisioned reviewer/authority sessions. Switching here does not grant
-            privileges — server authorization still applies.
+            Ops workspace frames privileged tools. Server authentication still decides what succeeds.
           </p>
         ) : null}
       </header>
@@ -107,8 +127,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex-1">{children}</div>
 
       <footer className="border-t border-[var(--line)] pt-4 text-xs text-[var(--ink-muted)]">
-        Chain ID 5042002 · Never paste private keys · Synthetic demo steps are labeled · Streams webhook
-        ≠ payout authority
+        Chain ID 5042002 · Never paste private keys · Synthetic demo steps are labeled · Streams
+        webhook ≠ payout authority
       </footer>
     </div>
   );
