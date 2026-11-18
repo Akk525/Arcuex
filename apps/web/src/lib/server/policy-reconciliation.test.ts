@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { encodeAbiParameters, encodeEventTopics } from 'viem';
+import { requestCoverageQuote } from '@arcuex/insurance';
 import { ProcurementService } from '@arcuex/agent-sdk';
 import { openDatabase, ProcurementStore, InsuranceRepository } from '@arcuex/persistence';
 import { insurancePoolAbi, toPolicyIdBytes32 } from '@arcuex/onchain';
@@ -226,6 +227,31 @@ describe('canonical policy reconciliation', () => {
     expect(f.store.claimsEligible(f.p.terms.policyId)).toBe(false);
     await f.run();
     expect(f.store.claimsEligible(f.p.terms.policyId)).toBe(true);
+    f.db.close();
+  });
+  it('does not import a policy ID already used by the legacy ledger', async () => {
+    const f = fixture('policy'),
+      repo = new InsuranceRepository(f.db);
+    const q = requestCoverageQuote(repo, {
+      idempotencyKey: 'legacy-collision',
+      policyholder: { displayName: 'fixture' },
+      agent: { externalRef: 'fixture', label: 'fixture' },
+    });
+    repo.savePolicy({
+      id: f.p.terms.policyId,
+      quoteId: q.id,
+      productId: q.productId,
+      policyholderId: q.policyholderId,
+      agentId: q.agentId,
+      status: 'active',
+      terms: q.terms,
+      createdAt: new Date().toISOString(),
+    });
+    const before = repo.getPolicy(f.p.terms.policyId);
+    await f.run();
+    expect(reconciliationRows(f.db)[0]?.status).toBe('ONCHAIN_UNLINKED');
+    expect(f.store.policy(f.p.terms.policyId)).toBeNull();
+    expect(repo.getPolicy(f.p.terms.policyId)).toEqual(before);
     f.db.close();
   });
   it('prevents an older scan from committing after a newer successful run', async () => {

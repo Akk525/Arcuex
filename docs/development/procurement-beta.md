@@ -115,3 +115,13 @@ See the [acceptance/verification record](../verification/2026-11-17-procurement-
 ## Runtime packaging
 
 The web app directly depends on the native `better-sqlite3` driver so Next can externalize it. `getDb` supplies the source SQL migration directory explicitly; Next traces those SQL files from the monorepo root. Run `pnpm dev` / the filtered web start command from the checked-out repository. Deployment packaging must retain the traced migration files and a native driver compatible with its Node/platform. The local built-server smoke above verifies this path; a successful build alone does not.
+
+## Canonical reconciliation requirement (November 17 backend sprint)
+
+Receipt confirmation alone no longer enables procurement claims. The canonical reconciliation
+index must establish the immutable quote/acceptance/agent/exposure link, and its healthy chain
+checkpoint must be no older than five minutes. Missing historical records remain visible through
+`GET /api/policies/reconciliation` with claims disabled. The read-only `GET /api/session/me` and
+`GET /api/policies/{UUID}/lifecycle` contracts, local operator commands, recovery rules and merge
+conditions are documented in the [backend handoff](policy-reconciliation-handoff.md).
+The currently deployed Railway beta has not been changed.

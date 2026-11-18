@@ -56,6 +56,7 @@ function completeLink(store: ProcurementStore, p: ProcurementPolicy, e: BindEvid
       t.policyId,
     );
     if (
+      !!store.db.prepare('SELECT id FROM policies WHERE id=?').get(t.policyId) ||
       t.version !== 1 ||
       t.synthetic !== true ||
       typeof t.productCode !== 'string' ||

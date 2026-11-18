@@ -709,6 +709,7 @@ export class InsuranceRepository {
   claimsPolicyContext(id: string) {
     const procurement = this.getProcurementPolicy(id);
     if (procurement) {
+      if (this.getPolicy(id)) return null; // Ambiguous cross-ledger identity is never claimable.
       const t = procurement.terms;
       // Partial historical snapshots are reconciliation-only, never claim contexts.
       if (

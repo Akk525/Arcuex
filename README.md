@@ -124,3 +124,13 @@ bearer sessions are retired. No contract changes or broadcasts are part of this
 integration. See the [launch assessment and exact gates](docs/verification/2026-11-17-procurement-claims-integration.md).
 Railway hosting packaging and CONDITIONAL GO notes:
 [docs/verification/2026-11-17-railway-launch-infrastructure.md](docs/verification/2026-11-17-railway-launch-infrastructure.md).
+
+### Policy reconciliation and shared identity
+
+The backend branch adds a canonical Arc Testnet `PolicyBound` index and read-only session,
+lifecycle and incomplete-policy APIs. Procurement claims now require a complete authenticated
+policy/exposure link and a healthy reconciliation check within five minutes. Operator scheduling
+and historical scanning are required before enabling claims in a future integrated deployment.
+See the [Cursor integration contract](docs/development/policy-reconciliation-handoff.md) and
+[verification evidence](docs/verification/2026-11-17-policy-reconciliation.md). Chain confirmation
+and synthetic offchain preparation remain distinct; no API record guarantees coverage.
