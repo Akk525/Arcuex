@@ -1,0 +1,70 @@
+[
+  {
+    "status": "PASS",
+    "detail": "Anonymous authoritative session"
+  },
+  {
+    "status": "PASS",
+    "detail": "Unauthenticated reconciliation is denied"
+  },
+  {
+    "status": "PASS",
+    "detail": "Real wallet challenge issued"
+  },
+  {
+    "status": "PASS",
+    "detail": "Real signed-wallet authentication"
+  },
+  {
+    "status": "PASS",
+    "detail": "Session cookie retains HttpOnly and Secure"
+  },
+  {
+    "status": "PASS",
+    "detail": "Authoritative identity and capabilities"
+  },
+  {
+    "status": "PASS",
+    "detail": "Real synthetic exposure registration"
+  },
+  {
+    "status": "PASS",
+    "detail": "Real immutable synthetic quote"
+  },
+  {
+    "status": "PASS",
+    "detail": "Read-only chain preflight and offchain preparation"
+  },
+  {
+    "status": "PASS",
+    "detail": "Prepared SQLite record grants no confirmation or claims"
+  },
+  {
+    "status": "PASS",
+    "detail": "Fabricated successful wallet hash rejected by real receipt verifier"
+  },
+  {
+    "status": "PASS",
+    "detail": "Failed receipt cannot mutate authoritative lifecycle"
+  },
+  {
+    "status": "PASS",
+    "detail": "Session boundary protects policy lifecycle"
+  },
+  {
+    "status": "PASS",
+    "detail": "Policy frontend consumes real session and lifecycle APIs"
+  },
+  {
+    "status": "PASS",
+    "detail": "Prepared policy has no claim action"
+  },
+  {
+    "status": "PASS",
+    "detail": "Claimant cannot select Ops workspace"
+  },
+  {
+    "status": "PASS",
+    "detail": "Logout revokes real session and refreshes AccountBar"
+  }
+]

@@ -134,3 +134,16 @@ and historical scanning are required before enabling claims in a future integrat
 See the [Cursor integration contract](docs/development/policy-reconciliation-handoff.md) and
 [verification evidence](docs/verification/2026-11-17-policy-reconciliation.md). Chain confirmation
 and synthetic offchain preparation remain distinct; no API record guarantees coverage.
+
+### Combined November 20 private-deployment candidate
+
+The integrated product UI reads identity from `/api/session/me` and policy status from
+`/api/policies/{policyId}/lifecycle`. A wallet success, approval receipt, bind hash, or
+legacy confirmed row alone cannot confirm coverage in the UI. Canonical reconciliation
+must report a fresh `VERIFIED_LINKED` policy; claim intake remains owner-authorized.
+Incomplete chain records appear separately with claims disabled. Re-check confirmation
+or refresh policies after the operator indexer runs. Synthetic terms remain explicitly labeled.
+
+See [the combined deployment acceptance report](docs/verification/2026-11-18-combined-private-deployment.md)
+for the tested source SHA, results, indexer/backfill conditions and remaining live acceptance.
+The existing Railway deployment and acceptance gate are unchanged.

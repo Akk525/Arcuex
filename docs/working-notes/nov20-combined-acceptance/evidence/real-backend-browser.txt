@@ -1,0 +1,18 @@
+PASS Anonymous authoritative session
+PASS Unauthenticated reconciliation is denied
+PASS Real wallet challenge issued
+PASS Real signed-wallet authentication
+PASS Session cookie retains HttpOnly and Secure
+PASS Authoritative identity and capabilities
+PASS Real synthetic exposure registration
+PASS Real immutable synthetic quote
+PASS Read-only chain preflight and offchain preparation
+PASS Prepared SQLite record grants no confirmation or claims
+PASS Fabricated successful wallet hash rejected by real receipt verifier
+PASS Failed receipt cannot mutate authoritative lifecycle
+PASS Session boundary protects policy lifecycle
+PASS Policy frontend consumes real session and lifecycle APIs
+PASS Prepared policy has no claim action
+PASS Claimant cannot select Ops workspace
+PASS Logout revokes real session and refreshes AccountBar
+Real backend acceptance: 17 PASS

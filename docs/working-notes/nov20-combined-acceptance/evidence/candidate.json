@@ -1,0 +1,32 @@
+{
+  "decision": "CONDITIONAL GO: gated private Railway deployment only",
+  "verifiedAt": "2026-11-18T05:17:07.780612+00:00",
+  "candidateSha": "ef3d0d1041e5cdc6fa9dea4e2906c3094e45bf00",
+  "branch": "integration/nov20-combined-acceptance",
+  "baselineSha": "fb6fe5dc8b80107b4860ce3ef2926bf343c493cb",
+  "backendSha": "f579aef86ebe7d4ceff95e28f560699b2b98c17e",
+  "frontendSha": "9e36062e527bb9ffa13907b71c30b3f414174e49",
+  "checks": {
+    "typescriptTests": 228,
+    "contractTests": 22,
+    "mockedBrowserScenarios": 33,
+    "realBackendBrowserAssertions": 17,
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "build": "PASS",
+    "launchSmoke": "PASS",
+    "readinessHttpStatus": 200
+  },
+  "mutations": {
+    "railway": false,
+    "financialBroadcast": false,
+    "contractRedeploy": false,
+    "acceptanceGateRemoved": false
+  },
+  "conditions": [
+    "Target-volume backup and offline upgrade verification",
+    "Gated private-host acceptance after separately authorized deployment",
+    "Confirmed historical backfill and ongoing fresh indexing before procurement claims",
+    "Separately approved funded-wallet bind-to-index-to-intake acceptance"
+  ]
+}
