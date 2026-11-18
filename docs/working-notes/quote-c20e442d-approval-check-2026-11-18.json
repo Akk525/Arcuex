@@ -1,0 +1,16 @@
+{
+  "verifiedAt": "2026-11-18T17:46:25.329Z",
+  "chainId": 5042002,
+  "blockNumber": "72886991",
+  "blockHash": "0xfdafea605a60e4c14801dde53a4138e8f8f93ac81f1bdd958a3f03afd13d7f31",
+  "balanceUsdc": "15.866934",
+  "allowanceUsdc": "0",
+  "simulation": true,
+  "estimatedGas": "56229",
+  "baseFeePerGas": "20000000000",
+  "authorizedGasLimit": 67475,
+  "authorizedMaxFeePerGas": "24000000000",
+  "maximumFeeUsdc": "0.0016194",
+  "pendingNonce": 5,
+  "broadcast": false
+}

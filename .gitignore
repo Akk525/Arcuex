@@ -14,11 +14,14 @@ out
 .data
 *.sqlite
 *.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
 
 # env / secrets
 .env
 .env.local
 .env.*.local
+.env.*
 !.env.example
 
 # tooling
@@ -36,3 +39,8 @@ test-results
 
 # local git worktrees
 .worktrees/
+
+# private recovery archives and unsanitized browser captures
+.recovery/
+.playwright-mcp/
+docs/private-reference/

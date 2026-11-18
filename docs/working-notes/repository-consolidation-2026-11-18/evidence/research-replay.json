@@ -1,0 +1,9 @@
+{
+  "command": [
+    "node",
+    "docs/research/coverage-wedges/experiments/causal-v2/evm-runtime/replay.mjs",
+    "--check"
+  ],
+  "exitCode": 0,
+  "seconds": 0.67
+}

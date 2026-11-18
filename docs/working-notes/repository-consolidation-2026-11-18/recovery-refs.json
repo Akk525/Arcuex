@@ -1,0 +1,18 @@
+{
+  "archive/2026-11-18/backend/nov20-policy-reconciliation": "f579aef86ebe7d4ceff95e28f560699b2b98c17e",
+  "archive/2026-11-18/deploy/nov20-combined-private": "b7243bf740366f72ea740dff49fe0951a98ed453",
+  "archive/2026-11-18/docs/platform-architecture-roadmap": "f8365a85f0c4a6298f713be7e799cb7538ca1fc7",
+  "archive/2026-11-18/feat/claims-workflow": "d627a7e9171b26c36c8c9bdd9a8bb3c290b8e752",
+  "archive/2026-11-18/feat/launch-infrastructure": "334472c35788fc493cf534fc43c495712eeefadd",
+  "archive/2026-11-18/feat/onchain-lifecycle": "c30a29ce90861ac6d8facb434b1ebbd9ffad0332",
+  "archive/2026-11-18/feat/platform-foundation": "5523b01767bcdd1bc4032fa4a1bef8a82c86f5a2",
+  "archive/2026-11-18/integration/nov20-combined-acceptance": "8d5fdaaeaa04d45955416dfbed2ca9f423d6b0d3",
+  "archive/2026-11-18/integration/nov20-private-acceptance": "ebbdeca1c37c66d1770dc4152135191bc6acc4c2",
+  "archive/2026-11-18/integration/procurement-claims": "9f8d473ecfc75bf5d410d75e68ccc8769dbfaece",
+  "archive/2026-11-18/main": "d9d47a505f6438c6c40a72502f28a32228151705",
+  "archive/2026-11-18/release/nov20-arc-testnet-beta": "fb6fe5dc8b80107b4860ce3ef2926bf343c493cb",
+  "archive/2026-11-18/research/coverage-wedges": "99ba72aeec76278b1b2aa86a089a5e4a42c6406a",
+  "archive/2026-11-18/ui/nov20-product-experience": "9e36062e527bb9ffa13907b71c30b3f414174e49",
+  "backup/main-before-consolidation-2026-11-18": "d9d47a505f6438c6c40a72502f28a32228151705",
+  "fallback/nov20-plan-a-f8365a8": "f8365a85f0c4a6298f713be7e799cb7538ca1fc7"
+}

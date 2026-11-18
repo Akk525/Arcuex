@@ -1,12 +1,20 @@
 # Arcuex — Agent Instructions
 
+## Canonical branch and deployment boundary
+
+`main` is canonical. Start new work from current `main`; feature branches are temporary.
+The deployed November 20 Plan A remains exact `f8365a85f0c4a6298f713be7e799cb7538ca1fc7`,
+preserved by `fallback/nov20-plan-a-f8365a8`. A merge or push is not deployment approval.
+Do not deploy, restore production data, broadcast, or start Plan B without explicit authorization.
+See `docs/deployments/main-and-plan-a.md` for recovery. Preserve dated acceptance evidence.
+
 ## Purpose and current scope
 
 Arcuex explores programmable financial protection for autonomous AI agents.
 Current scope: Arc Testnet connectivity, browser wallets, QuickNode RPC, a
 **policy-agnostic synthetic insurance core**, and the **on-chain financial
 lifecycle** (`InsurancePool`, `@arcuex/onchain`, `@arcuex/agent-sdk`) on
-`feat/onchain-lifecycle`.
+`main`, plus additive product definitions/publication provenance and a read-only synthetic examiner.
 
 Do not add Circle Gateway/CCTP, Blockaid, Memora, AI model providers, or
 mainnet insurance issuance unless a tracked issue expands scope. Coverage

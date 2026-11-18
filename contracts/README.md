@@ -13,6 +13,8 @@ Foundry project for the policy-agnostic `InsurancePool` vault.
 
 ```bash
 export PATH="$HOME/.foundry/bin:$PATH"
+# From contracts/: pinned to foundry.lock; no Git submodules or commits created.
+forge install --no-git foundry-rs/forge-std@rev=f3dae6e6ee381f25eb6a246f7da9b85c91a68219 OpenZeppelin/openzeppelin-contracts@rev=acd4ff74de833399287ed6b31b4debf6b2b35527
 forge test
 forge build
 ```

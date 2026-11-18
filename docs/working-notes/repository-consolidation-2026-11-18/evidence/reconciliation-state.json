@@ -1,0 +1,9 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "deploy/railway/reconciliation-state.test.cjs"
+  ],
+  "exitCode": 0,
+  "seconds": 0.25
+}

@@ -1,0 +1,15 @@
+{
+  "baseline": "f8365a85f0c4a6298f713be7e799cb7538ca1fc7",
+  "protectedPaths": [
+    "apps/web/src",
+    "contracts/src",
+    "contracts/test",
+    "packages/onchain",
+    "packages/persistence/src/migrate.ts",
+    "packages/persistence/src/migrations",
+    "deploy",
+    "railway.toml",
+    "Dockerfile"
+  ],
+  "changedPaths": []
+}

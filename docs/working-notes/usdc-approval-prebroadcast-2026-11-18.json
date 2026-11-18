@@ -1,0 +1,51 @@
+{
+  "capturedAt": "2026-11-18T17:22:22.299Z",
+  "chainId": 5042002,
+  "block": {
+    "number": "72884136",
+    "hash": "0x68ed69321b2f145c49a1e034002cc67bdd003930ef4c300554887a8e10ba5ef1",
+    "timestamp": "2026-11-18T17:22:21.000Z",
+    "baseFeePerGas": "20000000000"
+  },
+  "owner": "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+  "token": "0x3600000000000000000000000000000000000000",
+  "spender": "0x6657974EEdF488380251bDD95A7FFfb0D456E49E",
+  "allowance": "0",
+  "balanceUsdc": "15.866934",
+  "nativeBalanceWei": "15866934540000000000",
+  "decimals": 6,
+  "poolToken": "0x3600000000000000000000000000000000000000",
+  "spenderCodeHash": "0xffcc03f8145add8bb21b8af7e7eb8146c871c62aeca92b85dae1692c8741b398",
+  "pendingNonce": 5,
+  "gasPrice": "22599999999",
+  "estimatedGas": "56229",
+  "simulation": true,
+  "transaction": {
+    "from": "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+    "to": "0x3600000000000000000000000000000000000000",
+    "chainId": 5042002,
+    "value": "0x0",
+    "data": "0x095ea7b30000000000000000000000006657974eedf488380251bdd95a7fffb0d456e49e0000000000000000000000000000000000000000000000000000000000002710",
+    "gas": "67475",
+    "maxFeePerGas": "24000000000",
+    "maxPriorityFeePerGas": "0",
+    "nonce": 5
+  },
+  "maximumFeeUsdc": "0.0016194",
+  "checks": {
+    "zeroExistingAllowance": true,
+    "gasFits": true,
+    "baseFeeFits": true,
+    "balanceCoversMaxFee": true,
+    "tokenMatches": true,
+    "spenderCodeMatches": true
+  },
+  "decoded": {
+    "functionName": "approve",
+    "args": [
+      "0x6657974EEdF488380251bDD95A7FFfb0D456E49E",
+      "10000"
+    ]
+  },
+  "broadcast": false
+}

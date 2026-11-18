@@ -1,0 +1,25 @@
+$ tsx examples/generate-bank-review.ts
+{
+  "evidence": "/Users/aditya/Projects/Arcuex/.data/platform-foundation/bank-synthetic-evidence.json",
+  "dossier": "/Users/aditya/Projects/Arcuex/.data/platform-foundation/bank-review-dossier.json",
+  "summary": {
+    "examinedCases": 1800,
+    "attributionCounts": {
+      "recorded_human_override": 1350,
+      "recorded_ai_denial": 450,
+      "other_recorded_action": 0,
+      "uncertain": 0
+    },
+    "discrepancies": 1350,
+    "uncertainEvidenceCases": 0,
+    "potentiallyEligiblePendingChecks": 450
+  },
+  "financialActions": {
+    "reserveChange": false,
+    "bindingDecision": false,
+    "coverageDenial": false,
+    "policyRescission": false,
+    "settlementAuthorization": false,
+    "payment": false
+  }
+}

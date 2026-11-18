@@ -1,6 +1,8 @@
 .git
 .github
 .worktrees
+.recovery
+docs/private-reference
 .playwright-mcp
 .pnpm-store
 .data

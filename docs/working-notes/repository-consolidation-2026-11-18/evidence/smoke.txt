@@ -1,0 +1,3 @@
+$ pnpm --filter @arcuex/onchain exec tsx ../../apps/web/scripts/launch-release-smoke.mts http://localhost:3038
+smoke: durable sqlite verified (marker omitted from logs beyond length check)
+launch-release-smoke: PASS

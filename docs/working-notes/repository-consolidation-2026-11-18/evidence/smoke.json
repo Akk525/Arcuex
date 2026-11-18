@@ -1,0 +1,8 @@
+{
+  "exitCode": 0,
+  "seconds": 2.07,
+  "profile": "local-test",
+  "temporaryDatabase": true,
+  "productionDataAccess": false,
+  "broadcasts": false
+}

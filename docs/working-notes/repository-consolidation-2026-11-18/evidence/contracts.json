@@ -1,0 +1,8 @@
+{
+  "command": [
+    "pnpm",
+    "test:contracts"
+  ],
+  "exitCode": 0,
+  "seconds": 24.4
+}

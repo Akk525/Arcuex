@@ -32,7 +32,7 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
 
       - name: Install Solidity deps
-        run: forge install --no-commit
+        run: forge install --no-git foundry-rs/forge-std@rev=f3dae6e6ee381f25eb6a246f7da9b85c91a68219 OpenZeppelin/openzeppelin-contracts@rev=acd4ff74de833399287ed6b31b4debf6b2b35527
         working-directory: contracts
 
       - name: Lint
@@ -46,6 +46,9 @@ jobs:
 
       - name: Test contracts
         run: pnpm test:contracts
+
+      - name: Test reconciliation supervisor state
+        run: node --test deploy/railway/reconciliation-state.test.cjs
 
       - name: Build
         run: pnpm build

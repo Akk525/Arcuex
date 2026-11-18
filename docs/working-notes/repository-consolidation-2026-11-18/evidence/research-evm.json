@@ -1,0 +1,9 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "docs/research/coverage-wedges/experiments/causal-v2/evm-runtime/regression.test.mjs"
+  ],
+  "exitCode": 0,
+  "seconds": 1.3
+}

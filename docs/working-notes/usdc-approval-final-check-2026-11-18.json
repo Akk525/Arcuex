@@ -1,0 +1,30 @@
+{
+  "verifiedAt": "2026-11-18T17:52:38.848Z",
+  "chainId": 5042002,
+  "blockNumber": "72887731",
+  "blockHash": "0x3ba454f13e0f40ce3bf2896447f3485d3029c27efd12ba805be73b2340bad5d5",
+  "blockTimestamp": "2026-11-18T17:52:38.000Z",
+  "owner": "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+  "token": "0x3600000000000000000000000000000000000000",
+  "spender": "0x6657974EEdF488380251bDD95A7FFfb0D456E49E",
+  "balanceUsdc": "15.866934",
+  "allowanceUsdc": "0",
+  "simulationReturn": "0x0000000000000000000000000000000000000000000000000000000000000001",
+  "estimatedGas": "56229",
+  "baseFeePerGas": "20000000000",
+  "gasLimit": 67475,
+  "maxFeePerGas": "23000000000",
+  "maxPriorityFeePerGas": "1000000000",
+  "maximumFeeAt23GweiUsdc": "0.001551925",
+  "authorizedCeilingAt24GweiUsdc": "0.0016194",
+  "pendingNonce": 5,
+  "calldata": "0x095ea7b30000000000000000000000006657974eedf488380251bdd95a7fffb0d456e49e0000000000000000000000000000000000000000000000000000000000002710",
+  "decoded": {
+    "functionName": "approve",
+    "args": [
+      "0x6657974EEdF488380251bDD95A7FFfb0D456E49E",
+      "10000"
+    ]
+  },
+  "broadcast": false
+}

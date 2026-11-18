@@ -1,0 +1,45 @@
+{
+  "checkedAt": "2026-11-18T18:01:18.618Z",
+  "chainId": 5042002,
+  "blockNumber": "72888759",
+  "allowanceUsdc": "0.01",
+  "balanceUsdc": "15.86506",
+  "latestNonce": 7,
+  "pendingNonce": 7,
+  "policyId": "cc5fcf8f-d09c-4db9-8520-76d276c2358b",
+  "policyBound": false,
+  "policyTermsHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "quoteExpiresAtUtc": "2026-11-18T18:06:20.000Z",
+  "quoteUnexpired": true,
+  "approvalTransactions": [
+    {
+      "hash": "0xd24ec17a3a6c45c7cf6b3960103d10e7fb62240333f56e7ce1d4a0429fc9220e",
+      "status": "success",
+      "from": "0x2e2da4311ea87cfa31c372d59b4a0d567c15d760",
+      "to": "0x3600000000000000000000000000000000000000",
+      "input": "0x095ea7b30000000000000000000000006657974eedf488380251bdd95a7fffb0d456e49e0000000000000000000000000000000000000000000000000000000000002710",
+      "nonce": 5,
+      "value": "0",
+      "gasLimit": "67475",
+      "maxFeePerGas": "24000000000",
+      "gasUsed": "55426",
+      "feeUsdc": "0.001163946",
+      "blockNumber": "72887797"
+    },
+    {
+      "hash": "0x8f3fd926363b686efcb30fe16ebb9eba3bc360c7f67dbbfab2145b9f528bc6d3",
+      "status": "success",
+      "from": "0x2e2da4311ea87cfa31c372d59b4a0d567c15d760",
+      "to": "0x3600000000000000000000000000000000000000",
+      "input": "0x095ea7b30000000000000000000000006657974eedf488380251bdd95a7fffb0d456e49e0000000000000000000000000000000000000000000000000000000000002710",
+      "nonce": 6,
+      "value": "0",
+      "gasLimit": "35887",
+      "maxFeePerGas": "20000000000",
+      "gasUsed": "35526",
+      "feeUsdc": "0.00071052",
+      "blockNumber": "72888666"
+    }
+  ],
+  "broadcastByAgent": false
+}

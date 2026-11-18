@@ -1,5 +1,10 @@
 # Arcuex
 
+`main` is the canonical development and future deployment branch. Railway remains pinned to
+Plan A, `f8365a85f0c4a6298f713be7e799cb7538ca1fc7`; consolidating this repository does not deploy it.
+See the [reconciliation report](docs/verification/2026-11-18-repository-consolidation.md)
+and [deployment and recovery procedure](docs/deployments/main-and-plan-a.md).
+
 Arcuex is an early-stage infrastructure project exploring programmable financial protection for autonomous AI agents. This repository combines live Arc Testnet connectivity with a policy-agnostic **synthetic** insurance core (quotes, policies, claims, capital ledger).
 
 ## Implemented
@@ -21,7 +26,8 @@ The [testnet lifecycle runner](docs/development/arc-testnet-lifecycle.md) valida
 - Synthetic underwriting is **not** real insurance issuance or production pricing
 - Arc Testnet pool and one synthetic-claim settlement are [verified read-only](docs/verification/2026-11-17-settlement-review.md); this is not production issuance
 - No mainnet deployments or AI-authorized payouts (`claimsAuthority` only)
-- QuickNode Streams / webhooks are **not** implemented (credentials + public webhook host missing)
+- QuickNode Streams webhook authentication, inbox and backfill code exist; live provider delivery
+  remains unverified. RPC usage does not establish Streams completion.
 - Local SQLite ledger is Node-runtime only (`ARCUE_X_SQLITE_PATH`); contract state is authoritative once deployed
 
 ## Prerequisites
@@ -148,7 +154,7 @@ See [the combined deployment acceptance report](docs/verification/2026-11-18-com
 for the tested source SHA, results, indexer/backfill conditions and remaining live acceptance.
 The acceptance gate remains enabled. The [hosted deployment report](docs/verification/2026-11-18-combined-railway-hosted.md) records the deployed operational successor, backup, migration and hosted acceptance evidence.
 
-### Isolated platform foundation
+### Additive platform foundation
 
 The additive product-definition foundation and synthetic bank-dispute examiner are documented in
 [the platform foundation guide](docs/development/platform-foundation.md), with

@@ -1,0 +1,115 @@
+$ pnpm -r test
+Scope: 8 of 9 workspace projects
+packages/chain test$ vitest run
+packages/domain test$ vitest run
+packages/chain test:  RUN  v3.2.7 /Users/aditya/Projects/Arcuex/packages/chain
+packages/domain test:  RUN  v3.2.7 /Users/aditya/Projects/Arcuex/packages/domain
+packages/domain test:  ✓ src/loss-key.test.ts (2 tests) 4ms
+packages/domain test:  ✓ src/money.test.ts (4 tests) 8ms
+packages/domain test:  ✓ src/capital.test.ts (3 tests) 11ms
+packages/domain test:  ✓ src/product-coverage.test.ts (4 tests) 25ms
+packages/domain test:  ✓ src/transitions.test.ts (6 tests) 24ms
+packages/domain test:  ✓ src/product-definition.test.ts (6 tests) 21ms
+packages/domain test:  Test Files  6 passed (6)
+packages/domain test:       Tests  25 passed (25)
+packages/domain test:    Start at  16:34:25
+packages/domain test:    Duration  1.14s (transform 433ms, setup 0ms, collect 981ms, tests 93ms, environment 13ms, prepare 1.27s)
+packages/domain test: Done
+packages/chain test:  ✓ src/config.test.ts (2 tests) 4ms
+packages/chain test:  ✓ src/client.test.ts (3 tests) 6ms
+packages/chain test:  Test Files  2 passed (2)
+packages/chain test:       Tests  5 passed (5)
+packages/chain test:    Start at  16:34:25
+packages/chain test:    Duration  1.58s (transform 80ms, setup 0ms, collect 1.47s, tests 10ms, environment 1ms, prepare 422ms)
+packages/chain test: Done
+packages/onchain test$ vitest run
+packages/persistence test$ vitest run
+packages/quicknode test$ vitest run
+packages/onchain test:  RUN  v3.2.7 /Users/aditya/Projects/Arcuex/packages/onchain
+packages/persistence test:  RUN  v3.2.7 /Users/aditya/Projects/Arcuex/packages/persistence
+packages/quicknode test:  RUN  v3.2.7 /Users/aditya/Projects/Arcuex/packages/quicknode
+packages/onchain test:  ✓ src/reconcile.test.ts (2 tests) 7ms
+packages/onchain test:  ✓ src/deployment-manifest.test.ts (2 tests) 5ms
+packages/onchain test:  ✓ src/events.test.ts (4 tests) 216ms
+packages/onchain test:  ✓ src/reconcile-events.test.ts (2 tests) 15ms
+packages/persistence test:  ✓ src/repository.test.ts (4 tests) 417ms
+packages/persistence test:    ✓ InsuranceRepository > migrates and stores audit + processed events transactionally  359ms
+packages/onchain test:  ✓ src/lifecycle-plan.test.ts (16 tests) 180ms
+packages/onchain test:  ✓ src/ids.test.ts (4 tests) 15ms
+packages/persistence test:  ✓ src/product-publications.test.ts (5 tests) 816ms
+packages/persistence test:    ✓ opt-in immutable product publication provenance > supports review withdrawal and rejects backdated, stale or retired transitions  539ms
+packages/persistence test:  ✓ src/migration-integration.test.ts (9 tests) 688ms
+packages/persistence test:    ✓ integration migration histories > migrates a fresh database and is repeatable with foreign keys enabled  357ms
+packages/quicknode test:  ✓ src/streams.test.ts (2 tests) 7ms
+packages/onchain test:  ✓ src/lifecycle-runner.test.ts (12 tests) 277ms
+packages/persistence test:  Test Files  3 passed (3)
+packages/persistence test:       Tests  18 passed (18)
+packages/persistence test:    Start at  16:34:29
+packages/persistence test:    Duration  2.58s (transform 798ms, setup 0ms, collect 2.49s, tests 1.92s, environment 1ms, prepare 1.07s)
+packages/persistence test: Done
+packages/quicknode test:  ✓ src/backfill.test.ts (1 test) 6ms
+packages/quicknode test:  ✓ src/events.test.ts (2 tests) 7ms
+packages/onchain test:  ✓ src/testnet-adapter.test.ts (1 test) 7ms
+packages/onchain test:  ✓ src/tx.test.ts (2 tests) 12ms
+packages/onchain test:  ✓ src/synthetic-claim-fixture.test.ts (2 tests) 31ms
+packages/onchain test:  Test Files  10 passed (10)
+packages/onchain test:       Tests  47 passed (47)
+packages/onchain test:    Start at  16:34:28
+packages/onchain test:    Duration  4.38s (transform 1.41s, setup 0ms, collect 14.77s, tests 764ms, environment 2ms, prepare 3.00s)
+packages/onchain test: Done
+packages/quicknode test:  ✓ src/client.test.ts (4 tests) 614ms
+packages/quicknode test:    ✓ QuickNodeClient > retries then surfaces typed error  457ms
+packages/quicknode test:  Test Files  4 passed (4)
+packages/quicknode test:       Tests  9 passed (9)
+packages/quicknode test:    Start at  16:34:30
+packages/quicknode test:    Duration  2.82s (transform 186ms, setup 0ms, collect 3.28s, tests 634ms, environment 1ms, prepare 1.44s)
+packages/quicknode test: Done
+packages/insurance test$ vitest run
+packages/insurance test:  RUN  v3.2.7 /Users/aditya/Projects/Arcuex/packages/insurance
+packages/insurance test:  ✓ src/net-loss.test.ts (8 tests) 4ms
+packages/insurance test:  ✓ src/claims-case-transitions.test.ts (6 tests) 11ms
+packages/insurance test:  ✓ src/quote-to-bind.test.ts (4 tests) 116ms
+packages/insurance test:  ✓ src/synthetic-oracle-wedge.test.ts (2 tests) 94ms
+packages/insurance test:  ✓ src/claims-pipeline.test.ts (1 test) 63ms
+packages/insurance test:  ✓ src/claims-case-service.test.ts (6 tests) 217ms
+packages/insurance test:  ✓ src/canonical-loss-key.test.ts (3 tests) 16ms
+packages/insurance test:  ✓ src/procurement-claims.test.ts (9 tests) 423ms
+packages/insurance test:  ✓ src/bank-dispute-examiner.test.ts (9 tests) 6058ms
+packages/insurance test:    ✓ synthetic enterprise-AI read-only examination > identifies 1350 overrides from 1800 authenticated case records without using fixture counts  5876ms
+packages/insurance test:  Test Files  9 passed (9)
+packages/insurance test:       Tests  48 passed (48)
+packages/insurance test:    Start at  16:34:34
+packages/insurance test:    Duration  6.94s (transform 1.24s, setup 0ms, collect 5.56s, tests 7.00s, environment 3ms, prepare 1.24s)
+packages/insurance test: Done
+packages/agent-sdk test$ vitest run
+packages/agent-sdk test:  RUN  v3.2.7 /Users/aditya/Projects/Arcuex/packages/agent-sdk
+packages/agent-sdk test:  ✓ src/platform-compatibility.test.ts (2 tests) 24ms
+packages/agent-sdk test:  ✓ src/client.test.ts (1 test) 31ms
+packages/agent-sdk test:  ✓ src/procurement.test.ts (9 tests) 135ms
+packages/agent-sdk test:  Test Files  3 passed (3)
+packages/agent-sdk test:       Tests  12 passed (12)
+packages/agent-sdk test:    Start at  16:34:42
+packages/agent-sdk test:    Duration  1.30s (transform 658ms, setup 0ms, collect 2.18s, tests 190ms, environment 1ms, prepare 307ms)
+packages/agent-sdk test: Done
+apps/web test$ vitest run
+apps/web test:  RUN  v3.2.7 /Users/aditya/Projects/Arcuex/apps/web
+apps/web test:  ✓ src/lib/claims/claims-client-response.test.ts (8 tests) 18ms
+apps/web test:  ✓ src/lib/server/runtime-config.test.ts (6 tests) 9ms
+apps/web test:  ✓ src/lib/server/request-boundary.test.ts (5 tests) 8ms
+apps/web test:  ✓ src/lib/server/claims-session.test.ts (4 tests) 222ms
+apps/web test:  ✓ src/lib/server/procurement-api.test.ts (5 tests) 220ms
+apps/web test:  ✓ src/lib/server/claims-integration.test.ts (5 tests) 377ms
+apps/web test:  ✓ src/lib/server/procurement-chain.test.ts (14 tests) 302ms
+apps/web test:  ✓ src/lib/server/policy-read-api.test.ts (5 tests) 315ms
+apps/web test:  ✓ src/lib/server/policy-reconciliation.test.ts (19 tests) 870ms
+apps/web test:  ✓ src/lib/server/rate-limit.test.ts (3 tests) 30ms
+apps/web test:  ✓ src/lib/workspace.test.ts (3 tests) 5ms
+apps/web test:  ✓ src/lib/format.test.ts (1 test) 3ms
+apps/web test:  ✓ src/lib/server/claims-auth.test.ts (3 tests) 43ms
+apps/web test:  ✓ src/app/api/claims/legacy-mutations.test.ts (2 tests) 15ms
+apps/web test:  ✓ src/lib/server/claims-chain.test.ts (7 tests) 4ms
+apps/web test:  Test Files  15 passed (15)
+apps/web test:       Tests  90 passed (90)
+apps/web test:    Start at  16:34:44
+apps/web test:    Duration  3.64s (transform 1.85s, setup 0ms, collect 12.84s, tests 2.44s, environment 3ms, prepare 1.87s)
+apps/web test: Done

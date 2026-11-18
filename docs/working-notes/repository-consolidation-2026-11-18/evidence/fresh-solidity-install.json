@@ -1,0 +1,28 @@
+{
+  "exitCode": 0,
+  "lockfileMatches": true,
+  "pins": {
+    "lib/forge-std": {
+      "tag": {
+        "name": "v1.17.0",
+        "rev": "f3dae6e6ee381f25eb6a246f7da9b85c91a68219"
+      }
+    },
+    "lib/openzeppelin-contracts": {
+      "tag": {
+        "name": "v5.2.0",
+        "rev": "acd4ff74de833399287ed6b31b4debf6b2b35527"
+      }
+    }
+  },
+  "sourceChecks": {
+    "forge-std/src/Test.sol": {
+      "sha256": "6ac6a04a9723f3b51a86fcd0c4cf02e8011f112df052a8eea8e986d85b0bb3d7",
+      "matchesTestedCache": true
+    },
+    "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol": {
+      "sha256": "8d3062e8831a07bab894607a7e6990f0b336024079ed5baaaae1f2b103e292ad",
+      "matchesTestedCache": true
+    }
+  }
+}

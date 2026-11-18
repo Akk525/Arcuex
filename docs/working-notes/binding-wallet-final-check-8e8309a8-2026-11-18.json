@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-11-18T18:03:50.207Z",
+  "blockTimestamp": "2026-11-18T18:03:49.000Z",
+  "blockNumber": "72889059",
+  "chainId": 5042002,
+  "calldataExactMatch": true,
+  "quoteUnexpired": true,
+  "secondsUntilQuoteExpiry": 151,
+  "quoteExpiresAtUtc": "2026-11-18T18:06:20.000Z",
+  "policyUnbound": true,
+  "allowanceMicros": "10000",
+  "availableCapitalMicros": "3100000",
+  "pendingNonce": 7,
+  "simulationSucceeded": true,
+  "baseFeePerGas": "20000000000",
+  "authorizedGasLimit": 326560,
+  "authorizedMaxFeePerGas": "24000000000",
+  "authorizedMaximumNetworkFeeUsdc": "0.00783744",
+  "broadcast": false
+}

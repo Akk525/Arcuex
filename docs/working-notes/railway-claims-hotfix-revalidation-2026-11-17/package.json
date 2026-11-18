@@ -1,0 +1,8 @@
+{
+  "name": "railway-claims-hotfix-revalidation-harness",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.49.1"
+  }
+}

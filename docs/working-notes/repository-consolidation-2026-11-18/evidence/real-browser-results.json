@@ -1,0 +1,142 @@
+[
+  {
+    "status": "PASS",
+    "detail": "Local production liveness"
+  },
+  {
+    "status": "PASS",
+    "detail": "Local production readiness including Arc and solvency"
+  },
+  {
+    "status": "PASS",
+    "detail": "Anonymous authoritative session"
+  },
+  {
+    "status": "PASS",
+    "detail": "Unauthenticated reconciliation is denied"
+  },
+  {
+    "status": "PASS",
+    "detail": "Real wallet challenge issued"
+  },
+  {
+    "status": "PASS",
+    "detail": "Real signed-wallet authentication"
+  },
+  {
+    "status": "PASS",
+    "detail": "Session cookie retains HttpOnly and Secure"
+  },
+  {
+    "status": "PASS",
+    "detail": "Authoritative identity and capabilities"
+  },
+  {
+    "status": "PASS",
+    "detail": "Real synthetic exposure registration"
+  },
+  {
+    "status": "PASS",
+    "detail": "Real immutable synthetic quote"
+  },
+  {
+    "status": "PASS",
+    "detail": "Read-only chain preflight and offchain preparation"
+  },
+  {
+    "status": "PASS",
+    "detail": "Prepared SQLite record grants no confirmation or claims"
+  },
+  {
+    "status": "PASS",
+    "detail": "Fabricated successful wallet hash rejected by real receipt verifier"
+  },
+  {
+    "status": "PASS",
+    "detail": "Failed receipt cannot mutate authoritative lifecycle"
+  },
+  {
+    "status": "PASS",
+    "detail": "Session boundary protects policy lifecycle"
+  },
+  {
+    "status": "PASS",
+    "detail": "Anonymous claims write rejected"
+  },
+  {
+    "status": "PASS",
+    "detail": "Client role header cannot grant authority"
+  },
+  {
+    "status": "PASS",
+    "detail": "Claimant denied privileged adjudicate despite forged role"
+  },
+  {
+    "status": "PASS",
+    "detail": "Claimant denied privileged prepare_settlement despite forged role"
+  },
+  {
+    "status": "PASS",
+    "detail": "Claimant denied privileged mark_paid despite forged role"
+  },
+  {
+    "status": "PASS",
+    "detail": "Provisioned reviewer session login"
+  },
+  {
+    "status": "PASS",
+    "detail": "Server reviewer identity"
+  },
+  {
+    "status": "PASS",
+    "detail": "reviewer cannot act as claimant"
+  },
+  {
+    "status": "PASS",
+    "detail": "Reviewer denied authority settlement preparation"
+  },
+  {
+    "status": "PASS",
+    "detail": "Nonverified historical records stay nonclaimable for reviewer"
+  },
+  {
+    "status": "PASS",
+    "detail": "reviewer Ops navigation uses real session"
+  },
+  {
+    "status": "PASS",
+    "detail": "Provisioned authority session login"
+  },
+  {
+    "status": "PASS",
+    "detail": "Server authority identity"
+  },
+  {
+    "status": "PASS",
+    "detail": "authority cannot act as claimant"
+  },
+  {
+    "status": "PASS",
+    "detail": "Nonverified historical records stay nonclaimable for authority"
+  },
+  {
+    "status": "PASS",
+    "detail": "authority Ops navigation uses real session"
+  },
+  {
+    "status": "PASS",
+    "detail": "Policy frontend consumes real session and lifecycle APIs"
+  },
+  {
+    "status": "PASS",
+    "detail": "Prepared policy has no claim action"
+  },
+  {
+    "status": "PASS",
+    "detail": "Claimant cannot select Ops workspace"
+  },
+  {
+    "status": "PASS",
+    "detail": "Logout revokes real session and refreshes AccountBar"
+  }
+]

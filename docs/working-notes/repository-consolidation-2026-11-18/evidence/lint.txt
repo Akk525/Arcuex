@@ -1,0 +1,33 @@
+Scope: all 9 workspace projects
+✓ Lockfile passes supply-chain policies (verified 5m ago)
+Lockfile is up to date, resolution step is skipped
+Already up to date
+
+   ╭───────────────────────────────────────────────╮
+   │                                               │
+   │     Update available! 11.20.0 → 12.21.0.      │
+   │     Changelog: https://pnpm.io/v/12.21.0      │
+   │   To update, run: corepack use pnpm@12.21.0   │
+   │                                               │
+   ╰───────────────────────────────────────────────╯
+
+
+Done in 1.2s using pnpm v11.20.0
+$ pnpm -r lint
+Scope: 8 of 9 workspace projects
+packages/chain lint$ eslint src --max-warnings=0
+packages/domain lint$ eslint src --max-warnings=0
+packages/chain lint: Done
+packages/domain lint: Done
+packages/quicknode lint$ eslint src --max-warnings=0
+packages/onchain lint$ eslint src --max-warnings=0
+packages/persistence lint$ eslint src --max-warnings=0
+packages/quicknode lint: Done
+packages/persistence lint: Done
+packages/onchain lint: Done
+packages/insurance lint$ eslint src --max-warnings=0
+packages/insurance lint: Done
+packages/agent-sdk lint$ eslint src --max-warnings=0
+packages/agent-sdk lint: Done
+apps/web lint$ eslint src --max-warnings=0
+apps/web lint: Done

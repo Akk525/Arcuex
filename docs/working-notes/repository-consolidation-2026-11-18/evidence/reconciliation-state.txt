@@ -1,0 +1,12 @@
+✔ bounded confirmed backfill is contiguous across a crash/redelivery (2.764ms)
+✔ finished history polls overlap with two descendant confirmations (0.329ms)
+✔ cursor corruption, wrong pool/depth and regressed heads fail closed (0.687042ms)
+✔ cursor snapshot is durable, parseable and identity checked after reopening (13.247375ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 164.188166

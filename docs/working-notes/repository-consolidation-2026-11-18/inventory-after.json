@@ -1,0 +1,188 @@
+{
+  "snapshot": "After branch cleanup; before final documentation/evidence commit",
+  "finalMainRef": "consolidated/nov20-main-2026-11-18",
+  "refs": [
+    {
+      "ref": "refs/heads/backend/nov20-policy-reconciliation",
+      "shaAtInventory": "f579aef86ebe7d4ceff95e28f560699b2b98c17e",
+      "tree": "431f05a7fe4290748c73399bff7e558cce37eade",
+      "upstream": null
+    },
+    {
+      "ref": "refs/heads/deploy/nov20-combined-private",
+      "shaAtInventory": "b7243bf740366f72ea740dff49fe0951a98ed453",
+      "tree": "7824116856b37f33d599dca2f09ddf39758e6686",
+      "upstream": null
+    },
+    {
+      "ref": "refs/heads/feat/claims-workflow",
+      "shaAtInventory": "d627a7e9171b26c36c8c9bdd9a8bb3c290b8e752",
+      "tree": "21cf8c67558b917e48a56f93f0eaf83d78549750",
+      "upstream": null
+    },
+    {
+      "ref": "refs/heads/feat/platform-foundation",
+      "shaAtInventory": "5523b01767bcdd1bc4032fa4a1bef8a82c86f5a2",
+      "tree": "1676b2d994a321b8e326e2363f551f6b894d43a6",
+      "upstream": null
+    },
+    {
+      "ref": "refs/heads/integration/nov20-combined-acceptance",
+      "shaAtInventory": "8d5fdaaeaa04d45955416dfbed2ca9f423d6b0d3",
+      "tree": "8835f4224882df1da7678ff1f76e8eb19ad92807",
+      "upstream": null
+    },
+    {
+      "ref": "refs/heads/integration/nov20-private-acceptance",
+      "shaAtInventory": "ebbdeca1c37c66d1770dc4152135191bc6acc4c2",
+      "tree": "431f05a7fe4290748c73399bff7e558cce37eade",
+      "upstream": null
+    },
+    {
+      "ref": "refs/heads/integration/procurement-claims",
+      "shaAtInventory": "9f8d473ecfc75bf5d410d75e68ccc8769dbfaece",
+      "tree": "097887b462b8e8680b92a21ae6ae3fd768d2df68",
+      "upstream": null
+    },
+    {
+      "ref": "refs/heads/main",
+      "shaAtInventory": "f697cdc9dfaa57ed44fdbf2267cae287bd532cd5",
+      "tree": "2c8c11deb237a6e4d55515f3d50dfe4aed9b043b",
+      "upstream": "refs/remotes/origin/main"
+    },
+    {
+      "ref": "refs/heads/research/coverage-wedges",
+      "shaAtInventory": "99ba72aeec76278b1b2aa86a089a5e4a42c6406a",
+      "tree": "278e2e505ec3c83c0dcdd7ae8860276b87a376ea",
+      "upstream": "refs/remotes/origin/research/coverage-wedges"
+    },
+    {
+      "ref": "refs/heads/ui/nov20-product-experience",
+      "shaAtInventory": "9e36062e527bb9ffa13907b71c30b3f414174e49",
+      "tree": "03be00b25d8ac2658bc11def49a98ed31113dc0f",
+      "upstream": null
+    },
+    {
+      "ref": "refs/remotes/origin/HEAD",
+      "shaAtInventory": "d9d47a505f6438c6c40a72502f28a32228151705",
+      "tree": "74bec9b4bd9adc6fe3d8cb7801b5fcc559806bd2",
+      "upstream": null
+    },
+    {
+      "ref": "refs/remotes/origin/feat/onchain-lifecycle",
+      "shaAtInventory": "c5cd55068bd3c21ab01efb44483adce983fc6df8",
+      "tree": "bdc41ee73eaa768d0fae6ccd32ea4bcc1e625ab4",
+      "upstream": null
+    },
+    {
+      "ref": "refs/remotes/origin/main",
+      "shaAtInventory": "d9d47a505f6438c6c40a72502f28a32228151705",
+      "tree": "74bec9b4bd9adc6fe3d8cb7801b5fcc559806bd2",
+      "upstream": null
+    },
+    {
+      "ref": "refs/remotes/origin/research/coverage-wedges",
+      "shaAtInventory": "99ba72aeec76278b1b2aa86a089a5e4a42c6406a",
+      "tree": "278e2e505ec3c83c0dcdd7ae8860276b87a376ea",
+      "upstream": null
+    }
+  ],
+  "worktrees": [
+    {
+      "worktree": "/Users/aditya/Projects/Arcuex",
+      "HEAD": "f697cdc9dfaa57ed44fdbf2267cae287bd532cd5",
+      "branch": "refs/heads/main",
+      "tree": "2c8c11deb237a6e4d55515f3d50dfe4aed9b043b",
+      "exists": true,
+      "status": "Final documentation/evidence changes pending commit at this inventory snapshot; final clean status is recorded in .recovery/2026-11-18-consolidation/final-state.json.",
+      "finalRef": "refs/tags/consolidated/nov20-main-2026-11-18"
+    },
+    {
+      "worktree": "/private/tmp/arcuex-coverage-wedges",
+      "HEAD": "99ba72aeec76278b1b2aa86a089a5e4a42c6406a",
+      "branch": "refs/heads/research/coverage-wedges",
+      "prunable": "gitdir file points to non-existent location",
+      "tree": "278e2e505ec3c83c0dcdd7ae8860276b87a376ea",
+      "exists": false,
+      "status": "MISSING"
+    },
+    {
+      "worktree": "/Users/aditya/Projects/Arcuex/.worktrees/claims-workflow",
+      "HEAD": "d627a7e9171b26c36c8c9bdd9a8bb3c290b8e752",
+      "branch": "refs/heads/feat/claims-workflow",
+      "tree": "21cf8c67558b917e48a56f93f0eaf83d78549750",
+      "exists": true,
+      "status": ""
+    },
+    {
+      "worktree": "/Users/aditya/Projects/Arcuex/.worktrees/launch-infrastructure",
+      "HEAD": "9e36062e527bb9ffa13907b71c30b3f414174e49",
+      "branch": "refs/heads/ui/nov20-product-experience",
+      "tree": "03be00b25d8ac2658bc11def49a98ed31113dc0f",
+      "exists": true,
+      "status": "?? docs/working-notes/railway-claims-hotfix-revalidation-2026-11-17/acceptance-claims-new.png\n?? docs/working-notes/railway-claims-hotfix-revalidation-2026-11-17/acceptance-claims-nonexistent.png\n?? docs/working-notes/railway-claims-hotfix-revalidation-2026-11-17/acceptance-claims-review.png\n?? docs/working-notes/railway-claims-hotfix-revalidation-2026-11-17/acceptance-claims.png\n?? docs/working-notes/railway-claims-hotfix-revalidation-2026-11-17/acceptance-gate-required.png\n?? docs/working-notes/railway-claims-hotfix-revalidation-2026-11-17/report.md\n?? docs/working-notes/railway-claims-hotfix-revalidation-2026-11-17/run-browser-acceptance.mjs\n"
+    },
+    {
+      "worktree": "/Users/aditya/Projects/Arcuex/.worktrees/nov20-final-integration",
+      "HEAD": "8d5fdaaeaa04d45955416dfbed2ca9f423d6b0d3",
+      "branch": "refs/heads/integration/nov20-combined-acceptance",
+      "tree": "8835f4224882df1da7678ff1f76e8eb19ad92807",
+      "exists": true,
+      "status": ""
+    },
+    {
+      "worktree": "/Users/aditya/Projects/Arcuex/.worktrees/nov20-integration",
+      "HEAD": "ebbdeca1c37c66d1770dc4152135191bc6acc4c2",
+      "branch": "refs/heads/integration/nov20-private-acceptance",
+      "tree": "431f05a7fe4290748c73399bff7e558cce37eade",
+      "exists": true,
+      "status": " M .env.example\n M apps/web/src/lib/server/policy-read-api.test.ts\n M apps/web/src/lib/server/policy-read-api.ts\n M apps/web/src/lib/server/policy-reconciliation.ts\n M deploy/railway/entrypoint.sh\n M packages/persistence/src/migrate.ts\n M packages/persistence/src/migration-integration.test.ts\n M packages/persistence/src/procurement.ts\n?? apps/web/scripts/index-policies.mts\n?? apps/web/scripts/indexer-restart-smoke.mts\n?? apps/web/src/app/api/policies/reconciliation/status/route.ts\n?? apps/web/src/lib/server/policy-indexer.test.ts\n?? apps/web/src/lib/server/policy-indexer.ts\n?? deploy/railway/run-with-indexer.sh\n?? docs/development/policy-indexer-operations.md\n?? packages/persistence/src/migrations/011_policy_indexer.sql\n"
+    },
+    {
+      "worktree": "/Users/aditya/Projects/Arcuex/.worktrees/nov20-railway-ops",
+      "HEAD": "b7243bf740366f72ea740dff49fe0951a98ed453",
+      "branch": "refs/heads/deploy/nov20-combined-private",
+      "tree": "7824116856b37f33d599dca2f09ddf39758e6686",
+      "exists": true,
+      "status": "?? docs/working-notes/live-wallet-preflight-2026-11-18/alternative-trace-capability.json\n?? docs/working-notes/live-wallet-preflight-2026-11-18/authenticated-quote.json\n?? docs/working-notes/live-wallet-preflight-2026-11-18/authorization-packet-draft.json\n?? docs/working-notes/live-wallet-preflight-2026-11-18/authorization-packet.json\n?? docs/working-notes/live-wallet-preflight-2026-11-18/authorization-packet.md\n?? docs/working-notes/live-wallet-preflight-2026-11-18/network-fees.json\n?? docs/working-notes/live-wallet-preflight-2026-11-18/pool-preflight.json\n?? docs/working-notes/live-wallet-preflight-2026-11-18/prepare-authenticated-quote.mts\n?? docs/working-notes/live-wallet-preflight-2026-11-18/sequential-simulation-capability.json\n?? docs/working-notes/live-wallet-preflight-2026-11-18/source-verification.json\n?? docs/working-notes/live-wallet-preflight-2026-11-18/wallet-balance-preflight.json\n"
+    },
+    {
+      "worktree": "/Users/aditya/Projects/Arcuex/.worktrees/nov20-railway-release",
+      "HEAD": "f8365a85f0c4a6298f713be7e799cb7538ca1fc7",
+      "tree": "582b367e95406ee33a68a8792965ae886f18c751",
+      "exists": true,
+      "status": ""
+    },
+    {
+      "worktree": "/Users/aditya/Projects/Arcuex/.worktrees/onchain-lifecycle",
+      "HEAD": "9f8d473ecfc75bf5d410d75e68ccc8769dbfaece",
+      "branch": "refs/heads/integration/procurement-claims",
+      "tree": "097887b462b8e8680b92a21ae6ae3fd768d2df68",
+      "exists": true,
+      "status": ""
+    },
+    {
+      "worktree": "/Users/aditya/Projects/Arcuex/.worktrees/platform-architecture",
+      "HEAD": "5523b01767bcdd1bc4032fa4a1bef8a82c86f5a2",
+      "branch": "refs/heads/feat/platform-foundation",
+      "tree": "1676b2d994a321b8e326e2363f551f6b894d43a6",
+      "exists": true,
+      "status": ""
+    },
+    {
+      "worktree": "/Users/aditya/Projects/Arcuex/.worktrees/policy-reconciliation",
+      "HEAD": "f579aef86ebe7d4ceff95e28f560699b2b98c17e",
+      "branch": "refs/heads/backend/nov20-policy-reconciliation",
+      "tree": "431f05a7fe4290748c73399bff7e558cce37eade",
+      "exists": true,
+      "status": ""
+    }
+  ],
+  "removedLocalBranches": [
+    "docs/platform-architecture-roadmap",
+    "feat/launch-infrastructure",
+    "feat/onchain-lifecycle",
+    "release/nov20-arc-testnet-beta"
+  ],
+  "removedWorktrees": []
+}

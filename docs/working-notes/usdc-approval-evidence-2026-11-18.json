@@ -1,0 +1,86 @@
+{
+  "capturedAt": "2026-11-18T17:19:39.292Z",
+  "rpc": "https://rpc.testnet.arc.io",
+  "chainId": 5042002,
+  "block": {
+    "number": "72883814",
+    "hash": "0x767c082ffe74acf432357a4b235af8d76f837b5f3caf555bbd687f611e6e4136",
+    "timestamp": "2026-11-18T17:19:38.000Z",
+    "baseFeePerGas": "20000000000"
+  },
+  "owner": "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+  "token": "0x3600000000000000000000000000000000000000",
+  "spender": "0x6657974EEdF488380251bDD95A7FFfb0D456E49E",
+  "decimals": 6,
+  "symbol": "USDC",
+  "balance": {
+    "raw": "15866934",
+    "usdc": "15.866934"
+  },
+  "allowance": {
+    "raw": "0",
+    "usdc": "0"
+  },
+  "nativeBalance": {
+    "raw": "15866934540000000000",
+    "usdc": "15.86693454"
+  },
+  "ownerCode": {
+    "bytes": 0,
+    "hash": null
+  },
+  "tokenCode": {
+    "bytes": 1798,
+    "hash": "0xc9987bd3af6b26a030951faa7eacc017b68343aeedf3ce5fe68f821c4b93939d"
+  },
+  "spenderCode": {
+    "bytes": 4517,
+    "hash": "0xffcc03f8145add8bb21b8af7e7eb8146c871c62aeca92b85dae1692c8741b398"
+  },
+  "poolUsdc": "0x3600000000000000000000000000000000000000",
+  "pendingNonce": 5,
+  "simulation": {
+    "result": true,
+    "blockNumber": "72883814",
+    "stateOverrides": false
+  },
+  "estimatedGas": "56229",
+  "gasLimit": "67475",
+  "gasLimitBuffer": "20 percent, rounded upward",
+  "gasPrice": "20000000000",
+  "fees": {
+    "maxFeePerGas": "24000000000",
+    "maxPriorityFeePerGas": "0"
+  },
+  "estimatedFeeUsdc": "0.00112458",
+  "maximumFeeUsdc": "0.0016194",
+  "balanceCoversMaxFee": true,
+  "transaction": {
+    "from": "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+    "to": "0x3600000000000000000000000000000000000000",
+    "chainId": 5042002,
+    "value": "0x0",
+    "data": "0x095ea7b30000000000000000000000006657974eedf488380251bdd95a7fffb0d456e49e0000000000000000000000000000000000000000000000000000000000002710",
+    "gas": "67475",
+    "maxFeePerGas": "24000000000",
+    "maxPriorityFeePerGas": "0"
+  },
+  "decoded": {
+    "functionName": "approve",
+    "args": [
+      "0x6657974EEdF488380251bDD95A7FFfb0D456E49E",
+      "10000"
+    ]
+  },
+  "broadcast": false,
+  "cappedSimulation": {
+    "result": true,
+    "returnData": "0x0000000000000000000000000000000000000000000000000000000000000001",
+    "gasLimit": "67475",
+    "maxFeePerGas": "24000000000",
+    "maxPriorityFeePerGas": "0",
+    "blockNumber": "72883814",
+    "capturedAt": "2026-11-18T17:19:56.152Z",
+    "stateOverrides": false
+  }
+}

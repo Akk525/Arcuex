@@ -1,0 +1,13 @@
+✔ historical witness reproduces exact observed receipt logs (0.628583ms)
+✔ observed eligibility and correct-reference ineligibility from deployed EVM code (0.1075ms)
+✔ counterfactual changes only snapshot ratio bits (0.584125ms)
+✔ real collateral depletion includes protocol fee and debt reduction (0.095875ms)
+✔ missing witness slot cannot silently become zero or a verified historical claim (388.121666ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1253.209792

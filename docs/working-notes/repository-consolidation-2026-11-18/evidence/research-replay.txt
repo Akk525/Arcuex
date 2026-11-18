@@ -1,0 +1,77 @@
+{
+  "mode": "HISTORICAL",
+  "method": "ethereumjs-prestate-witness-v1",
+  "transactionHash": "0x9064b507f16bd8b85fb5aea0185153b01fa23b3205f7153f986e5107ce988a9c",
+  "blockHash": "0x4bdbcceb3571635b5c2ec3b6e4d33816ce493c041a3a56838969b57297cc77b9",
+  "transactionIndex": 1,
+  "hardfork": "prague",
+  "results": [
+    {
+      "counterfactual": false,
+      "canonicalRatio": "1228848994065905999",
+      "adapterPrice": "246276569349",
+      "account": [
+        "2732395003841771",
+        "2610402286615278",
+        "0",
+        "9500",
+        "9300",
+        "994396636472242223"
+      ],
+      "collateralBalance": "11094823234969132151300",
+      "debtBeforeDetails": {
+        "scaled": "11577623068489711847429",
+        "index": "1093074917675381313874847895",
+        "balance": "12655209382465987372527"
+      },
+      "debtBalance": "12655209382465987372527",
+      "executionError": null,
+      "replayedLogs": "preserved 23 logs in output artifact",
+      "exactReceiptLogMatch": true,
+      "collateralAfter": "5761578381296808296661",
+      "debtAfterDetails": {
+        "scaled": "5809889251093610800237",
+        "index": "1093074917675381313874847895",
+        "balance": "6350644214842231420570"
+      },
+      "debtAfter": "6350644214842231420570",
+      "totalCollateralReduction": "5333244853672323854639",
+      "actualDebtReduction": "6304565167623755951957",
+      "grossLossBaseWei": "249187405918649252451"
+    },
+    {
+      "counterfactual": true,
+      "canonicalRatio": "1228848994065905999",
+      "adapterPrice": "253475871245",
+      "account": [
+        "2812269985793070",
+        "2610402286615278",
+        "5008800172277",
+        "9500",
+        "9300",
+        "1023465425310963254"
+      ],
+      "collateralBalance": "11094823234969132151300",
+      "debtBeforeDetails": {
+        "scaled": "11577623068489711847429",
+        "index": "1093074917675381313874847895",
+        "balance": "12655209382465987372527"
+      },
+      "debtBalance": "12655209382465987372527",
+      "executionError": "revert",
+      "returnData": "0x",
+      "logCount": 0
+    }
+  ],
+  "missing": [],
+  "adapterRuntimeKeccak": "0x6de4f6626dff78615c352681d35d4971f88e41c7dc4f1047b38a131a7e430ab5",
+  "intervention": {
+    "address": "0xe1d97bf61901b075e9626c8a2340a7de385861ef",
+    "slot": "0x0000000000000000000000000000000000000000000000000000000000000001",
+    "old": "18988242568880989685634820208595035841670767095011958676",
+    "new": "18988242568880989685634820208595035841707689892599101775",
+    "field": "_snapshotRatio",
+    "replacement": "1228848994065905999"
+  },
+  "status": "REPLAY_COMPLETED"
+}

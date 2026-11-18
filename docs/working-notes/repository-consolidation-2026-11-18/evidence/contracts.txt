@@ -1,0 +1,40 @@
+$ cd contracts && forge test
+Compiling 36 files with Solc 0.8.24
+Solc 0.8.24 finished in 23.46s
+Compiler run successful with warnings:
+Warning (2018): Function state mutability can be restricted to pure
+   --> test/InsurancePool.t.sol:206:5:
+    |
+206 |     function test_lossKeyComputationStable() public {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+
+Ran 1 test for test/LifecycleE2E.t.sol:LifecycleE2ETest
+[PASS] test_fullLifecycleWithInvalidClaimAndBlockedWithdraw() (gas: 927937)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 21.62ms (3.85ms CPU time)
+
+Ran 21 tests for test/InsurancePool.t.sol:InsurancePoolTest
+[PASS] testFuzz_premiumMintDoesNotReduceExistingShareValue(uint96) (runs: 256, μ: 980038, ~: 980154)
+[PASS] test_bindIsImmutableCommitment() (gas: 459907)
+[PASS] test_bindReservesFullLimitAndCollectsPremium() (gas: 480030)
+[PASS] test_bindRevertsWhenUnderfunded() (gas: 179150)
+[PASS] test_conservationAcrossLifecycle() (gas: 713845)
+[PASS] test_coverageNotStartedReverts() (gas: 470568)
+[PASS] test_demoPremiumOwnershipNavAndWithdrawals() (gas: 996872)
+[PASS] test_depositMintsOneToOneShares() (gas: 166752)
+[PASS] test_duplicateClaimReverts() (gas: 687214)
+[PASS] test_expiredCoverageReverts() (gas: 471411)
+[PASS] test_lossKeyBoundToPolicy() (gas: 955856)
+[PASS] test_lossKeyComputationStable() (gas: 1443)
+[PASS] test_payoutCapReverts() (gas: 475417)
+[PASS] test_premiumSharesUseNavAfterLoss() (gas: 949517)
+[PASS] test_releaseReservationThenWithdraw() (gas: 580385)
+[PASS] test_sameLossDifferentClaimIdsPartialThenCap() (gas: 840897)
+[PASS] test_sameLossRejectsInflatedCap() (gas: 706655)
+[PASS] test_settleClaimPaysBeneficiary() (gas: 736364)
+[PASS] test_unauthorizedSettleReverts() (gas: 462235)
+[PASS] test_withdrawRestrictedWhileReserved() (gas: 474609)
+[PASS] test_wrongBeneficiaryReverts() (gas: 470631)
+Suite result: ok. 21 passed; 0 failed; 0 skipped; finished in 56.78ms (61.69ms CPU time)
+
+Ran 2 test suites in 63.08ms (78.40ms CPU time): 22 tests passed, 0 failed, 0 skipped (22 total tests)

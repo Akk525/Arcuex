@@ -1,0 +1,47 @@
+{
+  "terms": {
+    "version": 1,
+    "policyId": "f2d5f9a4-57e2-4ad4-96b6-96e570f43b76",
+    "quoteId": "c20e442d-c9c9-460d-9a41-ccd5702eb8a9",
+    "productCode": "ARC_ORACLE_LIQUIDATION_DEMO_V1",
+    "agentId": "143fc0e6-f1b1-4642-9762-38a336bc2c0e",
+    "owner": "0x2e2da4311ea87cfa31c372d59b4a0d567c15d760",
+    "beneficiary": "0x2e2da4311ea87cfa31c372d59b4a0d567c15d760",
+    "exposure": {
+      "chainId": 5042002,
+      "protocol": "arcuex-synthetic-lending-v1",
+      "position": "demo_position-01",
+      "notionalMicros": "100000000"
+    },
+    "eligibility": {
+      "positionHealthy": true,
+      "noKnownIncident": true,
+      "syntheticOnly": true,
+      "ownerAttestsControl": true
+    },
+    "premiumMicros": "10000",
+    "limitMicros": "1000000",
+    "deductibleMicros": "100000",
+    "effectiveAt": 1795024737,
+    "expiresAt": 1795111137,
+    "quoteExpiresAt": 1795024437,
+    "insuredEvent": "Synthetic oracle adapter understates collateral value and causes liquidation of a lending position that remains healthy under the canonical ratio replay.",
+    "exclusions": [
+      "Pre-existing or known liquidation",
+      "Market price movements or ordinary insolvency",
+      "Owner or agent misconduct",
+      "Non-registered positions or protocols",
+      "Non-synthetic evidence; no external loss oracle is integrated"
+    ],
+    "synthetic": true
+  },
+  "digest": "0x1182a05d0d7d80df4f181cf93c31efbc7fea79d755b92af65b8be2ad9b75394c",
+  "computedDigest": "0x1182a05d0d7d80df4f181cf93c31efbc7fea79d755b92af65b8be2ad9b75394c",
+  "digestMatches": true,
+  "verifiedAt": "2026-11-18T17:46:05.398Z",
+  "quoteExpiresAtUtc": "2026-11-18T17:53:57.000Z",
+  "effectiveAtUtc": "2026-11-18T17:58:57.000Z",
+  "expiresAtUtc": "2026-11-19T17:58:57.000Z",
+  "coverageDurationSeconds": 86400,
+  "broadcast": false
+}

@@ -1,0 +1,8 @@
+{
+  "command": [
+    "pnpm",
+    "typecheck"
+  ],
+  "exitCode": 0,
+  "seconds": 40.26
+}

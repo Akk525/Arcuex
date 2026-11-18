@@ -1,0 +1,10 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "docs/research/coverage-wedges/fixtures/evaluator.test.ts",
+    "docs/research/coverage-wedges/experiments/causal-v2/verifier.test.ts"
+  ],
+  "exitCode": 0,
+  "seconds": 0.36
+}

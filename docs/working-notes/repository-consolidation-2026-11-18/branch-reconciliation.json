@@ -1,0 +1,116 @@
+[
+  {
+    "branch": "backend/nov20-policy-reconciliation",
+    "sha": "f579aef86ebe7d4ceff95e28f560699b2b98c17e",
+    "tree": "431f05a7fe4290748c73399bff7e558cce37eade",
+    "upstream": null,
+    "integratedByAncestry": true,
+    "unmergedCommits": []
+  },
+  {
+    "branch": "deploy/nov20-combined-private",
+    "sha": "b7243bf740366f72ea740dff49fe0951a98ed453",
+    "tree": "7824116856b37f33d599dca2f09ddf39758e6686",
+    "upstream": null,
+    "integratedByAncestry": true,
+    "unmergedCommits": []
+  },
+  {
+    "branch": "docs/platform-architecture-roadmap",
+    "sha": "f8365a85f0c4a6298f713be7e799cb7538ca1fc7",
+    "tree": "582b367e95406ee33a68a8792965ae886f18c751",
+    "upstream": null,
+    "integratedByAncestry": true,
+    "unmergedCommits": []
+  },
+  {
+    "branch": "feat/claims-workflow",
+    "sha": "d627a7e9171b26c36c8c9bdd9a8bb3c290b8e752",
+    "tree": "21cf8c67558b917e48a56f93f0eaf83d78549750",
+    "upstream": null,
+    "integratedByAncestry": true,
+    "unmergedCommits": []
+  },
+  {
+    "branch": "feat/launch-infrastructure",
+    "sha": "334472c35788fc493cf534fc43c495712eeefadd",
+    "tree": "18d4f009dd1c8500eaa08d67489e3b490b550295",
+    "upstream": null,
+    "integratedByAncestry": true,
+    "unmergedCommits": []
+  },
+  {
+    "branch": "feat/onchain-lifecycle",
+    "sha": "c30a29ce90861ac6d8facb434b1ebbd9ffad0332",
+    "tree": "f6d8c9b86cbf5c2dde25c32ce792034b41fb0efc",
+    "upstream": null,
+    "integratedByAncestry": true,
+    "unmergedCommits": []
+  },
+  {
+    "branch": "feat/platform-foundation",
+    "sha": "5523b01767bcdd1bc4032fa4a1bef8a82c86f5a2",
+    "tree": "1676b2d994a321b8e326e2363f551f6b894d43a6",
+    "upstream": null,
+    "integratedByAncestry": true,
+    "unmergedCommits": []
+  },
+  {
+    "branch": "integration/nov20-combined-acceptance",
+    "sha": "8d5fdaaeaa04d45955416dfbed2ca9f423d6b0d3",
+    "tree": "8835f4224882df1da7678ff1f76e8eb19ad92807",
+    "upstream": null,
+    "integratedByAncestry": true,
+    "unmergedCommits": []
+  },
+  {
+    "branch": "integration/nov20-private-acceptance",
+    "sha": "ebbdeca1c37c66d1770dc4152135191bc6acc4c2",
+    "tree": "431f05a7fe4290748c73399bff7e558cce37eade",
+    "upstream": null,
+    "integratedByAncestry": false,
+    "unmergedCommits": [
+      "ebbdeca1c37c66d1770dc4152135191bc6acc4c2 merge: integrate policy reconciliation backend"
+    ]
+  },
+  {
+    "branch": "integration/procurement-claims",
+    "sha": "9f8d473ecfc75bf5d410d75e68ccc8769dbfaece",
+    "tree": "097887b462b8e8680b92a21ae6ae3fd768d2df68",
+    "upstream": null,
+    "integratedByAncestry": true,
+    "unmergedCommits": []
+  },
+  {
+    "branch": "main",
+    "sha": "d9d47a505f6438c6c40a72502f28a32228151705",
+    "tree": "74bec9b4bd9adc6fe3d8cb7801b5fcc559806bd2",
+    "upstream": "refs/remotes/origin/main",
+    "integratedByAncestry": true,
+    "unmergedCommits": []
+  },
+  {
+    "branch": "release/nov20-arc-testnet-beta",
+    "sha": "fb6fe5dc8b80107b4860ce3ef2926bf343c493cb",
+    "tree": "48c27f875d1206dadb92a1e6bd79ba5fb6d9af2c",
+    "upstream": null,
+    "integratedByAncestry": true,
+    "unmergedCommits": []
+  },
+  {
+    "branch": "research/coverage-wedges",
+    "sha": "99ba72aeec76278b1b2aa86a089a5e4a42c6406a",
+    "tree": "278e2e505ec3c83c0dcdd7ae8860276b87a376ea",
+    "upstream": "refs/remotes/origin/research/coverage-wedges",
+    "integratedByAncestry": true,
+    "unmergedCommits": []
+  },
+  {
+    "branch": "ui/nov20-product-experience",
+    "sha": "9e36062e527bb9ffa13907b71c30b3f414174e49",
+    "tree": "03be00b25d8ac2658bc11def49a98ed31113dc0f",
+    "upstream": null,
+    "integratedByAncestry": true,
+    "unmergedCommits": []
+  }
+]

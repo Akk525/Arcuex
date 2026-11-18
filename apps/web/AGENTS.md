@@ -6,7 +6,8 @@ Developer dashboard for Arc Testnet connectivity, injected EVM wallets,
 balances, one user-approved test transaction, QuickNode RPC status, and
 **synthetic** Coverage / Claims / Capital panels backed by SQLite API routes.
 
-No marketing landing page. No private-key collection. No real insurance issuance UI.
+Preserve the existing Protect/Build landing and authenticated procurement/claims routes.
+No private-key collection. No real insurance issuance UI. Workspace selection grants no role.
 
 ## UI rules
 

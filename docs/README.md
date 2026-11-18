@@ -1,5 +1,10 @@
 # Documentation
 
+Current source: `main`. Current hosted fallback: `f8365a8`.
+Start with [repository reconciliation](verification/2026-11-18-repository-consolidation.md)
+and [deployment/recovery](deployments/main-and-plan-a.md). Dated verification reports describe
+their captured release, not an automatic guarantee about today's deployment.
+
 | Section | Contents |
 | --- | --- |
 | [architecture/overview.md](architecture/overview.md) | System shape of the foundation |
@@ -15,4 +20,5 @@
 
 Also see [architecture/trust-boundaries.md](architecture/trust-boundaries.md).
 
-Potential future integrations (not implemented): Circle Gateway, CCTP, Blockaid, Memora, Gemini, ElevenLabs, Grok, Solidity insurance contracts.
+Potential future integrations (not implemented): Circle Gateway, CCTP, Blockaid, Memora and model providers.
+The existing Arc Testnet Solidity pool is implemented; no mainnet issuance is supported.

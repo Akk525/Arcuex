@@ -1,0 +1,21 @@
+{
+  "integrity": "ok",
+  "foreignKeyViolations": 0,
+  "migrations": [
+    "001_init.sql",
+    "002_onchain.sql",
+    "003_streams_inbox.sql",
+    "004_procurement.sql",
+    "005_procurement_immutability.sql",
+    "004_claims_cases.sql",
+    "005_claims_case_binding.sql",
+    "006_claims_auth_sessions.sql",
+    "007_procurement_claims_integration.sql",
+    "008_shared_wallet_session_scope.sql",
+    "009_launch_security.sql",
+    "010_policy_reconciliation.sql"
+  ],
+  "claimsCases": 0,
+  "platformRegistryInitialized": false,
+  "temporaryDatabase": true
+}

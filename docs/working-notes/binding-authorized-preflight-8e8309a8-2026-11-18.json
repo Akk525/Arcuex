@@ -1,0 +1,58 @@
+{
+  "checkedAt": "2026-11-18T18:02:16.774Z",
+  "chainId": 5042002,
+  "blockNumber": "72888872",
+  "blockHash": "0xc950eaa7b19974b68e09b566c50759935d13375997bafbdc1bd8bdfe27d4c070",
+  "blockTimestamp": "2026-11-18T18:02:15.000Z",
+  "quoteId": "8e8309a8-4e2f-4e63-8e0a-25d2a15e3f10",
+  "quoteExpiresAtUtc": "2026-11-18T18:06:20.000Z",
+  "policyId": "cc5fcf8f-d09c-4db9-8520-76d276c2358b",
+  "policyIdBytes32": "0xb14dc8320d5cfb14c379443b1905d1abe277d4827f29b3f4f36f9d71b5b9d638",
+  "digest": "0xf45654d128f93105dd78a07ef39760f5e4f06ee59f099d267b2f10b5fe5d3add",
+  "allowanceUsdc": "0.01",
+  "balanceUsdc": "15.865060074",
+  "availableCapitalUsdc": "3.1",
+  "pendingNonce": 7,
+  "baseFeePerGas": "20000000000",
+  "checks": {
+    "quoteUnexpired": true,
+    "unbound": true,
+    "allowanceSufficient": true,
+    "capitalSufficient": true,
+    "balanceSufficient": true,
+    "baseFeeWithinCap": true,
+    "gasWithinAuthorizedLimit": true
+  },
+  "simulation": {
+    "success": true,
+    "returnData": "0x",
+    "stateOverrides": false
+  },
+  "estimatedGas": "272133",
+  "transaction": {
+    "from": "0x2e2da4311ea87cfa31c372d59b4a0d567c15d760",
+    "to": "0x6657974EEdF488380251bDD95A7FFfb0D456E49E",
+    "chainId": 5042002,
+    "nonce": 7,
+    "value": "0x0",
+    "data": "0x48fb51efb14dc8320d5cfb14c379443b1905d1abe277d4827f29b3f4f36f9d71b5b9d638f45654d128f93105dd78a07ef39760f5e4f06ee59f099d267b2f10b5fe5d3add0000000000000000000000002e2da4311ea87cfa31c372d59b4a0d567c15d760000000000000000000000000000000000000000000000000000000000000271000000000000000000000000000000000000000000000000000000000000f4240000000000000000000000000000000000000000000000000000000006afdea48000000000000000000000000000000000000000000000000000000006aff3bc8",
+    "gas": "326560",
+    "maxFeePerGas": "24000000000",
+    "maxPriorityFeePerGas": "1000000000"
+  },
+  "maximumFeeUsdc": "0.00783744",
+  "maximumPremiumAndFeeUsdc": "0.01783744",
+  "decoded": {
+    "functionName": "bindPolicy",
+    "args": [
+      "0xb14dc8320d5cfb14c379443b1905d1abe277d4827f29b3f4f36f9d71b5b9d638",
+      "0xf45654d128f93105dd78a07ef39760f5e4f06ee59f099d267b2f10b5fe5d3add",
+      "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+      "10000",
+      "1000000",
+      "1795025480",
+      "1795111880"
+    ]
+  },
+  "broadcast": false
+}

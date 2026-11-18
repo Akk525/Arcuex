@@ -1,0 +1,8 @@
+{
+  "command": [
+    "python3",
+    "docs/research/coverage-wedges/experiments/causal-v2/check-integrity.py"
+  ],
+  "exitCode": 0,
+  "seconds": 0.15
+}

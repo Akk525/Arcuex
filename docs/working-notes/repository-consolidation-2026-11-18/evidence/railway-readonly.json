@@ -1,0 +1,59 @@
+{
+  "service": {
+    "id": "1280c69e-abbc-4d06-8ecc-93bf4a6ed226",
+    "name": "arcuex-nov20-beta",
+    "state": "live"
+  },
+  "latestDeployment": {
+    "createdAt": "2026-11-18T05:39:28.441Z",
+    "id": "88f62d34-0dd9-4d66-9630-1e3491b54b8d",
+    "status": "SUCCESS",
+    "url": null
+  },
+  "volumes": [
+    {
+      "id": "b92846ec-9a00-40b6-80a9-bc9dce1e69a2",
+      "mountPath": "/data",
+      "name": "arcuex-nov20-beta-volume",
+      "region": "us-west2",
+      "sizeMB": 5000,
+      "state": "live"
+    }
+  ],
+  "config": {
+    "build": {
+      "buildEnvironment": "V3",
+      "builder": "RAILPACK"
+    },
+    "deploy": {
+      "drainingSeconds": 20,
+      "healthcheckPath": "/api/health/live",
+      "healthcheckTimeout": 300,
+      "ipv6EgressEnabled": false,
+      "multiRegionConfig": {
+        "us-west2": {
+          "numReplicas": 1
+        }
+      },
+      "overlapSeconds": 0,
+      "restartPolicyMaxRetries": 3,
+      "runtime": "V2",
+      "startCommand": "/entrypoint.sh node /app/deploy/railway/supervisor.cjs",
+      "useLegacyStacker": false
+    },
+    "networking": {
+      "serviceDomains": {
+        "arcuex-nov20-beta-production.up.railway.app": {
+          "port": 8080
+        }
+      }
+    },
+    "volumeMounts": {
+      "b92846ec-9a00-40b6-80a9-bc9dce1e69a2": {
+        "mountPath": "/data"
+      }
+    }
+  },
+  "staged": null,
+  "stagedChanges": []
+}
