@@ -1,0 +1,84 @@
+{
+  "baseline": "f8365a85f0c4a6298f713be7e799cb7538ca1fc7",
+  "branch": "feat/platform-foundation",
+  "commits": {
+    "A1": "5e1fd06",
+    "A3": "316d060",
+    "A2": "f653ee9",
+    "A4": "9e981f2"
+  },
+  "commands": {
+    "pnpm test": {
+      "passed": true,
+      "totalTests": 254,
+      "byTarget": {
+        "packages/domain": 25,
+        "packages/chain": 5,
+        "packages/persistence": 18,
+        "packages/quicknode": 9,
+        "packages/onchain": 47,
+        "packages/insurance": 48,
+        "packages/agent-sdk": 12,
+        "apps/web": 90
+      }
+    },
+    "pnpm typecheck": {
+      "passed": true
+    },
+    "pnpm lint": {
+      "passed": true
+    },
+    "pnpm build": {
+      "passed": true
+    },
+    "pnpm test:contracts": {
+      "passed": true,
+      "totalTests": 22,
+      "setup": "Used existing local cached ignored forge-std 1.17.0 and OpenZeppelin 5.2.0; tracked contract sources unchanged."
+    },
+    "pnpm --filter @arcuex/insurance example:bank-review": {
+      "passed": true,
+      "exportReplayPassed": true,
+      "artifactHashesVerified": true,
+      "exportContainsPrivateKeys": false
+    }
+  },
+  "scenarioSummary": {
+    "examinedCases": 1800,
+    "attributionCounts": {
+      "recorded_human_override": 1350,
+      "recorded_ai_denial": 450,
+      "other_recorded_action": 0,
+      "uncertain": 0
+    },
+    "discrepancies": 1350,
+    "uncertainEvidenceCases": 0,
+    "potentiallyEligiblePendingChecks": 450
+  },
+  "financialActions": {
+    "reserveChange": false,
+    "bindingDecision": false,
+    "coverageDenial": false,
+    "policyRescission": false,
+    "settlementAuthorization": false,
+    "payment": false
+  },
+  "fullEvidenceHash": "e486c4016e0431711e52c406c9fa3557d838153797385ec627b3094a4678832b",
+  "fullDossierHash": "67231c8645fbd03872d167b135e569ff10b9e784d72d92b3d089a7fa1c981df7",
+  "scope": {
+    "productionDataAccess": false,
+    "deploymentChange": false,
+    "contractChange": false,
+    "financialBroadcast": false,
+    "newPersistentPolicyRepresentation": false,
+    "defaultMigrationChange": false,
+    "existingRegressionTestChanges": false,
+    "modelProviderIntegration": false
+  },
+  "limitations": [
+    "Synthetic fixture signatures do not prove real bank evidence, recommendation correctness, causation or fraud.",
+    "Product permissions require externally authenticated server context; no HTTP authoring or authority provisioning added.",
+    "No live reserves, binding, denial, rescission or payment authorization is produced.",
+    "Full evidence/dossier artifacts are ignored local outputs; source and compact summary permit regeneration."
+  ]
+}

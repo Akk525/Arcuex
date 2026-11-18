@@ -10,12 +10,15 @@
       "default": "./src/index.ts"
     }
   },
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src --max-warnings=0",
-    "test": "vitest run"
+    "test": "vitest run",
+    "example:bank-review": "tsx examples/generate-bank-review.ts"
   },
   "dependencies": {
     "@arcuex/domain": "workspace:*",
@@ -24,6 +27,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "tsx": "^4.23.15",
     "typescript": "^5.8.2",
     "vitest": "^3.0.9"
   }

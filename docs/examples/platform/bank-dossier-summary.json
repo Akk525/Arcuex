@@ -1,0 +1,477 @@
+{
+  "mode": "synthetic_read_only",
+  "productReference": {
+    "organizationId": "synthetic-lab",
+    "productId": "BANK_DISPUTE_AI_LIABILITY_DEMO",
+    "version": 1,
+    "digest": "sha256:4cd0b3cd953e35d285a02b6926917c3426e68dc143f0036f8da13fcf547c23ed"
+  },
+  "inputCounts": {
+    "submittedCases": 1800,
+    "evidenceRecords": 10800
+  },
+  "summary": {
+    "examinedCases": 1800,
+    "attributionCounts": {
+      "recorded_human_override": 1350,
+      "recorded_ai_denial": 450,
+      "other_recorded_action": 0,
+      "uncertain": 0
+    },
+    "discrepancies": 1350,
+    "uncertainEvidenceCases": 0,
+    "potentiallyEligiblePendingChecks": 450
+  },
+  "evidenceSha256": "e486c4016e0431711e52c406c9fa3557d838153797385ec627b3094a4678832b",
+  "fullDossierSha256": "67231c8645fbd03872d167b135e569ff10b9e784d72d92b3d089a7fa1c981df7",
+  "lossAsset": {
+    "kind": "currency",
+    "code": "USD",
+    "scale": 2
+  },
+  "lossSummary": [
+    {
+      "category": "compensation",
+      "syntheticAssessedUnits": "179910000",
+      "claimedOnlyUnits": "0",
+      "uncertainEvidenceCases": 0
+    },
+    {
+      "category": "regulatory_fines",
+      "syntheticAssessedUnits": "0",
+      "claimedOnlyUnits": "2519100",
+      "uncertainEvidenceCases": 0
+    },
+    {
+      "category": "recoveries",
+      "syntheticAssessedUnits": "67500",
+      "claimedOnlyUnits": "0",
+      "uncertainEvidenceCases": 0
+    },
+    {
+      "category": "expenses",
+      "syntheticAssessedUnits": "5217300",
+      "claimedOnlyUnits": "0",
+      "uncertainEvidenceCases": 0
+    }
+  ],
+  "financialActions": {
+    "reserveChange": false,
+    "bindingDecision": false,
+    "coverageDenial": false,
+    "policyRescission": false,
+    "settlementAuthorization": false,
+    "payment": false
+  },
+  "review": {
+    "handlingTier": "TIER_3",
+    "recommendation": "REFER_ADJUSTER_AND_SIU",
+    "suspectedMisrepresentationIsNotProvenFraud": true,
+    "disputedCaseIds": "All case-level IDs are in the full local dossier.",
+    "missingInformation": [
+      "adjuster_and_SIU_review_of_possible_misrepresentation",
+      "assess_regulatory_fines",
+      "explain_submitted_attribution_vs_recorded_human_action",
+      "fine_insurability_and_coverage_review",
+      "human_override_reason_and_authority",
+      "independent_loss_and_liability_assessment",
+      "issued_policy_and_complete_wording",
+      "prior_compensation_and_other_insurance",
+      "trigger_and_reporting_dates"
+    ],
+    "limitations": "Preliminary policy-wording-dependent analysis only. Recorded actor attribution does not prove recommendation correctness, proximate causation, legal liability, coverage, intentional fraud or a payable amount."
+  },
+  "exampleFindings": [
+    {
+      "caseId": "dispute-00001",
+      "assertedCause": "ai_only",
+      "recordedAttribution": "recorded_human_override",
+      "discrepancy": true,
+      "execution": {
+        "recommendation": {
+          "eventId": "dispute-00001-recommendation",
+          "caseId": "dispute-00001",
+          "sourceId": "synthetic-bank-audit",
+          "occurredAt": "2026-11-01T12:00:00.000Z",
+          "recordedAt": "2026-11-01T12:00:01.000Z",
+          "kind": "recommendation",
+          "decision": "approve",
+          "actingPrincipal": {
+            "id": "dispute-agent",
+            "kind": "ai"
+          },
+          "modelVersion": "synthetic-model-v1"
+        },
+        "finalDecision": {
+          "eventId": "dispute-00001-decision",
+          "caseId": "dispute-00001",
+          "sourceId": "synthetic-bank-audit",
+          "occurredAt": "2026-11-01T12:01:00.000Z",
+          "recordedAt": "2026-11-01T12:01:01.000Z",
+          "kind": "final_decision",
+          "decision": "deny",
+          "actingPrincipal": {
+            "id": "analyst-1",
+            "kind": "human"
+          },
+          "modelVersion": "synthetic-model-v1",
+          "recommendationEventId": "dispute-00001-recommendation"
+        }
+      },
+      "evidenceRefs": [
+        {
+          "eventId": "dispute-00001-recommendation",
+          "sourceId": "synthetic-bank-audit",
+          "digest": "sha256:199dc41852b70ea5aa2ccdcde47bd486d6e483efe6518d5ae37a87fd44f3bdcd"
+        },
+        {
+          "eventId": "dispute-00001-decision",
+          "sourceId": "synthetic-bank-audit",
+          "digest": "sha256:38520d126fa64e31da6a7817a1e817724ad18b956d895e54585d1f5ca389756e"
+        },
+        {
+          "eventId": "dispute-00001-compensation",
+          "sourceId": "synthetic-finance",
+          "digest": "sha256:740ffcf3ecab9424fe9b8c995651d305aba02983a05a5d1b63f85fdb7da6d498"
+        },
+        {
+          "eventId": "dispute-00001-expenses",
+          "sourceId": "synthetic-finance",
+          "digest": "sha256:a29490f86921a03b987630001dec4bd8fb15d052f42dcefb61425ce657d312c8"
+        },
+        {
+          "eventId": "dispute-00001-recoveries",
+          "sourceId": "synthetic-finance",
+          "digest": "sha256:9048e9d7318e43f0fce298111a305a2334484c898332b41d08edaec05f5d8db9"
+        },
+        {
+          "eventId": "dispute-00001-regulatory_fines",
+          "sourceId": "synthetic-finance",
+          "digest": "sha256:60a69cd54af28fa642961f5b39a154e0351aaa88f042037536013b806f8edb13"
+        }
+      ],
+      "uncertainty": [],
+      "preliminaryCoverage": "potential_human_intervention_exclusion",
+      "exclusionClauseRef": "human-action",
+      "causation": "not_established",
+      "liability": "not_assessed",
+      "fraud": "not_determined",
+      "lossCategories": [
+        {
+          "category": "compensation",
+          "status": "synthetic_assessed",
+          "units": "10000",
+          "evidenceRef": {
+            "eventId": "dispute-00001-compensation",
+            "sourceId": "synthetic-finance",
+            "digest": "sha256:740ffcf3ecab9424fe9b8c995651d305aba02983a05a5d1b63f85fdb7da6d498"
+          }
+        },
+        {
+          "category": "regulatory_fines",
+          "status": "claimed_only",
+          "units": "500",
+          "evidenceRef": {
+            "eventId": "dispute-00001-regulatory_fines",
+            "sourceId": "synthetic-finance",
+            "digest": "sha256:60a69cd54af28fa642961f5b39a154e0351aaa88f042037536013b806f8edb13"
+          }
+        },
+        {
+          "category": "recoveries",
+          "status": "synthetic_assessed",
+          "units": "0",
+          "evidenceRef": {
+            "eventId": "dispute-00001-recoveries",
+            "sourceId": "synthetic-finance",
+            "digest": "sha256:9048e9d7318e43f0fce298111a305a2334484c898332b41d08edaec05f5d8db9"
+          }
+        },
+        {
+          "category": "expenses",
+          "status": "synthetic_assessed",
+          "units": "200",
+          "evidenceRef": {
+            "eventId": "dispute-00001-expenses",
+            "sourceId": "synthetic-finance",
+            "digest": "sha256:a29490f86921a03b987630001dec4bd8fb15d052f42dcefb61425ce657d312c8"
+          }
+        }
+      ],
+      "candidateEconomicNetUnits": "10200",
+      "quantumNotice": "Synthetic assessed economic amounts only; not covered quantum, a reserve or a payable amount. Fines are separate and excluded from this net calculation.",
+      "missingInformation": [
+        "issued_policy_and_complete_wording",
+        "trigger_and_reporting_dates",
+        "independent_loss_and_liability_assessment",
+        "prior_compensation_and_other_insurance",
+        "fine_insurability_and_coverage_review",
+        "explain_submitted_attribution_vs_recorded_human_action",
+        "human_override_reason_and_authority",
+        "adjuster_and_SIU_review_of_possible_misrepresentation",
+        "assess_regulatory_fines"
+      ],
+      "settlementAuthorization": "none"
+    },
+    {
+      "caseId": "dispute-00002",
+      "assertedCause": "ai_only",
+      "recordedAttribution": "recorded_human_override",
+      "discrepancy": true,
+      "execution": {
+        "recommendation": {
+          "eventId": "dispute-00002-recommendation",
+          "caseId": "dispute-00002",
+          "sourceId": "synthetic-bank-audit",
+          "occurredAt": "2026-11-01T12:00:00.000Z",
+          "recordedAt": "2026-11-01T12:00:01.000Z",
+          "kind": "recommendation",
+          "decision": "approve",
+          "actingPrincipal": {
+            "id": "dispute-agent",
+            "kind": "ai"
+          },
+          "modelVersion": "synthetic-model-v1"
+        },
+        "finalDecision": {
+          "eventId": "dispute-00002-decision",
+          "caseId": "dispute-00002",
+          "sourceId": "synthetic-bank-audit",
+          "occurredAt": "2026-11-01T12:01:00.000Z",
+          "recordedAt": "2026-11-01T12:01:01.000Z",
+          "kind": "final_decision",
+          "decision": "deny",
+          "actingPrincipal": {
+            "id": "analyst-2",
+            "kind": "human"
+          },
+          "modelVersion": "synthetic-model-v1",
+          "recommendationEventId": "dispute-00002-recommendation"
+        }
+      },
+      "evidenceRefs": [
+        {
+          "eventId": "dispute-00002-recommendation",
+          "sourceId": "synthetic-bank-audit",
+          "digest": "sha256:e4e4a601be914ce5cd84149c9b5571cb0f1b63ee0135b07a4c7c4a7cc9f0449b"
+        },
+        {
+          "eventId": "dispute-00002-decision",
+          "sourceId": "synthetic-bank-audit",
+          "digest": "sha256:7272ac0c21a3f497590fb1b186dbfbc6bb26894e338a7e7668012d673549e8bd"
+        },
+        {
+          "eventId": "dispute-00002-compensation",
+          "sourceId": "synthetic-finance",
+          "digest": "sha256:a596ee07ed43f9a8c6e2d1a5db94148a3ebb8c865b5c2975fa403683b8cb9c5d"
+        },
+        {
+          "eventId": "dispute-00002-expenses",
+          "sourceId": "synthetic-finance",
+          "digest": "sha256:8d0de96904bb5e0a6e40f577ca3da30611a6e56975a0f63f11da470fa8857577"
+        },
+        {
+          "eventId": "dispute-00002-recoveries",
+          "sourceId": "synthetic-finance",
+          "digest": "sha256:3a9fa0836ab3d3b28c1093e97d464f194e234e79ec395379273558de8a3f84e8"
+        },
+        {
+          "eventId": "dispute-00002-regulatory_fines",
+          "sourceId": "synthetic-finance",
+          "digest": "sha256:f9c2ebdca9bc2c459814f0bcc6f240ba74d2f50dd98d8d9c385d7cbc2ee296d7"
+        }
+      ],
+      "uncertainty": [],
+      "preliminaryCoverage": "potential_human_intervention_exclusion",
+      "exclusionClauseRef": "human-action",
+      "causation": "not_established",
+      "liability": "not_assessed",
+      "fraud": "not_determined",
+      "lossCategories": [
+        {
+          "category": "compensation",
+          "status": "synthetic_assessed",
+          "units": "10100",
+          "evidenceRef": {
+            "eventId": "dispute-00002-compensation",
+            "sourceId": "synthetic-finance",
+            "digest": "sha256:a596ee07ed43f9a8c6e2d1a5db94148a3ebb8c865b5c2975fa403683b8cb9c5d"
+          }
+        },
+        {
+          "category": "regulatory_fines",
+          "status": "claimed_only",
+          "units": "501",
+          "evidenceRef": {
+            "eventId": "dispute-00002-regulatory_fines",
+            "sourceId": "synthetic-finance",
+            "digest": "sha256:f9c2ebdca9bc2c459814f0bcc6f240ba74d2f50dd98d8d9c385d7cbc2ee296d7"
+          }
+        },
+        {
+          "category": "recoveries",
+          "status": "synthetic_assessed",
+          "units": "25",
+          "evidenceRef": {
+            "eventId": "dispute-00002-recoveries",
+            "sourceId": "synthetic-finance",
+            "digest": "sha256:3a9fa0836ab3d3b28c1093e97d464f194e234e79ec395379273558de8a3f84e8"
+          }
+        },
+        {
+          "category": "expenses",
+          "status": "synthetic_assessed",
+          "units": "203",
+          "evidenceRef": {
+            "eventId": "dispute-00002-expenses",
+            "sourceId": "synthetic-finance",
+            "digest": "sha256:8d0de96904bb5e0a6e40f577ca3da30611a6e56975a0f63f11da470fa8857577"
+          }
+        }
+      ],
+      "candidateEconomicNetUnits": "10278",
+      "quantumNotice": "Synthetic assessed economic amounts only; not covered quantum, a reserve or a payable amount. Fines are separate and excluded from this net calculation.",
+      "missingInformation": [
+        "issued_policy_and_complete_wording",
+        "trigger_and_reporting_dates",
+        "independent_loss_and_liability_assessment",
+        "prior_compensation_and_other_insurance",
+        "fine_insurability_and_coverage_review",
+        "explain_submitted_attribution_vs_recorded_human_action",
+        "human_override_reason_and_authority",
+        "adjuster_and_SIU_review_of_possible_misrepresentation",
+        "assess_regulatory_fines"
+      ],
+      "settlementAuthorization": "none"
+    },
+    {
+      "caseId": "dispute-01351",
+      "assertedCause": "ai_only",
+      "recordedAttribution": "recorded_ai_denial",
+      "discrepancy": false,
+      "execution": {
+        "recommendation": {
+          "eventId": "dispute-01351-recommendation",
+          "caseId": "dispute-01351",
+          "sourceId": "synthetic-bank-audit",
+          "occurredAt": "2026-11-01T12:00:00.000Z",
+          "recordedAt": "2026-11-01T12:00:01.000Z",
+          "kind": "recommendation",
+          "decision": "deny",
+          "actingPrincipal": {
+            "id": "dispute-agent",
+            "kind": "ai"
+          },
+          "modelVersion": "synthetic-model-v1"
+        },
+        "finalDecision": {
+          "eventId": "dispute-01351-decision",
+          "caseId": "dispute-01351",
+          "sourceId": "synthetic-bank-audit",
+          "occurredAt": "2026-11-01T12:01:00.000Z",
+          "recordedAt": "2026-11-01T12:01:01.000Z",
+          "kind": "final_decision",
+          "decision": "deny",
+          "actingPrincipal": {
+            "id": "dispute-agent",
+            "kind": "ai"
+          },
+          "modelVersion": "synthetic-model-v1",
+          "recommendationEventId": "dispute-01351-recommendation"
+        }
+      },
+      "evidenceRefs": [
+        {
+          "eventId": "dispute-01351-recommendation",
+          "sourceId": "synthetic-bank-audit",
+          "digest": "sha256:b5f34c525e1d9fdacd57e9f445ba865ab4dcfac75a43209e51cdf092594ae691"
+        },
+        {
+          "eventId": "dispute-01351-decision",
+          "sourceId": "synthetic-bank-audit",
+          "digest": "sha256:60e10bc6406bdbe29bc6f34562c69558c392a4d0ff16b7dfe5b7b03bd3fea71b"
+        },
+        {
+          "eventId": "dispute-01351-compensation",
+          "sourceId": "synthetic-finance",
+          "digest": "sha256:b9adae818f9cf4c768f25c318560a57f57f0fbe82326d12eedba3bc0a9ecdfdf"
+        },
+        {
+          "eventId": "dispute-01351-expenses",
+          "sourceId": "synthetic-finance",
+          "digest": "sha256:f6e723a912b221f27a23cc5770e6d5fec5daea8f09982b6cbdfca887c5b4b56b"
+        },
+        {
+          "eventId": "dispute-01351-recoveries",
+          "sourceId": "synthetic-finance",
+          "digest": "sha256:d715e5667d86cad31396b14d98f214ff15daf5ab59c32276d8f079a081ad559c"
+        },
+        {
+          "eventId": "dispute-01351-regulatory_fines",
+          "sourceId": "synthetic-finance",
+          "digest": "sha256:29290620179da644fdad19287eea385bbc240e3ba030bb18dcd0364467398dba"
+        }
+      ],
+      "uncertainty": [],
+      "preliminaryCoverage": "potentially_eligible_pending_further_checks",
+      "exclusionClauseRef": null,
+      "causation": "not_established",
+      "liability": "not_assessed",
+      "fraud": "not_determined",
+      "lossCategories": [
+        {
+          "category": "compensation",
+          "status": "synthetic_assessed",
+          "units": "145000",
+          "evidenceRef": {
+            "eventId": "dispute-01351-compensation",
+            "sourceId": "synthetic-finance",
+            "digest": "sha256:b9adae818f9cf4c768f25c318560a57f57f0fbe82326d12eedba3bc0a9ecdfdf"
+          }
+        },
+        {
+          "category": "regulatory_fines",
+          "status": "claimed_only",
+          "units": "1850",
+          "evidenceRef": {
+            "eventId": "dispute-01351-regulatory_fines",
+            "sourceId": "synthetic-finance",
+            "digest": "sha256:29290620179da644fdad19287eea385bbc240e3ba030bb18dcd0364467398dba"
+          }
+        },
+        {
+          "category": "recoveries",
+          "status": "synthetic_assessed",
+          "units": "50",
+          "evidenceRef": {
+            "eventId": "dispute-01351-recoveries",
+            "sourceId": "synthetic-finance",
+            "digest": "sha256:d715e5667d86cad31396b14d98f214ff15daf5ab59c32276d8f079a081ad559c"
+          }
+        },
+        {
+          "category": "expenses",
+          "status": "synthetic_assessed",
+          "units": "4250",
+          "evidenceRef": {
+            "eventId": "dispute-01351-expenses",
+            "sourceId": "synthetic-finance",
+            "digest": "sha256:f6e723a912b221f27a23cc5770e6d5fec5daea8f09982b6cbdfca887c5b4b56b"
+          }
+        }
+      ],
+      "candidateEconomicNetUnits": "149200",
+      "quantumNotice": "Synthetic assessed economic amounts only; not covered quantum, a reserve or a payable amount. Fines are separate and excluded from this net calculation.",
+      "missingInformation": [
+        "issued_policy_and_complete_wording",
+        "trigger_and_reporting_dates",
+        "independent_loss_and_liability_assessment",
+        "prior_compensation_and_other_insurance",
+        "fine_insurability_and_coverage_review",
+        "assess_regulatory_fines"
+      ],
+      "settlementAuthorization": "none"
+    }
+  ],
+  "reproducibility": "Run pnpm --filter @arcuex/insurance example:bank-review. Counts and analyses are deterministic; ephemeral synthetic attestor keys/signatures and file hashes change on each generation."
+}

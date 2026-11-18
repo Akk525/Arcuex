@@ -9,3 +9,6 @@ export * from './claims-auth';
 export * from './canonical-loss-key';
 export * from './net-loss';
 export * from './settlement-prep';
+export * from './bank-dispute-evidence';
+export * from './bank-dispute-examiner';
+export * from './bank-dispute-fixture';

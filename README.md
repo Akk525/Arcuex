@@ -147,3 +147,13 @@ or refresh policies after the operator indexer runs. Synthetic terms remain expl
 See [the combined deployment acceptance report](docs/verification/2026-11-18-combined-private-deployment.md)
 for the tested source SHA, results, indexer/backfill conditions and remaining live acceptance.
 The acceptance gate remains enabled. The [hosted deployment report](docs/verification/2026-11-18-combined-railway-hosted.md) records the deployed operational successor, backup, migration and hosted acceptance evidence.
+
+### Isolated platform foundation
+
+The additive product-definition foundation and synthetic bank-dispute examiner are documented in
+[the platform foundation guide](docs/development/platform-foundation.md), with
+[policy-model compatibility decisions](docs/architecture/platform-foundation-compatibility.md).
+Definitions and product publication provenance do not change existing policies or grant financial
+authority. The enterprise-AI dossier is synthetic and read-only; it cannot bind, deny, reserve or pay.
+Run `pnpm --filter @arcuex/insurance example:bank-review` to generate the local synthetic evidence
+and review dossier. No model-provider, production or financial integration is required.
