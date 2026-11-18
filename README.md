@@ -146,4 +146,4 @@ or refresh policies after the operator indexer runs. Synthetic terms remain expl
 
 See [the combined deployment acceptance report](docs/verification/2026-11-18-combined-private-deployment.md)
 for the tested source SHA, results, indexer/backfill conditions and remaining live acceptance.
-The existing Railway deployment and acceptance gate are unchanged.
+The acceptance gate remains enabled. The [hosted deployment report](docs/verification/2026-11-18-combined-railway-hosted.md) records the deployed operational successor, backup, migration and hosted acceptance evidence.

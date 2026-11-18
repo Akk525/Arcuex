@@ -1,0 +1,1 @@
+{"ready":{"ok":true,"checks":{"database":true,"recoveryHold":false,"chain":true,"deployment":true,"solvency":true},"chainId":5042002,"pool":"0x6657974EEdF488380251bDD95A7FFfb0D456E49E"},"gateDenied":401,"unchangedHistoricalTables":29,"changedHistoricalTables":[],"migrationCount":12}
