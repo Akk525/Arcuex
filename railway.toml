@@ -7,7 +7,7 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "pnpm --filter @arcuex/web exec next start -H 0.0.0.0 -p $PORT"
+startCommand = "/entrypoint.sh node /app/deploy/railway/supervisor.cjs"
 healthcheckPath = "/api/health/live"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
