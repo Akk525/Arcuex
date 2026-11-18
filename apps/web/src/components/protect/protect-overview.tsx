@@ -2,116 +2,91 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
-import { WalletPanel } from '@/components/wallet/wallet-panel';
-import { StatusBadge } from '@/components/status-badge';
-
-type OverviewResponse = {
-  poolAddress: string | null;
-  poolDeployed: boolean;
-  policyCount: number;
-  claimCount: number;
-};
+import { EmptyState } from '@/components/ui/empty-state';
+import { useClaimsSession } from '@/hooks/use-claims-session';
+import { useWalletStatus } from '@/hooks/use-wallet-status';
 
 export function ProtectOverview() {
   const router = useRouter();
-  const [data, setData] = useState<OverviewResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/overview')
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`Unable to load overview (${r.status})`);
-        return r.json();
-      })
-      .then((json) => {
-        if (!cancelled) setData(json);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load overview');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const wallet = useWalletStatus();
+  const { session, loading } = useClaimsSession();
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Protect workspace"
-        title="Policyholder overview"
-        description="Connect a wallet, obtain coverage, confirm on-chain binding, then manage policies and claims. Counts below come from this host’s ledger — not invented marketing stats."
+        title="Your coverage journey"
+        description="Connect, sign in, obtain coverage, confirm the bind, then manage policies and claims. Wallet and session status live in the header."
         action={<Button onClick={() => router.push('/coverage')}>Get coverage</Button>}
       />
 
       <Callout kind="live" title="Live vs synthetic">
-        Wallet balances and confirmed pool activity are Arc Testnet. Quote fixtures and synthetic claim
-        evidence are labeled in-product and are not independent loss proof.
+        Confirmed Arc Testnet binds and receipts are labeled separately from synthetic quote fixtures
+        and claim evidence. Prepared policies are never treated as active here.
       </Callout>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <WalletPanel />
-        <Panel title="Your next steps">
+        <Panel title="Account">
+          {loading ? (
+            <p className="text-sm text-[var(--ink-muted)]">Checking session…</p>
+          ) : (
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-[var(--ink-muted)]">Wallet</dt>
+                <dd className="font-mono text-xs">
+                  {wallet.address ? wallet.address : 'Not connected'}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-[var(--ink-muted)]">Claims session</dt>
+                <dd>{session ? session.role : 'Not signed in'}</dd>
+              </div>
+            </dl>
+          )}
+          <p className="mt-3 text-xs text-[var(--ink-muted)]">
+            Use Connect / Sign in in the header. This page does not invent portfolio totals.
+          </p>
+        </Panel>
+        <Panel title="Next actions">
           <ol className="list-decimal space-y-2 pl-5 text-sm text-[var(--ink-muted)]">
-            <li>Sign in with wallet session (nonce cookie).</li>
+            <li>Connect wallet and sign in (header).</li>
             <li>
               <Link href="/coverage" className="text-[var(--accent)] underline">
-                Coverage
+                Coverage wizard
               </Link>{' '}
-              — quote, accept digest, approve premium, bind.
+              — quote, accept digest, approve, bind, confirm.
             </li>
             <li>
               <Link href="/policies" className="text-[var(--accent)] underline">
                 Policies
               </Link>{' '}
-              — only treat status as active after confirmation.
+              — view your authenticated policy list.
             </li>
             <li>
               <Link href="/claims" className="text-[var(--accent)] underline">
                 Claims
               </Link>{' '}
-              — investigate; payment only after verified settlement.
+              — submit and track cases after confirmation.
             </li>
           </ol>
         </Panel>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Panel title="Confirmed pool">
-          {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
-          {!data && !error ? <p className="text-sm text-[var(--ink-muted)]">Loading…</p> : null}
-          {data ? (
-            <div className="space-y-2 text-sm">
-              <StatusBadge
-                label={data.poolDeployed ? 'Pool configured' : 'Pool unset'}
-                tone={data.poolDeployed ? 'live' : 'warn'}
-              />
-              <p className="break-all font-mono text-xs text-[var(--ink-muted)]">
-                {data.poolAddress ?? '—'}
-              </p>
-            </div>
-          ) : null}
-        </Panel>
-        <Panel title="Policies (ledger)">
-          {!data && !error ? <p className="text-sm text-[var(--ink-muted)]">Loading…</p> : null}
-          {data ? (
-            <p className="text-2xl font-semibold tabular-nums text-[var(--ink)]">{data.policyCount}</p>
-          ) : null}
-          <p className="mt-1 text-xs text-[var(--ink-muted)]">Host SQLite count, owner-filtered in APIs.</p>
-        </Panel>
-        <Panel title="Claims (ledger)">
-          {!data && !error ? <p className="text-sm text-[var(--ink-muted)]">Loading…</p> : null}
-          {data ? (
-            <p className="text-2xl font-semibold tabular-nums text-[var(--ink)]">{data.claimCount}</p>
-          ) : null}
-          <p className="mt-1 text-xs text-[var(--ink-muted)]">Not a payout guarantee.</p>
-        </Panel>
-      </div>
+      {!session && !loading ? (
+        <EmptyState
+          title="Sign in to load your policies and claims"
+          description="Personal portfolio data appears only after a wallet session cookie is established. Host-wide ledger counts are not shown as your statistics."
+          action={
+            <Button variant="secondary" onClick={() => router.push('/coverage')}>
+              Start coverage
+            </Button>
+          }
+        />
+      ) : null}
     </div>
   );
 }

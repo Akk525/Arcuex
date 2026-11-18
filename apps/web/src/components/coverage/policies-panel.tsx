@@ -6,7 +6,6 @@ import {
   PROCUREMENT_PRODUCT as PRODUCT,
   type ProcurementPolicy as Policy,
 } from '@arcuex/domain/procurement';
-import { WalletPanel } from '@/components/wallet/wallet-panel';
 import { useProcurement } from '@/hooks/use-procurement';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Callout } from '@/components/ui/callout';
@@ -73,13 +72,16 @@ export function PoliciesPanel({ id }: { id?: string }) {
         <div className="space-y-3">
           <Callout kind="synthetic" title="Synthetic product terms · live bind receipts">
             Immutable demo cover wording with real Arc Testnet transaction references when bound.
-            Prepared records provide no coverage.
+            Prepared records provide no coverage and are never labeled active.
           </Callout>
           <button className="proc-btn" disabled={busy} onClick={() => void run(load)}>
-            {busy ? 'Loading…' : 'Sign in & refresh policies'}
+            {busy ? 'Loading…' : 'Refresh my policies'}
           </button>
+          <p className="text-xs text-[var(--ink-muted)]">
+            Connect and sign in from the header. This list is owner-filtered by the authenticated
+            session.
+          </p>
         </div>
-        <WalletPanel />
       </div>
       {chainError && (
         <Callout kind="warn" title="Chain reconciliation">
