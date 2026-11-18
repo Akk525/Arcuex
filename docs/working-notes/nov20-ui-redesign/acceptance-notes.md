@@ -56,6 +56,16 @@ Captured under `docs/working-notes/nov20-ui-redesign/screenshots/` (local `next 
 - [x] Agent — `agent-desktop.png`, `agent-mobile.png` (`workspace=build`)
 - [x] Ops review — `ops-review-desktop.png` (`workspace=ops`, `/claims/review`)
 
+## Functional integration (post-visual approve-to-test)
+
+Harness + matrix: `docs/working-notes/nov20-ui-redesign/functional-acceptance/`
+
+- Browser E2E (mocked wallet/API): **29 PASS / 0 FAIL**
+- `pnpm --filter @arcuex/web test`: **66 PASS**
+- Logic isolation vs `fb6fe5d`: **0** server/packages/claims API file diffs
+
+Live funded Arc Testnet approve/bind remains an explicit gap (not executed in harness).
+
 ## Review posture
 
-Architecture remains **CONDITIONAL GO**. This pass addresses the NO-GO visual/IA feedback (hero, progressive wizard, claims simplification, shell session indicator, agents/policies empty states). **Do not deploy or merge** until visual + functional review of the new screenshots.
+Architecture + visual pass approved for **functional testing**. Integrated acceptance matrix is green for mocked browser journeys. **Do not deploy or merge** until final visual/product sign-off; keep `ui/nov20-product-experience` isolated from Railway beta.
