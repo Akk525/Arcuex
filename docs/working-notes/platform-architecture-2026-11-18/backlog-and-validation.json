@@ -1,0 +1,555 @@
+{
+  "date": "2026-11-18",
+  "sourceBaseline": "f8365a85f0c4a6298f713be7e799cb7538ca1fc7",
+  "branch": "docs/platform-architecture-roadmap",
+  "taskCount": 33,
+  "epicCounts": {
+    "A": 6,
+    "B": 6,
+    "C": 5,
+    "D": 6,
+    "E": 5,
+    "F": 5
+  },
+  "dependencyGraphAcyclic": true,
+  "oneValidDependencyOrder": [
+    "A1",
+    "A3",
+    "E1",
+    "E4",
+    "A2",
+    "A4",
+    "B3",
+    "D1",
+    "D2",
+    "E2",
+    "E5",
+    "A5",
+    "A6",
+    "B1",
+    "C5",
+    "E3",
+    "B2",
+    "B4",
+    "C1",
+    "D3",
+    "B5",
+    "B6",
+    "C2",
+    "C4",
+    "D4",
+    "D5",
+    "F1",
+    "F2",
+    "F4",
+    "C3",
+    "D6",
+    "F3",
+    "F5"
+  ],
+  "relativeLinksValid": true,
+  "riskCount": 10,
+  "changedFilesOnlyPlanningDocuments": true,
+  "applicationTestsRun": false,
+  "implementationPerformed": false,
+  "notes": "Source/test-definition audit and document consistency checks only. No new runtime guarantees; no deployment, production mutation, or financial transaction.",
+  "tasks": [
+    {
+      "id": "A1",
+      "title": "Define the versioned InsuranceProduct envelope",
+      "dependencies": [],
+      "fields": {
+        "Objective": "Define `InsuranceProductDefinitionV1` and immutable artifact/version references without replacing existing product or policy schemas.",
+        "Files": "New `packages/domain/src/product-definition.ts`, `product-canonical.ts`, corresponding tests and exports.",
+        "Depends": "none.",
+        "Acceptance": "Validate identity, schema version, synthetic marker, organization/party-role references, wording and typed definition references. Reject unknown versions/keys, invalid monetary representations and executable configuration. Canonical content and its domain-separated digest have golden vectors; publication metadata is excluded. A descriptive non-Arc fixture needs no EVM address or USDC.",
+        "Security": "Definition references request approved capabilities; no embedded token, authority grant, executable script or arbitrary callback URL.",
+        "Complexity": "S.",
+        "Compatibility": "Additive exports only; old `CoverageProduct`, `CoverageTerms`, `ProcurementTerms`, IDs and terms digests remain untouched. No registry, database, route or runtime consumer yet."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "A2",
+      "title": "Specify product publication transitions",
+      "dependencies": ["A1", "A3"],
+      "fields": {
+        "Objective": "Model draft, review, approved and retired revisions with separately recorded review/approval provenance.",
+        "Files": "New `packages/domain/src/product-lifecycle.ts` and tests.",
+        "Depends": "A1, A3.",
+        "Acceptance": "Pure transition tests cover allowed/forbidden edges, stale revision rejection, approval tied to an exact content digest, edits requiring a new revision, and retirement preserving historical retrieval. A review may return to a new draft revision; approved content cannot be edited or restored as a mutable draft.",
+        "Security": "A creator cannot self-approve by changing status. An abstract trusted authorization decision is an input contract, not proof that authentication or legally valid authority has been implemented.",
+        "Complexity": "S.",
+        "Compatibility": "No existing active boolean or issued policy is reinterpreted. Persistent publication enforcement is delivered only by A5 after E1/E2/E4."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "A3",
+      "title": "Type exposure, trigger, coverage and evidence definitions",
+      "dependencies": ["A1"],
+      "fields": {
+        "Objective": "Describe what is insured and which facts establish each product's contractual conditions.",
+        "Files": "New domain modules `coverage-definition.ts`, `evidence-requirements.ts` and tests; compose with A1 artifact references.",
+        "Depends": "A1.",
+        "Acceptance": "Typed occurrence, claims-made/reporting, discovery/reporting and circumstance conditions; explicit date roles, sublimits, exclusions/clauses, loss/benefit method references and evidence requirements. Unknown information remains explicit. Validate indemnity and parametric specimens plus a nonfinancial exposure. Reject dangling IDs, incompatible types and impossible date/limit relationships.",
+        "Security": "Evidence authenticity, assertion and recommendation are separate types. Do not put private evidence bytes in a published product or treat a digest as proof of truth.",
+        "Complexity": "M.",
+        "Compatibility": "Keep legacy USDC math, current event-window behavior and V1 evidence payloads unchanged; this task introduces no payout evaluator."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "A4",
+      "title": "Define conditional questionnaires",
+      "dependencies": ["A3"],
+      "fields": {
+        "Objective": "Make submission/FNOL requirements product-specific and versioned.",
+        "Files": "New `packages/domain/src/questionnaire.ts` and tests; test fixtures under `packages/domain/src/__fixtures__/` (proposed).",
+        "Depends": "A3.",
+        "Acceptance": "Validate stable question IDs, answer types, required/conditional fields and document references. Detect unknown references, cycles and ambiguous conditions. Missing facts return a list of requirements. Include the current four attestations and a small enterprise-AI template traceable to the source document, preserving its evidence classifications.",
+        "Security": "Bounded declarative predicates only; no arbitrary expressions or network access. Support data classification/minimization metadata without requesting hidden model chain-of-thought.",
+        "Complexity": "M.",
+        "Compatibility": "No replacement of the current form or stored answers; no implication that a template is a carrier-approved application."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "A5",
+      "title": "Persist approved bundles and pin new policy snapshots",
+      "dependencies": ["A2", "A3", "B3", "E1", "E2", "E4"],
+      "fields": {
+        "Objective": "Add the governed registry and immutable references required for new product-aware offers and policies.",
+        "Files": "Additive `packages/persistence/src/migrations/`, product repositories; application registry service in `packages/insurance`; new policy-version sidecar repository.",
+        "Depends": "A2, A3, B3, E1, E2, E4.",
+        "Acceptance": "Transactionally publish only an authorized exact bundle with all approved references resolvable. Uniqueness is tenant/product/version scoped. New sidecars pin product/workflow/rules/evidence/wording hashes. Editing or retirement cannot alter an issued snapshot. Copy-database upgrades and repeated application preserve old rows and digests.",
+        "Security": "Server authority and tenant checks gate publication. Deletion cannot erase issued-policy provenance. Missing historical approvals are never invented.",
+        "Complexity": "L; review schema/repository and policy-sidecar integration as separate commits.",
+        "Compatibility": "Existing payload bytes and hash domains stay unchanged; historical records remain explicitly legacy/unpinned. No production migration or new issuance in this task."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "A6",
+      "title": "Describe the oracle product as Product Version 1",
+      "dependencies": ["A3", "A4"],
+      "fields": {
+        "Objective": "Encode the current concrete product as a fully resolved local definition bundle before redirecting live code.",
+        "Files": "New domain fixture bundle and compatibility tests against `domain/procurement.ts` and `agent-sdk/procurement.ts`.",
+        "Depends": "A3, A4.",
+        "Acceptance": "Preserve code, wording, exclusions, synthetic status, 1/10/50/100 USDC menus, 1/7/30 day durations, premium/100 and deductible/10 formulas, 600s quote TTL and 900s effective delay. Fixed-input quote snapshot/digest comparison proves semantic equality. Keep the separate legacy synthetic product identifiable.",
+        "Security": "Label demo pricing and fixture-consistency evidence explicitly; do not mark the bundle insurer-approved or enable an executable rule by its name alone.",
+        "Complexity": "S.",
+        "Compatibility": "Fixture/definition only; no old runtime import replaced, policy backfill, contract change or rehashing."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "B1",
+      "title": "Record risk submissions and revisions",
+      "dependencies": ["A4", "E1"],
+      "fields": {
+        "Objective": "Persist product-specific applications independently of quotes or policies.",
+        "Files": "New domain submission contract, insurance submission service, persistence migration/repository and authenticated route.",
+        "Depends": "A4, E1.",
+        "Acceptance": "Product/questionnaire/input revisions and evidence references are pinned. Applicant and insured-role records are explicit. Authorized corrections append revisions. Missing required answers produce a requirements response; idempotency key conflicts reject changed input. Tenant-crossing document/submission access fails.",
+        "Security": "Distinguish enterprise identity/authorization from wallet control; minimize confidential fields and enforce per-record access.",
+        "Complexity": "M.",
+        "Compatibility": "Existing registration remains available; no migration infers enterprise legal identity from its wallet."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "B2",
+      "title": "Implement dry-run underwriting decisions",
+      "dependencies": ["A3", "A4", "A6"],
+      "fields": {
+        "Objective": "Produce explainable `eligible`, `needs_information`, `refer` or `decline` results without issuing a quote.",
+        "Files": "New `packages/insurance/src/underwriting-dry-run.ts` and tests; versioned domain result contract.",
+        "Depends": "A3, A4, A6.",
+        "Acceptance": "Evaluate the resolved oracle bundle and local submission specimens with explicit clock/rule/input versions. Include matched rule IDs, reasons, missing requirements and candidate pricing marked synthetic/unapproved. Unknown inputs never silently pass. Replaying identical inputs is deterministic.",
+        "Security": "Output contains no quote/bind/payment authority or model-based universal risk score; reject executable or unregistered rating methods.",
+        "Complexity": "S.",
+        "Compatibility": "Local/in-memory evaluator only; existing quote behavior and financial code are untouched. B1 is not needed to exercise this pure boundary."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "B3",
+      "title": "Validate allowlisted workflow definitions",
+      "dependencies": ["A1", "A3"],
+      "fields": {
+        "Objective": "Define safe typed steps and conditional routing without building a general editor or runtime.",
+        "Files": "Domain workflow contracts/validator and tests; concrete allowlisted step catalog in insurance.",
+        "Depends": "A1, A3.",
+        "Acceptance": "Resolve input/output types, version references, transitions, terminal outcomes and allowed capabilities. Reject unreachable steps, missing references, unsupported capabilities, unbounded loops/retries and contradictory conditions. Model the current placement and claims paths as test definitions.",
+        "Security": "No arbitrary code, shell/SQL, unrestricted fetch, client-provided executor or workflow-minted authority.",
+        "Complexity": "M.",
+        "Compatibility": "Existing state machines remain authoritative; validation alone enables no runtime action."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "B4",
+      "title": "Persist workflow runs with bounded retries and waits",
+      "dependencies": ["B3", "E1", "E3", "E4", "E5"],
+      "fields": {
+        "Objective": "Execute approved concrete steps durably while retaining owner-service authorization.",
+        "Files": "Insurance workflow-run service, persistence run/event/outbox tables, tests and an internal worker integration.",
+        "Depends": "B3, E1, E3, E4, E5.",
+        "Acceptance": "Pin the bundle, run revision, inputs and outputs. Test waits for information/human/receipt, bounded retry/deadline handling, crash recovery and duplicate deliveries. Fail closed on missing/retired capabilities. Replaying events does not repeat an external effect.",
+        "Security": "Worker identities have explicit scope; every side effect is reauthorized at execution. No money-moving operation is enabled by default.",
+        "Complexity": "L; separate durable state, recovery and one concrete operation integration.",
+        "Compatibility": "Start with a nonfinancial collection/referral capability; old procurement and ClaimsCase transitions continue unchanged."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "B5",
+      "title": "Authorize product-aware quotes and issuance conditions",
+      "dependencies": ["A5", "B1", "B2", "E2", "E3", "C5"],
+      "fields": {
+        "Objective": "Connect approved bundles and underwriting decisions to new offers while separating quote, acceptance, bind preparation and issuance.",
+        "Files": "Insurance quote/issuance service; narrow adapters at `agent-sdk/procurement.ts` and server procurement routes; tests.",
+        "Depends": "A5, B1, B2, E2, E3, C5.",
+        "Acceptance": "Require current issuer/underwriter authority and subjectivity clearance. Bind exact submitted/approved terms and premium, expiry, parties and asset. Expired or changed accepted digests fail. Distinguish written/legal issuance confirmation where the product requires it from settlement receipts.",
+        "Security": "Applicant/agent permissions do not establish insurer bind authority; no dry-run recommendation bypasses referral.",
+        "Complexity": "M.",
+        "Compatibility": "Opt in only new offers; unchanged V1 routes and frozen policies remain readable. No deployment or financial execution is part of the PR."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "B6",
+      "title": "Add deterministic scenario and decision traces",
+      "dependencies": ["B2", "B3", "D2"],
+      "fields": {
+        "Objective": "Make underwriting/workflow/checkpoint reasoning inspectable before activating a new bundle.",
+        "Files": "Local scenario runner/test harness in insurance; JSON-safe trace contract and fixtures.",
+        "Depends": "B2, B3, D2.",
+        "Acceptance": "Trace versioned inputs, rules, clause/evidence references and outcome reasons; compare accept/refer/decline/unknown examples. Stable replays exclude wall-clock nondeterminism and secrets. Trace explains why a step was not applicable.",
+        "Security": "Traces contain references/redacted metadata, not confidential documents, hidden chain-of-thought or credentials.",
+        "Complexity": "S.",
+        "Compatibility": "A diagnostic harness only; passing a scenario is not insurer approval or policy issuance."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "C1",
+      "title": "Make policy lifecycle projections explicit",
+      "dependencies": ["A5"],
+      "fields": {
+        "Objective": "Represent preparation, submission, canonical binding, effective coverage, freshness and financial state independently.",
+        "Files": "Domain read contracts, server `policy-read-api.ts`, coverage/policies panels and read-contract tests.",
+        "Depends": "A5.",
+        "Acceptance": "Status cannot say effective from an old receipt alone. Test scheduled/effective/expired windows, stale/failed/reorged checkpoints and correct policy-scoped warnings. Preserve historical evidence without presenting it as current status. Refresh and expired-view behavior are explicit.",
+        "Security": "Claims/financial eligibility stays server-authoritative and fail-closed; cosmetic status cannot grant a capability.",
+        "Complexity": "M.",
+        "Compatibility": "Version the new projection and retain V1 reads for current clients; historical unlinked rows remain visible in the appropriate portfolio context."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "C2",
+      "title": "Append authorized endorsements and cancellation instructions",
+      "dependencies": ["C1", "E2", "E3", "E4"],
+      "fields": {
+        "Objective": "Manage requested policy changes without editing original issued terms.",
+        "Files": "Domain policy-change records, insurance change service, additive persistence and tests.",
+        "Depends": "C1, E2, E3, E4.",
+        "Acceptance": "Track request, proposed schedule, effective interval, authorizations and confirmation. Reject retroactive overwrites, overlap ambiguity and unauthorized beneficiary/coverage changes. A rejected request leaves the original policy unchanged.",
+        "Security": "Carrier-specific consent, notice and rights are prerequisites, not universal defaults. Financial changes require separately authorized supported actions.",
+        "Complexity": "M.",
+        "Compatibility": "Initial local administration records only. Current pool cannot rewrite issued terms; reject unsupported execution instead of pretending an offchain endorsement changed the contract."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "C3",
+      "title": "Model renewals, lapse and expiry",
+      "dependencies": ["C1", "B5"],
+      "fields": {
+        "Objective": "Prepare a new term/offer and record scheduling without silently extending coverage.",
+        "Files": "Domain renewal schedule, insurance administration functions, persistence and tests.",
+        "Depends": "C1, B5.",
+        "Acceptance": "Renewal creates a distinct quote/policy revision as required; expiry is deterministic. Test grace/notice settings only when defined by the product, declined renewals, missing acceptance and time-zone boundaries. No automatic premium debit.",
+        "Security": "A reminder or prior wallet allowance cannot authorize a renewal or waive required consent.",
+        "Complexity": "M.",
+        "Compatibility": "Existing contract end timestamps and quoted terms are immutable; do not reinterpret a new offer as continuous cover."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "C4",
+      "title": "Track insured assets, sublimits and aggregate capacity",
+      "dependencies": ["C1", "E5"],
+      "fields": {
+        "Objective": "Apply product-specific allocation and accumulation constraints across covered exposures.",
+        "Files": "Domain allocation/aggregate records, insurance reservation functions, persistence constraints and tests.",
+        "Depends": "C1, E5.",
+        "Acceptance": "Concurrent allocations cannot exceed policy/section/aggregate caps. Distinguish capital-pool capacity, contractual aggregate and external insurer capacity. Exercise multiple assets, released reservations and related-loss aggregation.",
+        "Security": "Authoritative capacity adjustments require role/reason; a workflow cannot invent funding or reduce existing liabilities.",
+        "Complexity": "M.",
+        "Compatibility": "Preserve current full-collateralized USDC math; do not sum synthetic ledger and live pool balances as one asset."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "C5",
+      "title": "Define payment intents and the concrete Arc capability boundary",
+      "dependencies": ["A3", "E2", "E5"],
+      "fields": {
+        "Objective": "Separate policy/claim decisions from rail preparation, external execution and reconciliation.",
+        "Files": "Domain payment-intent/asset contracts, insurance intent orchestration, narrow adapter around existing onchain preparation/read helpers and tests.",
+        "Depends": "A3, E2, E5.",
+        "Acceptance": "Bind exact asset, amount, recipient, purpose, case/policy, authority and idempotency reference. Prepare/submit/verify/reconcile states are distinct. Arc capability validation rejects non-USDC, incompatible claim-payment windows and unsupported amendments. Test timeout/unknown outcomes without live sends.",
+        "Security": "No new signer, allowance, automatic broadcast or second rail. Revalidate authorization and beneficiary at execution; receipts must match exact intent.",
+        "Complexity": "M.",
+        "Compatibility": "Keep ABI, contract, entity hashes and existing transaction helpers. Rail abstraction does not weaken financial controls or assert support for fiat."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "D1",
+      "title": "Add product-specific evidence requirements and verification attestations",
+      "dependencies": ["A3", "E1", "E4"],
+      "fields": {
+        "Objective": "Replace a generic completeness assertion with evaluated requirements and identifiable verification records.",
+        "Files": "Insurance evidence service/evaluator, persistence metadata/attestation tables and access-checked routes; tests.",
+        "Depends": "A3, E1, E4.",
+        "Acceptance": "Separate assertion, collection, integrity, source authentication, sufficiency and interpretation. Each required item has an explicit state/reason. Changing evidence invalidates dependent approval bindings. Test forged verification labels, conflicting sources, absent originals and stale attestations.",
+        "Security": "Hash alone does not mean authentic. Tenant/object access, confidentiality, privilege/retention references and synthetic labels are mandatory; do not put evidence bytes on chain.",
+        "Complexity": "M.",
+        "Compatibility": "Retain existing manifests and roots. Old metadata is not silently promoted to a stronger verification level; no speculative external collector is added."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "D2",
+      "title": "Define the nine-checkpoint adjudication dossier",
+      "dependencies": ["A3"],
+      "fields": {
+        "Objective": "Separate trigger/notice, insured scope, classification, causation, liability, coverage, quantum, resolution authority and closure.",
+        "Files": "New domain claim-determination contracts, insurance validators and fixtures/tests.",
+        "Depends": "A3.",
+        "Acceptance": "Each checkpoint records result, evidence/clauses, actor/version, missing facts and reason. Liability may be not applicable only under an explicit product rule. Full/partial acceptance, pending information, referral, decline and authorized defence/reservation are distinct proposed outcomes.",
+        "Security": "No AI recommendation or technical incident proves liability/coverage/quantum; a dossier alone grants no settlement authority.",
+        "Complexity": "S.",
+        "Compatibility": "Add a dossier alongside ClaimsCase; do not change terminal V1 states or route all products through a liability decision."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "D3",
+      "title": "Implement dry-run Tier 1/2/3 routing",
+      "dependencies": ["D2", "A6"],
+      "fields": {
+        "Objective": "Explain handling assignments using approved product-specific criteria rather than claim value alone.",
+        "Files": "New insurance triage evaluator/result types and tests.",
+        "Depends": "D2, A6.",
+        "Acceptance": "Evaluate amount, uncertainty, coverage conflict, fraud indicators, common-cause accumulation, specialist needs and authority availability. Missing/contradictory facts escalate. Test a small disputed loss and larger clean parametric case; mandatory escalation overrides amount rules. Return required authority and reasons, never a payment instruction.",
+        "Security": "A tier/confidence score cannot authorize payout. Sensitive claimant data is used only under explicit product/organization policy and restricted access.",
+        "Complexity": "S.",
+        "Compatibility": "Local/dry-run first; existing REVIEW and authorized settlement gates remain unchanged."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "D4",
+      "title": "Record evidence-linked examiner recommendations",
+      "dependencies": ["D1", "D2", "D3"],
+      "fields": {
+        "Objective": "Support advisory case analyses without integrating an AI provider or enabling decisions.",
+        "Files": "Domain recommendation/provenance schema, insurance advisory ingestion/validation, persistence and tests using fixtures.",
+        "Depends": "D1, D2, D3.",
+        "Acceptance": "Store input/evidence versions, producer/model reference if any, proposed chronology/checkpoints, discrepancies and citations. Invalid/missing citations reject or mark unsubstantiated. A new recommendation cannot overwrite evidence or approved adjudication.",
+        "Security": "Treat external/model text as untrusted; no tool execution, credentials, authority changes or payment capabilities. Do not ingest hidden chain-of-thought.",
+        "Complexity": "M.",
+        "Compatibility": "Fixture/import-only advisory records; a real model-provider integration requires a later tracked scope expansion and data-processing approval."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "D5",
+      "title": "Extend the human review workbench with scoped decisions",
+      "dependencies": ["D1", "D2", "D3", "E2", "E3"],
+      "fields": {
+        "Objective": "Present the dossier and recommendations to an authorized reviewer with documented referral paths.",
+        "Files": "Claims review components/routes, insurance review commands and integration tests.",
+        "Depends": "D1, D2, D3, E2, E3.",
+        "Acceptance": "Show evidence provenance, chronology, conflicts, relevant clauses, quantum and required approvals. Reviewers can request information, refer or decide only within scope. Concurrent/stale approval attempts fail. Partial determinations preserve each head of loss and do not silently enable unsupported payout execution.",
+        "Security": "Server-enforce amount/product/tenant limits and separation of duties; AI output is visibly advisory.",
+        "Complexity": "M.",
+        "Compatibility": "Keep current reviewer/authority workflow; new capabilities are opt-in with versioned decisions and no live settlement execution."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "D6",
+      "title": "Record complaints, appeals, recoveries and controlled reopening",
+      "dependencies": ["D5", "C1", "E4"],
+      "fields": {
+        "Objective": "Preserve post-decision rights/processes and feed back documented learning without rewriting history.",
+        "Files": "New domain post-claim records, insurance commands, persistence and minimal review UI/tests.",
+        "Depends": "D5, C1, E4.",
+        "Acceptance": "Append complaint/appeal/recovery records with applicable deadlines and decision ownership. Reopening creates a new authorized investigation revision; old decisions remain visible. New payment proposals recheck prior/committed compensation. Underwriting feedback requires review.",
+        "Security": "No automatic reversal, recovery debit, subrogation action or reuse of claimant evidence for training. Protect legal hold and privileged material.",
+        "Complexity": "M.",
+        "Compatibility": "V1 DENIED/PAID rows remain historical terminal records; use versioned follow-on processes rather than mutating their meaning."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "E1",
+      "title": "Establish organization, tenant and principal scope",
+      "dependencies": ["A1"],
+      "fields": {
+        "Objective": "Add organization membership and independently authenticated actor/capability context before enterprise write APIs.",
+        "Files": "Domain identity contracts, server authentication mapping, persistence constraints/repositories and negative integration tests.",
+        "Depends": "A1.",
+        "Acceptance": "Every new record, object reference, command, idempotency key and read is tenant-scoped. Test cross-tenant guessed IDs, inherited roles, agent delegation, reviewer access and audit leaks. Explicitly represent the existing beta's single-tenant scope.",
+        "Security": "Wallet possession is neither company identity nor insurer authority. Never trust client-supplied tenant/role fields without membership verification.",
+        "Complexity": "M.",
+        "Compatibility": "Do not silently broaden current global operator permissions into enterprise tenants. Multi-tenant access stays disabled until isolation tests pass."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "E2",
+      "title": "Model independent authority grants",
+      "dependencies": ["E1", "A1"],
+      "fields": {
+        "Objective": "Separate product authorship from publish, underwriting, quote, bind, adjudication and settlement rights.",
+        "Files": "Domain authority-grant/decision types, insurance evaluator, persistence and tests.",
+        "Depends": "E1, A1.",
+        "Acceptance": "Scope grants by issuer/subject/tenant/product/version/action, validity, recipient restrictions, per-case/cumulative limits, delegation depth, revocation and required co-approvals. Missing, expired, revoked or out-of-scope grants deny. Product configuration cannot create or elevate a grant.",
+        "Security": "Bootstrapping a grant requires a reviewed organization authority root; a database role or approval flag is not legal authority.",
+        "Complexity": "M.",
+        "Compatibility": "Map existing beta roles conservatively; preserve its designated on-chain authority and disclose backend-only delegation limitations."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "E3",
+      "title": "Recheck authority and approval bindings at command execution",
+      "dependencies": ["E2", "E4", "E5"],
+      "fields": {
+        "Objective": "Prevent stale authorization, concurrent budget overspend and self-approval at consequential command boundaries.",
+        "Files": "Insurance command guards, server mutation adapters, transaction tests.",
+        "Depends": "E2, E4, E5.",
+        "Acceptance": "Revalidate exact version/input/evidence/amount/beneficiary, grant expiry/revocation and reserved cumulative capacity in the transaction. Enforce distinct approvers where required. Test replay, changed recipient, delayed command and concurrent approvals.",
+        "Security": "No majority vote, confidence score or workflow-admin override. Unknown execution outcomes remain blocked pending reconciliation.",
+        "Complexity": "M.",
+        "Compatibility": "Apply to new commands through adapters; do not claim old executable EOA calldata can be revoked by backend checks."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "E4",
+      "title": "Extend audit and decision provenance",
+      "dependencies": ["A1"],
+      "fields": {
+        "Objective": "Record how a versioned configuration, evidence set and authority decision produced a command or outcome.",
+        "Files": "Domain audit envelope, persistence append-only event helpers and tests; minimal trace reads.",
+        "Depends": "A1.",
+        "Acceptance": "Correlate tenant, actor, command/idempotency ID, record revision, product/workflow/rules/evidence versions, reasons and authorization references. Commit audit with state changes; retries do not duplicate effects. Redacted views retain traceability.",
+        "Security": "Exclude secrets and unnecessary personal/privileged data; define access and retention references. Append-only application events are not by themselves tamper-proof storage.",
+        "Complexity": "S.",
+        "Compatibility": "Preserve old audit rows and serializers; do not rewrite historical actors or present a stronger audit guarantee than the storage provides."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "E5",
+      "title": "Preserve loss, reservation, idempotency and reconciliation invariants",
+      "dependencies": ["A3", "E1", "E4"],
+      "fields": {
+        "Objective": "Build the shared transactional commitment/outbox boundary required by new commands.",
+        "Files": "Insurance accounting/commitment helpers, persistence uniqueness/outbox records and invariant tests; narrow onchain reconciliation integration.",
+        "Depends": "A3, E1, E4.",
+        "Acceptance": "Test repeated/cross-case requests, concurrent commitments, partial payments, unknown recoveries, crashes between persistence and delivery, receipt mismatches and reorgs. Distinguish policy loss keys from cross-policy occurrence/correlation identity. No double counting of paid and committed amounts or assets across rails.",
+        "Security": "Asset/recipient/purpose are immutable intent bindings; local state cannot manufacture financial-event proof or overwrite receipts.",
+        "Complexity": "L; split commitment reservation, delivery idempotency and reconciliation tests into reviewable commits.",
+        "Compatibility": "Retain existing net-loss/capital math and on-chain `lossKey` hashes. No live payout, accounting conversion or unsupported financial adapter."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "F1",
+      "title": "Expose versioned discovery and dry-run APIs to humans and agents",
+      "dependencies": ["A5", "B1", "B2", "D3", "E1"],
+      "fields": {
+        "Objective": "Serve the same approved definitions and authoritative outcomes through consistent typed interfaces.",
+        "Files": "Versioned web routes, domain wire contracts, HTTP SDK client and contract tests.",
+        "Depends": "A5, B1, B2, D3, E1.",
+        "Acceptance": "Clients discover supported bundle versions, required input and capability limitations; submit revisions and request dry-run explanations with identical semantics. Test unauthorized/unapproved discovery, unknown versions, retries and human/agent parity.",
+        "Security": "Machine clients never receive server credentials or authority by knowing a route. Tenant and authorization checks remain server-side.",
+        "Complexity": "M.",
+        "Compatibility": "Retain current remote procurement client/routes and Arc-only contract names behind explicit V1 adapters; do not expose server SQLite orchestration to browser bundles."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "F2",
+      "title": "Add compatibility and shadow-evaluation regression gates",
+      "dependencies": ["A6", "B2", "D2", "D3"],
+      "fields": {
+        "Objective": "Prove additive platform work preserves the current product and existing financial safeguards.",
+        "Files": "Oracle fixtures and integration tests across domain, insurance, SDK, web and copy-database migrations; CI targets as needed.",
+        "Depends": "A6, B2, D2, D3.",
+        "Acceptance": "Golden old terms digests, policy IDs and calldata stay byte-identical. Existing cases/read states remain interpretable. Shadow evaluations cover quote expiry, scheduled/effective coverage, contradictory evidence, unknown recoveries, duplicate loss and unsupported rail semantics. No private production DB is needed.",
+        "Security": "Mocks/fixtures are explicitly labeled; no live wallet, RPC-key disclosure or financial execution in regression CI.",
+        "Complexity": "M.",
+        "Compatibility": "Fail rather than update goldens merely to accommodate a refactor. New contracts must not force historical reissuance."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "F3",
+      "title": "Add a restricted Product Studio for governed registry operations",
+      "dependencies": ["A2", "A4", "A5", "E2", "F1"],
+      "fields": {
+        "Objective": "Let authorized users draft/review definitions through allowlisted forms after registry semantics are proven.",
+        "Files": "New Build workspace product pages, scoped registry routes and UI/API tests.",
+        "Depends": "A2, A4, A5, E2, F1.",
+        "Acceptance": "Draft versions, validation errors, diff/preview, review and retirement operate on the exact content approved. Authors cannot publish without grants; retired versions remain readable to permitted users. Published changes require a new version. Show referenced workflow capabilities rather than arbitrary code fields.",
+        "Security": "No editor control grants financial access; prevent cross-tenant reference selection and executable content injection.",
+        "Complexity": "L; ship draft/read/validation before review/publication UI.",
+        "Compatibility": "Preserve Protect procurement and claims UI. New authoring does not switch the live product or deploy configuration."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "F4",
+      "title": "Expose operational health for workflow and financial projections",
+      "dependencies": ["C1", "B4", "E5"],
+      "fields": {
+        "Objective": "Make freshness, failed work, authority refusals and per-policy versus portfolio warnings actionable.",
+        "Files": "Read-only health/projection services, worker instrumentation and scoped operations views/tests.",
+        "Depends": "C1, B4, E5.",
+        "Acceptance": "Show checkpoint age, pending intents, retry/dead-letter reasons, reconciliation scope and correlation references without secrets. Test stale worker, unavailable RPC, superseded run, reorg and restore. Alerts do not imply payment or claim authorization.",
+        "Security": "Least-privilege operations reads; diagnostics redact credential-bearing URLs and confidential evidence.",
+        "Complexity": "M.",
+        "Compatibility": "Extend the actual release supervisor/indexer; do not apply older documentation that predates the worker or disable fail-closed freshness controls."
+      },
+      "status": "proposed"
+    },
+    {
+      "id": "F5",
+      "title": "Define and verify a gated migration and release runbook",
+      "dependencies": ["B5", "C5", "D5", "F1", "F2", "F3", "F4"],
+      "fields": {
+        "Objective": "Approve the migration only after compatibility, operational recovery and insurance-role decisions are evidenced.",
+        "Files": "Docs, isolated staging/copy-database rehearsals and bounded verification scripts; CI release gates.",
+        "Depends": "B5, C5, D5, F1, F2, F3, F4.",
+        "Acceptance": "Inventory old/new schema readers, backups, copy migration, restore, reversible opt-in and rollback preserving all issued records. Gate any real business on approved parties/jurisdictions/wording/rating/authority and data-handling arrangements. Keep AI advisory until a separately reviewed delegation and evaluation project authorizes more.",
+        "Security": "No gate removal, real issuance, signer introduction, production writes or deployment without separate authorization. Failures return to a safe read-only/legacy path without deleting evidence.",
+        "Complexity": "M for the runbook and isolated rehearsal, excluding any later deployment.",
+        "Compatibility": "Release branch stays stable. Rollback stops new creation; it does not erase new policy history or downgrade its meaning."
+      },
+      "status": "proposed"
+    }
+  ],
+  "historicalPlanningSnapshot": true,
+  "checkedAtStage": "before conditional implementation approval; A4 later reassigned to synthetic enterprise-AI scenario"
+}
