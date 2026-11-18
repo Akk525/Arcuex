@@ -21,8 +21,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { workspace, hydrated, setWorkspace } = useWorkspace();
-  const activeWorkspace: WorkspaceId = workspace ?? 'protect';
-  const items = WORKSPACE_NAV[activeWorkspace];
+  const items = workspace ? WORKSPACE_NAV[workspace] : [];
 
   function switchWorkspace(next: WorkspaceId) {
     setWorkspace(next);
@@ -51,7 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="inline-flex rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--surface)] p-0.5"
           >
             {(['protect', 'build', 'ops'] as const).map((id) => {
-              const selected = hydrated ? activeWorkspace === id : id === 'protect';
+              const selected = hydrated && workspace === id;
               return (
                 <button
                   key={id}
@@ -71,26 +70,33 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <nav aria-label={`${WORKSPACE_LABEL[activeWorkspace]} navigation`} className="flex flex-wrap gap-1">
-          {items.map((item) => {
-            const active = navActive(pathname, item.href);
-            return (
-              <Link
-                key={`${activeWorkspace}:${item.href}:${item.label}`}
-                href={item.href}
-                className={
-                  active
-                    ? 'rounded-[var(--radius)] bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-white'
-                    : 'rounded-[var(--radius)] px-3 py-1.5 text-sm font-medium text-[var(--ink-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--ink)]'
-                }
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+        {workspace ? (
+          <nav aria-label={`${WORKSPACE_LABEL[workspace]} navigation`} className="flex flex-wrap gap-1">
+            {items.map((item) => {
+              const active = navActive(pathname, item.href);
+              return (
+                <Link
+                  key={`${workspace}:${item.href}:${item.label}`}
+                  href={item.href}
+                  className={
+                    active
+                      ? 'rounded-[var(--radius)] bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-white'
+                      : 'rounded-[var(--radius)] px-3 py-1.5 text-sm font-medium text-[var(--ink-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--ink)]'
+                  }
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        ) : (
+          <p className="text-xs text-[var(--ink-muted)]">
+            Choose Protect or Build to open a workspace. Ops stays separate and role-gated on the
+            server.
+          </p>
+        )}
 
-        {activeWorkspace === 'ops' ? (
+        {workspace === 'ops' ? (
           <p className="text-xs text-[var(--ink-muted)]">
             Ops workspace is for provisioned reviewer/authority sessions. Switching here does not grant
             privileges — server authorization still applies.
