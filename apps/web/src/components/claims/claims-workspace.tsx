@@ -33,19 +33,20 @@ export function ClaimsWorkspace() {
       ) : !session ? (
         <AuthRequired description="Use Sign in in the header after connecting your wallet. Cases load only with a server session cookie." />
       ) : (
-        <p className="text-sm text-[var(--ink-muted)]">
-          Signed in as <span className="font-medium text-[var(--ink)]">{session.role}</span>
-          {session.wallet ? (
-            <>
-              {' '}
-              · <span className="font-mono text-xs">{session.wallet}</span>
-            </>
-          ) : null}
-          . Wallet and session controls stay in the header.
-        </p>
+        <>
+          <p className="text-sm text-[var(--ink-muted)]">
+            Signed in as <span className="font-medium text-[var(--ink)]">{session.role}</span>
+            {session.wallet ? (
+              <>
+                {' '}
+                · <span className="font-mono text-xs">{session.wallet}</span>
+              </>
+            ) : null}
+            . Wallet and session controls stay in the header.
+          </p>
+          <ClaimsCaseList />
+        </>
       )}
-
-      <ClaimsCaseList />
 
       <details className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-4 text-sm">
         <summary className="cursor-pointer font-medium text-[var(--ink)]">
