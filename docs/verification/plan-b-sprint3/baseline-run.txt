@@ -1,0 +1,21 @@
+PASS Real signed nonce authenticates policyholder via httpOnly cookie
+PASS Session cookie is HttpOnly and Secure
+PASS Real policy projection is confirmed and eligible against synthetic checkpoint
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+page.waitForURL: Timeout 15000ms exceeded.
+=========================== logs ===========================
+waiting for navigation until "load"
+============================================================
+    at Module.run (/Users/aditya/Projects/Arcuex/docs/working-notes/plan-b-sprint3/browser-acceptance.mjs:51:16)
+    at async <anonymous> (/Users/aditya/Projects/Arcuex/apps/web/scripts/sprint3-local-acceptance.mts:88:3) {
+  log: [],
+  name: 'TimeoutError'
+}
+
+Node.js v24.16.0
+undefined
+/Users/aditya/Projects/Arcuex/packages/insurance:
+[ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL] Command failed with exit code 1: tsx ../../apps/web/scripts/sprint3-local-acceptance.mts

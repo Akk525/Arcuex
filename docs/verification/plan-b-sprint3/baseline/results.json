@@ -1,0 +1,63 @@
+{
+  "boundary": "Real app routes/auth/SQLite with seeded synthetic policy and local read-only RPC fixture; no live chain proof",
+  "migrations": [
+    {
+      "id": "001_init.sql"
+    },
+    {
+      "id": "002_onchain.sql"
+    },
+    {
+      "id": "003_streams_inbox.sql"
+    },
+    {
+      "id": "004_procurement.sql"
+    },
+    {
+      "id": "005_procurement_immutability.sql"
+    },
+    {
+      "id": "004_claims_cases.sql"
+    },
+    {
+      "id": "005_claims_case_binding.sql"
+    },
+    {
+      "id": "006_claims_auth_sessions.sql"
+    },
+    {
+      "id": "007_procurement_claims_integration.sql"
+    },
+    {
+      "id": "008_shared_wallet_session_scope.sql"
+    },
+    {
+      "id": "009_launch_security.sql"
+    },
+    {
+      "id": "010_policy_reconciliation.sql"
+    },
+    {
+      "id": "011_claim_verifications.sql"
+    }
+  ],
+  "policyId": "7916c927-b57e-4350-84ae-6c0b7569ee7e",
+  "rpcMethods": [
+    "eth_chainId",
+    "eth_call"
+  ],
+  "results": [
+    {
+      "status": "PASS",
+      "detail": "Real signed nonce authenticates policyholder via httpOnly cookie"
+    },
+    {
+      "status": "PASS",
+      "detail": "Session cookie is HttpOnly and Secure"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real policy projection is confirmed and eligible against synthetic checkpoint"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Panel } from '@/components/panel';
 import { StatusBadge } from '@/components/status-badge';
 import { claimsFetch } from '@/lib/claims/claims-api';
@@ -25,10 +26,9 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
   const [policies, setPolicies] = useState<PolicyOption[] | null>(null);
   const [policyId, setPolicyId] = useState('');
   const [exposureId, setExposureId] = useState('');
-  const [claimantRef, setClaimantRef] = useState('claimant:dashboard');
-  const [rawEvidence, setRawEvidence] = useState(
-    '{"note":"synthetic fixture evidence — not independent loss proof"}',
-  );
+  const [useFixture, setUseFixture] = useState(true);
+  const [rawEvidence, setRawEvidence] = useState('');
+  const [createdCaseId, setCreatedCaseId] = useState<string | null>(null);
   const [eventRef, setEventRef] = useState('');
   const [observedAt, setObservedAt] = useState('');
   const [intakeKey, setIntakeKey] = useState('');
@@ -81,7 +81,7 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
             action: 'open',
             policyId,
             exposureId,
-            claimantRef,
+            claimantRef: 'authenticated-policyholder',
             idempotencyKey: key,
             observedEventRef: eventRef,
             observedAt: new Date(observedAt).toISOString(),
@@ -92,25 +92,36 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
         if (!openRes.ok) throw new Error(opened.error ?? 'Open failed');
         const caseId = opened.case.id as string;
 
-        const evidenceRes = await claimsFetch('claimant', '/api/claims/cases', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            action: 'attach_evidence',
-            caseId,
-            evidence: {
-              source: 'dashboard-submit',
-              chain: 'arc-testnet',
-              provenance: 'claimant-upload',
-              rawEvidence,
-              verificationMethod: 'fixture_consistency',
-              sourceReliability: 'demo_only',
-              syntheticFixture: true,
-            },
-          }),
-        });
-        const evidenceJson = await evidenceRes.json();
-        if (!evidenceRes.ok) throw new Error(evidenceJson.error ?? 'Evidence failed');
+        setCreatedCaseId(caseId);
+        let evidence = rawEvidence;
+        if (useFixture) {
+          const detailResponse = await claimsFetch('claimant', `/api/claims/cases/${caseId}`);
+          const detail = await detailResponse.json();
+          if (!detailResponse.ok || typeof detail.fixtureCatalog?.raw !== 'string')
+            throw new Error('Supported fixture unavailable. Open the saved claim to continue.');
+          evidence = detail.fixtureCatalog.raw;
+        }
+        if (evidence.trim()) {
+          const evidenceRes = await claimsFetch('claimant', '/api/claims/cases', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              action: 'attach_evidence',
+              caseId,
+              evidence: {
+                source: 'dashboard-submit',
+                chain: 'arc-testnet',
+                provenance: 'claimant-upload',
+                rawEvidence: evidence,
+                verificationMethod: 'fixture_consistency',
+                sourceReliability: 'demo_only',
+                syntheticFixture: true,
+              },
+            }),
+          });
+          const evidenceJson = await evidenceRes.json();
+          if (!evidenceRes.ok) throw new Error(evidenceJson.error ?? 'Evidence failed');
+        }
 
         const completed = await claimsFetch('claimant', '/api/claims/cases', {
           method: 'POST',
@@ -118,7 +129,7 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
           body: JSON.stringify({
             action: 'complete_evidence',
             caseId,
-            evidenceComplete: true,
+            evidenceComplete: !!evidence.trim(),
           }),
         });
 
@@ -130,7 +141,10 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
   }
 
   return (
-    <Panel title="Submit claim" action={<StatusBadge label="SYNTHETIC DEMO MODE" tone="synthetic" />}>
+    <Panel
+      title="Submit claim"
+      action={<StatusBadge label="SYNTHETIC DEMO MODE" tone="synthetic" />}
+    >
       <Callout kind="synthetic" title="Synthetic fixture mode">
         Submissions prove workflow consistency only. They are not independently verified real-world
         losses and cannot authorize payout without claims authority.
@@ -223,29 +237,49 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
               }}
             />
             <span className="text-xs text-zinc-500">
-              Must fall after effective coverage, within expiry, and before now. Synthetic
-              attestation; subject to review.
+              Entered in your browser’s local time and saved as UTC. Must fall after effective
+              coverage, within expiry, and before now. Synthetic attestation; subject to review.
             </span>
           </label>
+          <p className="text-xs text-zinc-500">
+            Policyholder identity comes from your authenticated wallet session.
+          </p>
           <label className="block space-y-1">
-            <span className="text-xs font-medium text-zinc-600">Claimant ref</span>
             <input
-              className="w-full rounded-md border border-zinc-200 px-2 py-1.5 font-mono text-xs"
-              value={claimantRef}
-              onChange={(e) => setClaimantRef(e.target.value)}
-              required
-            />
+              type="checkbox"
+              checked={useFixture}
+              onChange={(e) => setUseFixture(e.target.checked)}
+            />{' '}
+            Use the supported synthetic fixture
           </label>
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-zinc-600">Supporting evidence (raw)</span>
-            <textarea
-              className="min-h-24 w-full rounded-md border border-zinc-200 px-2 py-1.5 font-mono text-xs"
-              value={rawEvidence}
-              onChange={(e) => setRawEvidence(e.target.value)}
-              required
-            />
-          </label>
-          {error && !authRequired ? <p className="text-rose-700">{error}</p> : null}
+          <p className="text-xs text-zinc-500">
+            The server-owned scenario describes 1.50 USDC gross economic loss and resolved zero
+            recoveries. It is not proof of a real event. Verification and human review follow
+            submission.
+          </p>
+          {!useFixture && (
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-zinc-600">Supporting evidence (raw)</span>
+              <textarea
+                className="min-h-24 w-full rounded-md border border-zinc-200 px-2 py-1.5 font-mono text-xs"
+                value={rawEvidence}
+                onChange={(e) => setRawEvidence(e.target.value)}
+              />
+              <span className="text-xs text-zinc-500">
+                Missing or unsupported evidence requires review and cannot establish a payable loss.
+              </span>
+            </label>
+          )}
+          {error && !authRequired ? (
+            <p role="alert" className="text-rose-700">
+              {error}
+            </p>
+          ) : null}
+          {error && createdCaseId && (
+            <Link className="block text-sm underline" href={`/claims/${createdCaseId}`}>
+              Continue saved claim
+            </Link>
+          )}
           <button
             type="submit"
             disabled={pending || !exposureId}
