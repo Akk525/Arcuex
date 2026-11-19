@@ -173,3 +173,8 @@ Plan B Sprint 2 binds synthetic verification to explicit human adjudication, evi
 contractual review and frozen loss calculations. See the [reconciliation, validation and readiness
 report](docs/verification/plan-b-sprint2.md). Fixture success never authorizes payment; production
 synthetic settlement restrictions remain in force.
+
+Plan B Sprint 3 exercises the real local policyholder/reviewer journey with disposable SQLite and
+an explicitly synthetic read-only RPC boundary. See [browser evidence and lifecycle UX changes](docs/verification/plan-b-sprint3.md)
+and [hosted candidate prerequisites](docs/deployments/plan-b-disposable-candidate.md). Hosted deployment
+and financial operations remain separately authorized; no reimbursement occurred in this rehearsal.
