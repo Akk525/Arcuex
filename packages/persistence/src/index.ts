@@ -12,3 +12,5 @@ export type {
   PersistedClaimsCaseEvent,
   PersistedEvidenceManifest,
 } from './claims-case-persistence';
+
+export type { InvestigationEntry, InvestigationKind } from './claim-investigation';

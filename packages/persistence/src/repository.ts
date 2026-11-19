@@ -15,6 +15,8 @@ import {
   type Incident,
   type Policy,
   type Policyholder,
+  type ProcurementAgent,
+  type ProcurementDelegation,
   type Quote,
   type Settlement,
 } from '@arcuex/domain';
@@ -46,8 +48,29 @@ import {
   mapSettlement,
 } from './mappers';
 
+import { appendInvestigationEntry, listInvestigationEntries } from './claim-investigation';
+
 export class InsuranceRepository {
   constructor(private readonly db: SqliteDb) {}
+
+  listInvestigationEntries(caseId: string) {
+    return listInvestigationEntries(this.db, caseId);
+  }
+  appendInvestigationEntry(input: Parameters<typeof appendInvestigationEntry>[1]) {
+    return appendInvestigationEntry(this.db, input);
+  }
+  getProcurementAgent(id: string) {
+    return new ProcurementStore(this.db).get<ProcurementAgent>('agent', id);
+  }
+
+  getProcurementDelegationEvidence(policyId: string, delegationId: string) {
+    const store = new ProcurementStore(this.db);
+    return {
+      delegation: store.get<ProcurementDelegation>('delegation', delegationId),
+      acceptance: store.get<{ at: number; actor: string; digest: string }>('acceptance', policyId),
+      revocation: store.get<{ at: number }>('revocation', delegationId),
+    };
+  }
 
   listClaimVerifications(caseId: string): Array<{ recordJson: string }> {
     return this.db

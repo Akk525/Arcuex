@@ -65,7 +65,7 @@ describe('pinned fixture source isolation and recovery', () => {
   it('uses thirteen unchanged default migrations; pins provenance and a fixed checkpoint', () => {
     const f = fixture();
     try {
-      expect(f.db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(13);
+      expect(f.db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(14);
       expect(readFixture(f.db, f.config, at).source).toEqual({
         mode: 'fixture',
         id,
@@ -102,7 +102,7 @@ describe('pinned fixture source isolation and recovery', () => {
         expect(() =>
           probe.prepare("UPDATE launch_runtime_state SET value='changed'").run(),
         ).toThrow(/readonly/);
-        expect(probe.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(13);
+        expect(probe.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(14);
       } finally {
         probe.close();
       }
@@ -175,6 +175,7 @@ describe('pinned fixture source isolation and recovery', () => {
     { DATABASE_URL: 'secret-never-printed' },
     { PLAN_A_ACCEPTANCE_GATE_TOKEN: 'secret-never-printed' },
     { SIGNER_CREDENTIAL: 'secret-never-printed' },
+    { OPENAI_API_KEY: 'worker-only-test-key' },
     { CLAIMS_AUTHORITY_API_TOKEN: '02'.repeat(32) },
     { CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP: '1' },
     { ARCUEX_CHAIN_SOURCE: 'arc-testnet' },

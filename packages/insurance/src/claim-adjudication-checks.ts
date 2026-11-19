@@ -7,6 +7,8 @@ import {
   type ClaimVerificationRecord,
 } from './claim-verification';
 
+import { investigationApprovalBlocker } from './claims-investigation';
+
 export type ContractualReview = {
   eventApplies: boolean;
   exclusionsResolved: boolean;
@@ -31,6 +33,8 @@ export function checkClaimAdjudication(
   );
   const verification = record ? (JSON.parse(record.recordJson) as ClaimVerificationRecord) : null;
   const fail = (reason: string) => ({ reason, verification });
+  const investigationBlocker = investigationApprovalBlocker(repo, c.id);
+  if (investigationBlocker) return fail(investigationBlocker);
   if (!verification) return fail('PERSISTED_VERIFICATION_REQUIRED');
   if (
     verification.caseId !== c.id ||

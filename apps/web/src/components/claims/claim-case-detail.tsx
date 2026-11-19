@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Panel } from '@/components/panel';
+import { ClaimsInvestigation } from './claims-investigation';
 import { CaseStatusBadge } from '@/components/claims/case-status-badge';
 import { StatusBadge } from '@/components/status-badge';
 import { claimsFetch } from '@/lib/claims/claims-api';
@@ -266,6 +267,13 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
           </Link>
         )}
       </nav>
+      <ClaimsInvestigation
+        caseId={caseId}
+        role={data.principalRole}
+        status={c.status}
+        verificationRevision={data.verifications?.length ?? 0}
+        onChange={refresh}
+      />
       {data.source?.mode === 'fixture' && (
         <Panel title="Synthetic chain-state source">
           <p className="break-all text-sm">

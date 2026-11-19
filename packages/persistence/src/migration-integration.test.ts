@@ -90,7 +90,7 @@ describe('integration migration histories', () => {
     db.pragma('foreign_keys=ON');
     migrate(db);
     migrate(db);
-    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(13);
+    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(14);
     expect(db.pragma('foreign_key_check')).toEqual([]);
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
     expect(
@@ -326,7 +326,7 @@ it('upgrades the consolidated twelve-migration Plan A schema with only append-on
   for (const [table, rows] of before)
     expect(db.prepare(`SELECT * FROM ${table}`).all()).toEqual(rows);
   expect(db.prepare('SELECT * FROM claim_verifications').all()).toEqual([]);
-  expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(13);
+  expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(14);
   expect(
     db.prepare("SELECT name FROM sqlite_master WHERE name='policy_indexer_state'").get(),
   ).toBeUndefined();
@@ -360,6 +360,41 @@ it('upgrades the consolidated twelve-migration Plan A schema with only append-on
       record_json: '{}',
     },
   ]);
+  expect(db.pragma('foreign_key_check')).toEqual([]);
+  expect(db.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }]);
+  db.close();
+});
+
+it('adds investigation journal to exact migration-011 storage without changing case, evidence or verification rows', () => {
+  const db = beforeIntegration([
+    ...common,
+    ...procurement,
+    ...claims,
+    '007_procurement_claims_integration.sql',
+    '008_shared_wallet_session_scope.sql',
+    '009_launch_security.sql',
+    '010_policy_reconciliation.sql',
+    '011_claim_verifications.sql',
+  ]);
+  const caseId = seedClaims(db);
+  db.prepare('INSERT INTO claim_verifications VALUES (?,?,?,?)').run(
+    'before-012',
+    caseId,
+    'before-digest',
+    '{"immutable":"original"}',
+  );
+  const tables = [
+    'claims_cases',
+    'claims_case_events',
+    'claims_evidence_manifests',
+    'claim_verifications',
+  ];
+  const before = tables.map((table) => db.prepare(`SELECT * FROM ${table}`).all());
+  migrate(db);
+  migrate(db);
+  expect(db.prepare('SELECT id FROM schema_migrations').all()).toHaveLength(14);
+  expect(tables.map((table) => db.prepare(`SELECT * FROM ${table}`).all())).toEqual(before);
+  expect(db.prepare('SELECT * FROM claim_investigation_entries').all()).toEqual([]);
   expect(db.pragma('foreign_key_check')).toEqual([]);
   expect(db.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }]);
   db.close();

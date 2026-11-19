@@ -49,6 +49,10 @@ const Envelope = z
   .strict();
 export function claimVerificationContext(repo: InsuranceRepository, caseId: string): string {
   const c = repo.getClaimsCase(caseId);
+  const proof = repo
+    .listInvestigationEntries(caseId)
+    .filter((e) => e.kind === 'proof_submission')
+    .map((e) => ({ id: e.id, recordHash: e.recordHash }));
   return verificationDigest(
     jsonSafe({
       incident: c?.incidentId ? repo.getIncident(c.incidentId) : null,
@@ -57,6 +61,7 @@ export function claimVerificationContext(repo: InsuranceRepository, caseId: stri
         ? (repo.getProcurementPolicy(c.policyId)?.terms ?? repo.getPolicy(c.policyId)?.terms)
         : null,
       manifests: repo.listEvidenceManifests(caseId),
+      ...(proof.length ? { investigationProof: proof } : {}),
     }),
   );
 }

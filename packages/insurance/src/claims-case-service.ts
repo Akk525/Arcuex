@@ -119,6 +119,18 @@ export function canAccessClaimsPolicy(
   if (!context) return false;
   if (principal.role !== 'claimant')
     return ['reviewer', 'authority', 'system'].includes(principal.role);
+  if (principal.agentId && principal.walletAddress) {
+    const policy = repo.getProcurementPolicy(policyId);
+    const agent = repo.getProcurementAgent(principal.agentId);
+    if (
+      policy &&
+      policy.terms.agentId === agent?.id &&
+      agent?.id === principal.agentId &&
+      agent.owner.toLowerCase() === policy.terms.owner.toLowerCase() &&
+      agent.signer.toLowerCase() === normalizeWallet(principal.walletAddress)
+    )
+      return true;
+  }
   if (principal.walletAddress && context.owner === normalizeWallet(principal.walletAddress))
     return true;
   return (
@@ -918,5 +930,24 @@ export function markClaimsCaseSettlementFailed(
     return persistTransition(repo, current, next, actor, input.reasonCode, {
       detail: input.detail ?? null,
     }).case;
+  });
+}
+
+/** Human escalation changes investigation state only; it never creates financial authority. */
+export function escalateClaimsInvestigation(
+  repo: InsuranceRepository,
+  caseId: string,
+  principal: ClaimsPrincipal,
+) {
+  assertClaimsRole(principal, ['reviewer', 'authority']);
+  return repo.runInTransaction(() => {
+    const c = getClaimsCase(repo, caseId);
+    if (!c || !['COLLECTING_EVIDENCE', 'INVESTIGATING', 'REVIEW'].includes(c.status))
+      throw new ValidationError('Investigation is closed');
+    assertClaimsCaseAccess(repo, principal, c);
+    return remainInReview(repo, c, claimsActorId(principal), 'HUMAN_ESCALATION', {
+      coverageDetermination: 'review_required',
+      reviewReasonCode: 'HUMAN_ESCALATION',
+    });
   });
 }

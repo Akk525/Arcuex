@@ -18,7 +18,10 @@ type Snapshot = {
 };
 
 /** Explicit seed operation on a new disposable DB only. No RPC, wallet or financial transaction. */
-export function seedFixture(db: SqliteDb, input: { id: string; owner: string; at: number }) {
+export function seedFixture(
+  db: SqliteDb,
+  input: { id: string; owner: string; at: number; agentSigner?: string },
+) {
   if (!/^candidate-[0-9a-f-]{36}$/.test(input.id) || !Number.isSafeInteger(input.at))
     throw new Error('Invalid fixture identity/checkpoint');
   return db.transaction(() => {
@@ -46,7 +49,7 @@ export function seedFixture(db: SqliteDb, input: { id: string; owner: string; at
     const agent = service.register(input.owner, {
       idempotencyKey: input.id,
       label: 'Synthetic hosted rehearsal fixture',
-      signer: input.owner,
+      signer: input.agentSigner ?? input.owner,
       position: input.id,
       exposureMicros: '1000000',
       ownerAttestsControl: true,

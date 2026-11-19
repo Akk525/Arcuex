@@ -91,6 +91,24 @@ export function authenticateClaimsRequest(
             error: `Authenticated as ${fromSession.role} but action requires ${allowed.join('|')}`,
           };
         }
+        const agentId = request.headers.get('x-arcuex-agent-id');
+        if (agentId) {
+          const agent = repo.getProcurementAgent(agentId);
+          if (
+            fromSession.role !== 'claimant' ||
+            !agent ||
+            agent.signer.toLowerCase() !== fromSession.walletAddress?.toLowerCase()
+          )
+            return {
+              ok: false,
+              status: 403,
+              error: 'Agent identity does not match authenticated signer',
+            };
+          return {
+            ok: true,
+            principal: { ...enrichClaimantPrincipal(fromSession), agentId: agent.id },
+          };
+        }
         return { ok: true, principal: enrichClaimantPrincipal(fromSession) };
       }
     }
@@ -130,7 +148,9 @@ export function authenticateClaimsRequest(
   // Bearer claimant tokens are server/automation only — still not a privileged escalation.
   const subject = matched;
   const allowSynthetic =
-    matched === 'authority' && !c.enforced && process.env.CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP === '1';
+    matched === 'authority' &&
+    !c.enforced &&
+    process.env.CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP === '1';
 
   const principal = enrichClaimantPrincipal({
     role: matched,

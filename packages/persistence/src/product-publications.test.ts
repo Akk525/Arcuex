@@ -62,7 +62,7 @@ describe('opt-in immutable product publication provenance', () => {
     );
     initializeProductRegistry(db);
     initializeProductRegistry(db);
-    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(13);
+    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(14);
     expect(db.prepare('SELECT payload FROM procurement_records WHERE id=?').get('old')).toEqual({
       payload: '{"preserve":"byte-for-byte"}',
     });

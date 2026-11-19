@@ -16,3 +16,5 @@ export * from './procurement-http';
 export * from './procurement-reconcile';
 
 export * from './procurement-api-client';
+
+export * from './claims-api-client';

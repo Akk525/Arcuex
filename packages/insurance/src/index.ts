@@ -14,3 +14,5 @@ export * from './bank-dispute-examiner';
 export * from './bank-dispute-fixture';
 
 export * from './claim-verification';
+
+export * from './claims-investigation';

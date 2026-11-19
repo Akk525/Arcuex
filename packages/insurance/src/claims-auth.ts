@@ -18,13 +18,10 @@ export type ClaimsPrincipal = {
 };
 
 export function claimsActorId(principal: ClaimsPrincipal): string {
-  return `${principal.role}:${principal.subject}`;
+  return `${principal.role}:${principal.subject}${principal.agentId ? `/agent:${principal.agentId}` : ''}`;
 }
 
-export function assertClaimsRole(
-  principal: ClaimsPrincipal,
-  allowed: readonly ClaimsRole[],
-): void {
+export function assertClaimsRole(principal: ClaimsPrincipal, allowed: readonly ClaimsRole[]): void {
   if (!allowed.includes(principal.role)) {
     throw new ValidationError(
       `Claims action requires role ${allowed.join('|')} (got ${principal.role})`,
