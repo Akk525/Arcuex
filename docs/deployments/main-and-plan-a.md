@@ -1,7 +1,9 @@
 # Canonical main and Plan A recovery
 
 Verified November 18, 2026. Repository consolidation is local source work, not deployment approval.
-`main` is the canonical development and eventual deployment branch. Do not start Plan B yet.
+`main` is the canonical development and eventual deployment branch. Plan B Sprint 2 source
+integration is now authorized; deployment and live financial operations remain separately gated.
+See the [Sprint 2 validation and readiness report](../verification/plan-b-sprint2.md).
 
 ## Current hosted fallback
 
@@ -33,7 +35,11 @@ credentials into Git, reports, shell arguments or Docker context.
    the existing runbook; validate a separate copy, volume identity, integrity and foreign keys.
    Account for all writes since the historical acceptance snapshots, including the new bound policy.
 3. Verify the candidate migration list against the deployed twelve migrations through 010.
-   Consolidation retains them byte-for-byte. Product registry tables are opt-in and must not be
+   Consolidation retains them byte-for-byte. Sprint 2 adds default migration
+   `011_claim_verifications.sql` (append-only verification records); it has only been applied to
+   isolated local/test databases. The competing preserved `011_policy_indexer.sql` is excluded.
+   Validate the actual deployed backup against this additive migration before any authorized upgrade.
+   Product registry tables are opt-in and must not be
    initialized in production as a side effect of deploying this source.
 4. After explicit approval, use the documented Docker upload path in
    [the operational runbook](nov20-readonly-reconciliation.md). The service reports a Railpack
@@ -99,7 +105,8 @@ archives are local; archival tags/bundle are not a remote backup unless explicit
 No hosted rollback is needed now: Plan A is still running. After a future approved main deployment,
 return to exact Plan A source using the same reviewed Docker upload procedure and preserved runtime
 configuration, then repeat source/data/auth/indexer checks. Do not run it during consolidation.
-The default schema remains compatible because consolidation adds no startup migrations.
+Consolidation itself added no startup migrations. Sprint 2 subsequently adds verification storage;
+review that migration separately before any deployment or rollback.
 
 Do not restore an old SQLite backup just to roll back code. Historical preupgrade snapshots predate
 later wallet/policy writes. Any database restore requires separate authorization, stopped writers,

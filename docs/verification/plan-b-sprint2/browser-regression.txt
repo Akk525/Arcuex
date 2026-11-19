@@ -1,0 +1,36 @@
+✓ [PASS] COV-01 — Stage 1 validation blocks Continue without agent
+✓ [PASS] COV-02 — Stage 1 → 2 with Back/Continue
+✓ [PASS] COV-03 — Stage 2 validation requires attestations
+✓ [PASS] COV-04 — Back from stage 2 restores stage 1; Continue returns
+✓ [PASS] COV-05 — Stage 2 → 3 after quote
+✓ [PASS] COV-06 — Stage 3 validation requires terms acceptance
+✓ [PASS] COV-07 — Stage 3 → 4 after prepare
+✓ [PASS] COV-08 — Failed / rejected approval surfaces alert
+✓ [PASS] COV-09 — Successful approval after retry
+✓ [PASS] INT-01 — Mock RPC success plus confirm response cannot confirm coverage without canonical lifecycle
+✓ [PASS] INT-02 — Stale canonical checkpoint cannot confirm coverage
+✓ [PASS] COV-10 — Confirmation requires explicit authoritative lifecycle fixture (mock only)
+✓ [PASS] COV-11 — Reload resets wizard to stage 1 (no client persistence of draft quote)
+✓ [PASS] COV-12 — Quote expiry UI (visible=true, blocked=false)
+✓ [PASS] COV-13 — Account change / reconnect resets wizard to stage 1
+✓ [PASS] SES-01 — unauth chrome protect=true build=true ops=false noSession=true disconnected=true
+✓ [PASS] A11Y-01 — Keyboard Tab navigates without crash on landing
+✓ [PASS] NAV-01 — Protect/Build nav (coverage=true, agents=true)
+✓ [PASS] SES-02 — wallet-connected vs session (signIn=true, noSession=true) — depends on wagmi mock attach
+✓ [PASS] SES-03 — claimant session shows Signed in / role; Ops hidden=true
+✓ [PASS] SES-04 — Logout returns No session
+✓ [PASS] SES-05 — Expired/cleared session shows No session
+✓ [PASS] NAV-02 — reviewer: Ops switcher visible=true, roleLabel=false, reviewContent=true
+✓ [PASS] NAV-03 — authority: Ops switcher visible=true, roleLabel=false, reviewContent=true
+✓ [PASS] CLM-01 — list labels ok=true review=true synthetic=true approved=true settlement=true paid=true
+✓ [PASS] CLM-02 — REVIEW detail synthetic=true paidCount=0
+✓ [PASS] CLM-03 — authorized/pending vs paid (settlement=true, paidCount=0)
+✓ [PASS] CLM-04 — PAID case shows PAID status
+✓ [PASS] INT-03 — Fresh server eligibility preserves historical incident intake for expired verified policy
+✓ [PASS] INT-04 — Stale checkpoint hides claim action even for historical policy
+✓ [PASS] A11Y-02 — Mobile landing brand + CTAs reachable
+✓ [PASS] A11Y-03 — Mobile coverage progress indicator (ol=true, text=false)
+✓ [PASS] A11Y-04 — Back disabled on stage 1
+
+Wrote /tmp/acceptance-matrix.md
+PASS=33 FAIL=0 WAIVED=0
