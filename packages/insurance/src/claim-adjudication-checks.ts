@@ -1,13 +1,21 @@
-import { PROCUREMENT_PRODUCT, SYNTHETIC_PRODUCT_CODE } from '@arcuex/domain';
+import {
+  PROCUREMENT_PRODUCT,
+  SYNTHETIC_PRODUCT_CODE,
+  INDEPENDENT_LIQUIDATION_VERIFIER,
+  isSupportedIndependentTerms,
+  sameIndependentLiquidationProfile,
+} from '@arcuex/domain';
 import type { InsuranceRepository } from '@arcuex/persistence';
 import type { ClaimsCase } from './claims-case';
 import {
   claimVerificationContext,
   CLAIM_FIXTURE,
-  type ClaimVerificationRecord,
+  type PersistedClaimVerification,
 } from './claim-verification';
 
 import { investigationApprovalBlocker } from './claims-investigation';
+import { isWithinClaimWindow, readClaimChronology } from './claim-chronology';
+import { INDEPENDENT_MANIFEST_METHOD } from './independent-liquidation';
 
 export type ContractualReview = {
   eventApplies: boolean;
@@ -29,9 +37,11 @@ export function checkClaimAdjudication(
 ) {
   const records = repo.listClaimVerifications(c.id);
   const record = records.find(
-    (r) => (JSON.parse(r.recordJson) as ClaimVerificationRecord).id === input.verificationId,
+    (r) => (JSON.parse(r.recordJson) as PersistedClaimVerification).id === input.verificationId,
   );
-  const verification = record ? (JSON.parse(record.recordJson) as ClaimVerificationRecord) : null;
+  const verification = record
+    ? (JSON.parse(record.recordJson) as PersistedClaimVerification)
+    : null;
   const fail = (reason: string) => ({ reason, verification });
   const investigationBlocker = investigationApprovalBlocker(repo, c.id);
   if (investigationBlocker) return fail(investigationBlocker);
@@ -44,7 +54,7 @@ export function checkClaimAdjudication(
   // A later contradictory or incomplete execution cannot be hidden by selecting an older success.
   if (
     records.some((r) => {
-      const v = JSON.parse(r.recordJson) as ClaimVerificationRecord;
+      const v = JSON.parse(r.recordJson) as PersistedClaimVerification;
       return (
         v.contextDigest === verification.contextDigest &&
         (v.executionStatus !== 'completed' || v.evidenceSufficiency !== 'sufficient')
@@ -57,16 +67,21 @@ export function checkClaimAdjudication(
     verification.evidenceSufficiency !== 'sufficient'
   )
     return fail('INSUFFICIENT_VERIFICATION_EVIDENCE');
+  const procurement = repo.getProcurementPolicy(c.policyId);
+  const independent = !c.syntheticDemo && procurement?.terms.synthetic === false;
   if (
-    verification.fixtureReference !== CLAIM_FIXTURE.reference ||
-    verification.fixtureDigest !== CLAIM_FIXTURE.digest ||
-    verification.authenticity !== 'synthetic_fixture' ||
-    verification.independentlyAuthenticated !== false
+    !independent &&
+    (verification.fixtureReference !== CLAIM_FIXTURE.reference ||
+      verification.fixtureDigest !== CLAIM_FIXTURE.digest ||
+      verification.authenticity !== 'synthetic_fixture' ||
+      verification.independentlyAuthenticated !== false)
   )
     return fail('UNSUPPORTED_VERIFICATION');
   const manifests = repo.listEvidenceManifests(c.id);
-  if (!manifests.length) return fail('MISSING_FIXTURE_MANIFEST');
+  if (!manifests.length)
+    return fail(independent ? 'MISSING_INDEPENDENT_MANIFEST' : 'MISSING_FIXTURE_MANIFEST');
   if (
+    !independent &&
     manifests.some(
       (m) =>
         !m.syntheticFixture ||
@@ -80,23 +95,16 @@ export function checkClaimAdjudication(
   const exposure = policy?.exposures.find((e) => e.id === c.exposureId);
   if (
     !policy?.confirmed ||
-    !policy.synthetic ||
+    policy.synthetic === independent ||
     !incident ||
     !exposure ||
     !repo.incidentMatchesPolicy(incident.id, c.policyId, c.exposureId)
   )
     return fail('POLICY_INCIDENT_NOT_ELIGIBLE');
-  const at = Date.parse(incident.observedAt) / 1000;
-  const procurement = repo.getProcurementPolicy(c.policyId);
-  const legacy = repo.getPolicy(c.policyId);
-  const waitingPeriod = legacy?.terms.waitingPeriodSeconds ?? 0;
-  if (
-    !Number.isFinite(at) ||
-    at < policy.effectiveAt + waitingPeriod ||
-    at > policy.expiresAt ||
-    at > Date.now() / 1000
-  )
+  const chronology = readClaimChronology(repo, c);
+  if (!isWithinClaimWindow(chronology, Date.now()) || !chronology.waitingPeriodSatisfied)
     return fail('INCIDENT_OUTSIDE_COVERAGE');
+  const legacy = repo.getPolicy(c.policyId);
   if (
     policy.deductibleMicros !== c.deductibleMicros ||
     policy.limitMicros !== c.lossCapMicros ||
@@ -104,7 +112,40 @@ export function checkClaimAdjudication(
     policy.beneficiary?.toLowerCase() !== c.payoutTo?.toLowerCase()
   )
     return fail('POLICY_BINDING_CHANGED');
-  if (
+  if (independent) {
+    if (chronology.endsAt.epochMs === null || Date.now() > chronology.endsAt.epochMs)
+      return fail('INDEPENDENT_SETTLEMENT_WINDOW_CLOSED');
+    if (
+      !isSupportedIndependentTerms(procurement.terms) ||
+      verification.verifierVersion !== INDEPENDENT_LIQUIDATION_VERIFIER ||
+      !('profile' in verification) ||
+      !sameIndependentLiquidationProfile(
+        verification.profile,
+        procurement.terms.independentProfile,
+      ) ||
+      verification.authenticity !== 'verified_independent' ||
+      c.evidenceAuthenticity !== 'verified_independent' ||
+      !verification.independentlyAuthenticated ||
+      !verification.eventRef ||
+      verification.eventRef !== incident.observedEventRef ||
+      !verification.validUntilMs ||
+      verification.validUntilMs <= Date.now() ||
+      !verification.anchor ||
+      !manifests.some(
+        (m) =>
+          !m.syntheticFixture &&
+          m.verificationMethod === INDEPENDENT_MANIFEST_METHOD &&
+          m.blockHash === verification.anchor?.hash &&
+          m.rawEvidenceDigest === verification.manifestDigest,
+      ) ||
+      manifests.some(
+        (m) => m.syntheticFixture || m.verificationMethod !== INDEPENDENT_MANIFEST_METHOD,
+      )
+    )
+      return fail('INDEPENDENT_VERIFICATION_UNSUPPORTED_OR_STALE');
+    if (repo.hasIndependentEventCommitment(verification.eventRef, c.id))
+      return fail('INDEPENDENT_EVENT_ALREADY_COMMITTED');
+  } else if (
     procurement
       ? procurement.terms.version !== 1 ||
         procurement.terms.exposure.chainId !== 5042002 ||
@@ -136,7 +177,7 @@ export function checkClaimAdjudication(
       loss.priorCompensationMicros
   )
     return fail('LOSS_ASSESSMENT_MISMATCH');
-  if (!c.syntheticDemo || c.evidenceAuthenticity !== 'synthetic_fixture')
+  if (!independent && (!c.syntheticDemo || c.evidenceAuthenticity !== 'synthetic_fixture'))
     return fail('FIXTURE_AUTHENTICITY_REQUIRED');
   return { reason: null, verification };
 }

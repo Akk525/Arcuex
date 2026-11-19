@@ -4,6 +4,17 @@ import type { getClaimsInvestigation } from '@arcuex/insurance';
 import { claimsFetch } from '@/lib/claims/claims-api';
 import { Panel } from '@/components/panel';
 type View = ReturnType<typeof getClaimsInvestigation>;
+const chronologyLabel = {
+  before_inception: 'Before inception',
+  at_inception: 'At inception',
+  during_coverage: 'During the policy window',
+  at_expiry: 'At expiry',
+  after_expiry: 'After expiry',
+  unresolved: 'Unresolved',
+};
+const timestamp = (epochMs: number | null) =>
+  epochMs === null ? 'Unavailable' : new Date(epochMs).toISOString();
+
 export function ClaimsInvestigation({
   caseId,
   role,
@@ -122,6 +133,41 @@ export function ClaimsInvestigation({
               ? view.reviewBlockers.join(' · ')
               : 'No investigation blocker; contractual review and financial restrictions still apply.'}
           </p>
+          {view.chronology ? (
+            <section
+              className="my-3 rounded border bg-white p-3 text-sm"
+              aria-label="Server-checked coverage chronology"
+            >
+              <p className="font-semibold">
+                Server-checked chronology · {chronologyLabel[view.chronology.relation]}
+              </p>
+              <p>
+                Incident {timestamp(view.chronology.incident.epochMs)} · Policy window{' '}
+                {timestamp(view.chronology.startsAt.epochMs)} to{' '}
+                {timestamp(view.chronology.endsAt.epochMs)} (inclusive).
+              </p>
+              {view.chronology.issue ? (
+                <p>Review required · {view.chronology.issue.replaceAll('_', ' ')}</p>
+              ) : null}
+              {view.chronology.waitingPeriodSatisfied === false ? (
+                <p>The recorded observation did not satisfy the policy waiting period.</p>
+              ) : null}
+              <p>
+                Timestamp comparison only. Applicability, exclusions, causation and loss require
+                separate evidence and review.
+              </p>
+              <details className="text-xs">
+                <summary>Recorded timestamp sources</summary>
+                <p>
+                  Policy {view.chronology.policySource} · {view.chronology.startsAt.raw ?? '—'} to{' '}
+                  {view.chronology.endsAt.raw ?? '—'}
+                </p>
+                <p>
+                  Incident {view.chronology.incident.source} · {view.chronology.incident.raw ?? '—'}
+                </p>
+              </details>
+            </section>
+          ) : null}
           {view.authorityReview?.length ? (
             <p className="my-2 text-sm font-medium">
               Claimant or delegation authority is unresolved. Human review is required.
@@ -144,6 +190,7 @@ export function ClaimsInvestigation({
                 analysis = p.analysis as
                   | {
                       summary: string;
+                      chronology?: keyof typeof chronologyLabel;
                       verifiedFindings?: string[];
                       claimantAssertions?: string[];
                       gaps: string[];
@@ -211,68 +258,85 @@ export function ClaimsInvestigation({
                             : ' · Historical assessment before resolution'
                           : ''}
                       </p>
-                      <p>{analysis.summary}</p>
-                      <p>Recommendation: {analysis.recommendation}</p>
-                      {[
-                        {
-                          label: 'Examiner summary of verified findings',
-                          items: analysis.verifiedFindings,
-                        },
-                        { label: 'Claimant assertions', items: analysis.claimantAssertions },
-                      ].map(({ label, items }) =>
-                        items?.length ? (
-                          <div key={label} className="mt-2">
-                            <p className="font-medium">{label}</p>
-                            <ul className="list-inside list-disc">
-                              {items.map((item, index) => (
-                                <li key={index}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null,
-                      )}
-                      <ul className="list-inside list-disc">
-                        {analysis.gaps.map((gap, i) => (
-                          <li key={i}>{gap}</li>
-                        ))}
-                      </ul>
-                      {analysis.proposedRequests.map((proposal, i) => (
-                        <div key={i} className="my-2">
+                      <details open={analysis.chronology !== undefined}>
+                        <summary className="text-xs font-medium">
+                          {analysis.chronology === undefined
+                            ? 'Historical advisory report · recorded before the chronology gate'
+                            : 'Model commentary · unverified'}
+                        </summary>
+                        {analysis.chronology ? (
                           <p>
-                            Proposed proof:{' '}
-                            {typeof proposal === 'string' ? proposal : proposal.question}
+                            Validated chronology reference · {chronologyLabel[analysis.chronology]}
                           </p>
-                          {typeof proposal !== 'string' ? (
-                            <p className="break-all text-xs">
-                              Source references: {proposal.citations.join(', ')}
+                        ) : null}
+                        <p>{analysis.summary}</p>
+                        <p>Recommendation: {analysis.recommendation}</p>
+                        {[
+                          {
+                            label: analysis.chronology
+                              ? 'Referenced verifier records'
+                              : 'Historical model findings',
+                            items: analysis.verifiedFindings,
+                          },
+                          { label: 'Claimant assertions', items: analysis.claimantAssertions },
+                        ].map(({ label, items }) =>
+                          items?.length ? (
+                            <div key={label} className="mt-2">
+                              <p className="font-medium">{label}</p>
+                              <ul className="list-inside list-disc">
+                                {items.map((item, index) => (
+                                  <li key={index}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null,
+                        )}
+                        <ul className="list-inside list-disc">
+                          {analysis.gaps.map((gap, i) => (
+                            <li key={i}>{gap}</li>
+                          ))}
+                        </ul>
+                        {analysis.proposedRequests.map((proposal, i) => (
+                          <div key={i} className="my-2">
+                            <p>
+                              Proposed proof:{' '}
+                              {typeof proposal === 'string' ? proposal : proposal.question}
                             </p>
-                          ) : null}
-                          {reviewer && open && typeof proposal !== 'string' ? (
-                            <button
-                              type="button"
-                              disabled={busy || e.stale}
-                              onClick={() =>
-                                void act({
-                                  action: 'adopt_examiner_request',
-                                  reportId: e.id,
-                                  proposalIndex: i,
-                                })
-                              }
-                              className="rounded border px-2 py-1 text-xs"
-                            >
-                              Adopt evidence request {i + 1}
-                            </button>
-                          ) : null}
-                        </div>
-                      ))}
-                      <p className="break-all text-xs">
-                        Prompt: {String(p.promptVersion)} · Dossier: {String(p.dossierDigest)} ·
-                        Response: {String(p.responseId)} · Citations:{' '}
-                        {analysis.citations.join(', ')}
-                      </p>
-                      <p className="text-xs">
-                        No independent evidence or payment authority established.
-                      </p>
+                            {typeof proposal !== 'string' ? (
+                              <p className="break-all text-xs">
+                                Source references: {proposal.citations.join(', ')}
+                              </p>
+                            ) : null}
+                            {reviewer &&
+                            open &&
+                            analysis.chronology &&
+                            typeof proposal !== 'string' ? (
+                              <button
+                                type="button"
+                                disabled={busy || e.stale}
+                                onClick={() =>
+                                  void act({
+                                    action: 'adopt_examiner_request',
+                                    reportId: e.id,
+                                    proposalIndex: i,
+                                  })
+                                }
+                                className="rounded border px-2 py-1 text-xs"
+                              >
+                                Adopt evidence request {i + 1}
+                              </button>
+                            ) : null}
+                          </div>
+                        ))}
+                        <p className="break-all text-xs">
+                          Prompt: {String(p.promptVersion)} · Dossier: {String(p.dossierDigest)} ·
+                          Response: {String(p.responseId)} · Citations:{' '}
+                          {analysis.citations.join(', ')}
+                        </p>
+                        <p className="text-xs">
+                          No independent evidence or payment authority established.
+                        </p>
+                      </details>
                     </>
                   ) : null}
                   {isRequest && outstanding && open ? (

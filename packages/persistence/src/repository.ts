@@ -1,5 +1,6 @@
 import {
   IdempotencyConflictError,
+  isSupportedIndependentTerms,
   encodeTerms,
   newId,
   type Agent,
@@ -768,7 +769,8 @@ export class InsuranceRepository {
         !/^[0-9]+$/.test(t.limitMicros) ||
         !/^[0-9]+$/.test(t.deductibleMicros) ||
         !Number.isSafeInteger(t.effectiveAt) ||
-        !Number.isSafeInteger(t.expiresAt)
+        !Number.isSafeInteger(t.expiresAt) ||
+        (t.synthetic === false && !isSupportedIndependentTerms(t))
       )
         return null;
       return {
@@ -779,7 +781,7 @@ export class InsuranceRepository {
         agentId: t.agentId,
         confirmed:
           procurement.state === 'confirmed' && new ProcurementStore(this.db).claimsEligible(id),
-        synthetic: true,
+        synthetic: t.synthetic !== false,
         limitMicros: BigInt(t.limitMicros),
         deductibleMicros: BigInt(t.deductibleMicros),
         effectiveAt: t.effectiveAt,
@@ -1070,6 +1072,18 @@ export class InsuranceRepository {
       .prepare(`SELECT * FROM claims_evidence_manifests WHERE case_id = ? ORDER BY created_at ASC`)
       .all(caseId)
       .map((row) => mapPersistedEvidenceManifest(row as Record<string, unknown>));
+  }
+
+  hasIndependentEventCommitment(eventRef: string, excludeCaseId: string): boolean {
+    return !!this.db
+      .prepare(
+        `SELECT 1 FROM claims_cases c JOIN claim_verifications v ON v.case_id = c.id
+       AND v.id = json_extract(c.adjudication_binding_json, '$.verificationId')
+       WHERE c.id <> ? AND c.synthetic_demo = 0
+         AND c.status IN ('APPROVED','SETTLEMENT_PENDING','SETTLEMENT_FAILED','PAID')
+         AND json_extract(v.record_json, '$.eventRef') = ? LIMIT 1`,
+      )
+      .get(excludeCaseId, eventRef);
   }
 
   sumPaidForLossKey(lossKey: string): bigint {

@@ -35,7 +35,13 @@ type DetailResponse = {
     executionStatus: string;
     evidenceSufficiency: string;
     findings: string[];
-    independentlyAuthenticated: false;
+    independentlyAuthenticated: boolean;
+    validUntilMs?: number;
+    lossAssessment?: {
+      grossLossMicros: string;
+      recoveriesMicros: string;
+      priorCompensationMicros: string;
+    };
   }>;
   case: {
     id: string;
@@ -216,6 +222,25 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   }
 
   const c = data.case;
+  const independentRecord = c.syntheticDemo
+    ? undefined
+    : data.verifications
+        ?.filter(
+          (v) =>
+            v.independentlyAuthenticated &&
+            v.executionStatus === 'completed' &&
+            v.evidenceSufficiency === 'sufficient' &&
+            v.lossAssessment &&
+            v.validUntilMs !== undefined &&
+            v.validUntilMs > Date.now(),
+        )
+        .at(-1);
+  const independentLoss = independentRecord?.lossAssessment;
+  const asUsdc = (micros: string) => {
+    const value = BigInt(micros);
+    return `${value / 1_000_000n}.${(value % 1_000_000n).toString().padStart(6, '0')}`;
+  };
+
   const canReview = ['INVESTIGATING', 'REVIEW'].includes(c.status);
   const receipt = data.timeline.find((e) => e.reasonCode === 'SETTLEMENT_RECONCILED')?.payload
     ?.receiptRef;
@@ -267,13 +292,15 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
           </Link>
         )}
       </nav>
-      <ClaimsInvestigation
-        caseId={caseId}
-        role={data.principalRole}
-        status={c.status}
-        verificationRevision={data.verifications?.length ?? 0}
-        onChange={refresh}
-      />
+      {c.syntheticDemo ? (
+        <ClaimsInvestigation
+          caseId={caseId}
+          role={data.principalRole}
+          status={c.status}
+          verificationRevision={data.verifications?.length ?? 0}
+          onChange={refresh}
+        />
+      ) : null}
       {data.source?.mode === 'fixture' && (
         <Panel title="Synthetic chain-state source">
           <p className="break-all text-sm">
@@ -411,10 +438,17 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
         </Panel>
       </div>
 
-      <Panel title="Synthetic fixture verification">
+      <Panel
+        title={
+          c.syntheticDemo
+            ? 'Synthetic fixture verification'
+            : 'Independent liquidation verification'
+        }
+      >
         <p className="text-sm">
-          Fixture consistency only. No real-world event or economic loss is independently
-          authenticated.
+          {c.syntheticDemo
+            ? 'Fixture consistency only. No real-world event or economic loss is independently authenticated.'
+            : 'Submit the signed replay and recovery envelope through the independent verification API. Coverage remains a human determination.'}
         </p>
         {data.verifications?.map((v) => (
           <div key={v.id} className="mt-2 text-xs">
@@ -425,9 +459,11 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
             <p>
               {v.verifierVersion} · {v.actor} · {v.createdAt}
             </p>
-            <p className="break-all">
-              Fixture: {v.fixtureReference} · {v.fixtureDigest}
-            </p>
+            {c.syntheticDemo ? (
+              <p className="break-all">
+                Fixture: {v.fixtureReference} · {v.fixtureDigest}
+              </p>
+            ) : null}
             <p className="break-all">Context: {v.contextDigest}</p>
             <ul>
               {v.findings.map((finding, i) => (
@@ -436,7 +472,8 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
             </ul>
           </div>
         ))}
-        {['COLLECTING_EVIDENCE', 'INVESTIGATING', 'REVIEW'].includes(c.status) &&
+        {c.syntheticDemo &&
+          ['COLLECTING_EVIDENCE', 'INVESTIGATING', 'REVIEW'].includes(c.status) &&
           data.principalRole !== 'authority' && (
             <button
               type="button"
@@ -481,8 +518,11 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
             cannot escalate privilege.
           </p>
           <p className="mb-2 text-xs">
-            Catalog gross economic loss: 1.50 USDC after extinguished debt. Scenario recoveries and
-            prior compensation: zero. Policy deductible and limits still apply.
+            {c.syntheticDemo
+              ? 'Catalog gross economic loss: 1.50 USDC after extinguished debt. Scenario recoveries and prior compensation: zero. Policy deductible and limits still apply.'
+              : independentLoss
+                ? `Verified gross loss ${asUsdc(independentLoss.grossLossMicros)} USDC, recoveries ${asUsdc(independentLoss.recoveriesMicros)} USDC, prior compensation ${asUsdc(independentLoss.priorCompensationMicros)} USDC. Policy limits and deductible apply.`
+                : 'A current independent verification is required for approval.'}
           </p>
           <label className="mb-2 block text-sm">
             <input
@@ -490,8 +530,9 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
               checked={reviewConfirmed}
               onChange={(e) => setReviewConfirmed(e.target.checked)}
             />{' '}
-            I reviewed event applicability and resolved all policy exclusions for this synthetic
-            scenario.
+            {c.syntheticDemo
+              ? 'I reviewed event applicability and resolved all policy exclusions for this synthetic scenario.'
+              : 'I reviewed event applicability and resolved all policy exclusions for the verified incident.'}
           </label>
           <label className="mb-3 block text-sm">
             Contractual review rationale
@@ -510,58 +551,76 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
                 !canReview ||
                 !reviewConfirmed ||
                 !reviewRationale.trim() ||
-                !data.verifications?.some(
-                  (v) =>
-                    v.executionStatus === 'completed' && v.evidenceSufficiency === 'sufficient',
-                )
+                (c.syntheticDemo
+                  ? !data.verifications?.some(
+                      (v) =>
+                        v.executionStatus === 'completed' && v.evidenceSufficiency === 'sufficient',
+                    )
+                  : !independentLoss)
               }
               className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs text-white disabled:opacity-50"
               onClick={() =>
                 run('reviewer', {
                   action: 'adjudicate',
                   coverageDetermination: 'covered',
-                  verificationId: data.verifications?.find(
-                    (v) =>
-                      v.executionStatus === 'completed' && v.evidenceSufficiency === 'sufficient',
-                  )?.id,
+                  verificationId: c.syntheticDemo
+                    ? data.verifications?.find(
+                        (v) =>
+                          v.executionStatus === 'completed' &&
+                          v.evidenceSufficiency === 'sufficient',
+                      )?.id
+                    : independentRecord?.id,
                   contractualReview: {
                     eventApplies: reviewConfirmed,
                     exclusionsResolved: reviewConfirmed,
                     rationale: reviewRationale,
                   },
-                  verifiedLossUsdc: '1.500000',
-                  recoveriesUsdc: '0.000000',
+                  verifiedLossUsdc: c.syntheticDemo
+                    ? '1.500000'
+                    : independentLoss
+                      ? asUsdc(independentLoss.grossLossMicros)
+                      : null,
+                  recoveriesUsdc: c.syntheticDemo
+                    ? '0.000000'
+                    : independentLoss
+                      ? asUsdc(independentLoss.recoveriesMicros)
+                      : null,
+                  ...(independentLoss
+                    ? { priorCompensationUsdc: asUsdc(independentLoss.priorCompensationMicros) }
+                    : {}),
                   requestedUsdc: '1.000000',
                 })
               }
             >
               Review and approve up to 1 USDC
             </button>
-            <button
-              type="button"
-              disabled={pending || !canReview}
-              className="rounded-md bg-amber-700 px-3 py-1.5 text-xs text-white disabled:opacity-50"
-              onClick={() =>
-                run('reviewer', {
-                  action: 'adjudicate',
-                  coverageDetermination: 'covered',
-                  verificationId: data.verifications?.find(
-                    (v) =>
-                      v.executionStatus === 'completed' && v.evidenceSufficiency === 'sufficient',
-                  )?.id,
-                  contractualReview: {
-                    eventApplies: reviewConfirmed,
-                    exclusionsResolved: reviewConfirmed,
-                    rationale: reviewRationale,
-                  },
-                  verifiedLossUsdc: '1.500000',
-                  recoveriesUsdc: null,
-                  requestedUsdc: '1.000000',
-                })
-              }
-            >
-              Force REVIEW (unknown recoveries)
-            </button>
+            {c.syntheticDemo ? (
+              <button
+                type="button"
+                disabled={pending || !canReview}
+                className="rounded-md bg-amber-700 px-3 py-1.5 text-xs text-white disabled:opacity-50"
+                onClick={() =>
+                  run('reviewer', {
+                    action: 'adjudicate',
+                    coverageDetermination: 'covered',
+                    verificationId: data.verifications?.find(
+                      (v) =>
+                        v.executionStatus === 'completed' && v.evidenceSufficiency === 'sufficient',
+                    )?.id,
+                    contractualReview: {
+                      eventApplies: reviewConfirmed,
+                      exclusionsResolved: reviewConfirmed,
+                      rationale: reviewRationale,
+                    },
+                    verifiedLossUsdc: '1.500000',
+                    recoveriesUsdc: null,
+                    requestedUsdc: '1.000000',
+                  })
+                }
+              >
+                Force REVIEW (unknown recoveries)
+              </button>
+            ) : null}
             <button
               type="button"
               disabled={pending || !canReview}
@@ -570,8 +629,8 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
                 run('reviewer', {
                   action: 'adjudicate',
                   coverageDetermination: 'not_covered',
-                  verifiedLossUsdc: '1.500000',
-                  recoveriesUsdc: '0.000000',
+                  verifiedLossUsdc: c.syntheticDemo ? '1.500000' : null,
+                  recoveriesUsdc: c.syntheticDemo ? '0.000000' : null,
                   requestedUsdc: '1.000000',
                 })
               }

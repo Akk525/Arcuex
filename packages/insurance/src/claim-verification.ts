@@ -4,6 +4,13 @@ import { newId, ValidationError } from '@arcuex/domain';
 import type { InsuranceRepository } from '@arcuex/persistence';
 import { assertClaimsRole, claimsActorId, type ClaimsPrincipal } from './claims-auth';
 import { canAccessClaimsPolicy, getClaimsCase } from './claims-case-service';
+import type { IndependentLiquidationVerification } from './independent-liquidation';
+import {
+  isWithinClaimWindow,
+  parseClaimTimestamp,
+  readClaimChronology,
+  type ClaimChronology,
+} from './claim-chronology';
 import {
   createSyntheticOracleEvidenceProvider,
   createSyntheticOracleVerifier,
@@ -44,7 +51,7 @@ const Envelope = z
     fixtureDigest: z.string(),
     policyId: z.string(),
     incidentId: z.string(),
-    observedAt: z.string().datetime(),
+    observedAt: z.string().refine((value) => parseClaimTimestamp(value) !== null),
   })
   .strict();
 export function claimVerificationContext(repo: InsuranceRepository, caseId: string): string {
@@ -88,6 +95,7 @@ export type ClaimVerificationRecord = {
   fixtureDigest: string | null;
   contextDigest: string;
   inputs: unknown;
+  chronology?: ClaimChronology;
   fixtureInputs: SyntheticOracleFixture;
   lossAssessment?: typeof FIXTURE_LOSS_ASSESSMENT;
   facts: unknown[];
@@ -97,6 +105,9 @@ export type ClaimVerificationRecord = {
   authenticity: 'synthetic_fixture';
   independentlyAuthenticated: false;
 };
+export type PersistedClaimVerification =
+  ClaimVerificationRecord | IndependentLiquidationVerification;
+
 function accessible(repo: InsuranceRepository, caseId: string, principal: ClaimsPrincipal) {
   assertClaimsRole(principal, ['claimant', 'system', 'reviewer', 'authority']);
   const c = getClaimsCase(repo, caseId);
@@ -112,7 +123,7 @@ export function listClaimVerifications(
   accessible(repo, caseId, principal);
   return repo
     .listClaimVerifications(caseId)
-    .map((row) => JSON.parse(row.recordJson) as ClaimVerificationRecord);
+    .map((row) => JSON.parse(row.recordJson) as PersistedClaimVerification);
 }
 
 /** Fixture consistency only. Never transitions a case or creates an approval/payment. */
@@ -123,6 +134,8 @@ export async function verifyClaimFixture(
   principal: ClaimsPrincipal,
 ): Promise<ClaimVerificationRecord> {
   const current = accessible(repo, caseId, principal);
+  if (!current.syntheticDemo)
+    throw new ValidationError('Synthetic fixture cannot verify an independent claim');
   if (!['COLLECTING_EVIDENCE', 'INVESTIGATING', 'REVIEW'].includes(current.status))
     throw new ValidationError('Verification requires an open evidence investigation');
   const raw = JSON.stringify(input);
@@ -131,12 +144,20 @@ export async function verifyClaimFixture(
   const incident = current.incidentId ? repo.getIncident(current.incidentId) : null;
   const policy = repo.claimsPolicyContext(current.policyId);
   const contextDigest = claimVerificationContext(repo, caseId);
+  const chronology = readClaimChronology(repo, current);
   const previous = listClaimVerifications(repo, caseId, principal).find(
-    (r) => r.requestDigest === requestDigest,
+    (r): r is ClaimVerificationRecord => 'fixtureInputs' in r && r.requestDigest === requestDigest,
   );
   if (previous) {
     if (previous.contextDigest !== contextDigest)
       throw new ValidationError('Verification context changed; replay is unsafe');
+    if (
+      previous.evidenceSufficiency === 'sufficient' &&
+      !isWithinClaimWindow(chronology, Date.now())
+    )
+      throw new ValidationError(
+        'Persisted verification has unresolved or ineligible chronology; use a new verification revision',
+      );
     return previous;
   }
   const parsed = Envelope.safeParse(JSON.parse(raw));
@@ -151,6 +172,7 @@ export async function verifyClaimFixture(
     fixtureDigest: parsed.success ? parsed.data.fixtureDigest : null,
     contextDigest,
     inputs: JSON.parse(raw),
+    chronology,
     fixtureInputs: fixture,
     facts: [],
     findings: [],
@@ -183,13 +205,10 @@ export async function verifyClaimFixture(
   ) {
     record.evidenceSufficiency = 'contradictory';
     record.findings.push('Envelope contradicts the linked policy/incident');
-  } else if (
-    !Number.isFinite(Date.parse(incident.observedAt)) ||
-    Date.parse(incident.observedAt) > Date.now() ||
-    Date.parse(incident.observedAt) / 1000 < policy.effectiveAt ||
-    Date.parse(incident.observedAt) / 1000 > policy.expiresAt
-  ) {
-    record.findings.push('Incident timestamp outside the policy window or in the future');
+  } else if (!isWithinClaimWindow(chronology, Date.now())) {
+    record.findings.push(
+      'Incident chronology is unresolved, outside the policy window, or in the future',
+    );
   } else if (
     parsed.data.fixtureRef !== CLAIM_FIXTURE.reference ||
     parsed.data.fixtureDigest !== CLAIM_FIXTURE.digest ||
@@ -228,7 +247,8 @@ export async function verifyClaimFixture(
     )
       throw new ValidationError('Investigation changed during verification; retry');
     const duplicate = listClaimVerifications(repo, caseId, principal).find(
-      (r) => r.requestDigest === requestDigest,
+      (r): r is ClaimVerificationRecord =>
+        'fixtureInputs' in r && r.requestDigest === requestDigest,
     );
     if (duplicate) return duplicate;
     repo.saveClaimVerification({

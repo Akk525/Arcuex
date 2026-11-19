@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { hasAllowedOrigin, canonicalSigningOrigin } from './request-boundary';
 import { getRuntimeConfig } from './runtime-config';
-import { PROCUREMENT_PRODUCT } from '@arcuex/domain';
+import { INDEPENDENT_LIQUIDATION_PRODUCT, PROCUREMENT_PRODUCT } from '@arcuex/domain';
+import { configuredIndependentLiquidation } from './independent-evidence';
 import { ProcurementStore } from '@arcuex/persistence';
 import { ARC_USDC_ERC20_ADDRESS } from '@arcuex/chain';
 import { authenticateClaimsRequest } from './claims-auth';
@@ -25,14 +26,19 @@ import {
 } from '@/lib/server/procurement-chain';
 export async function handle(request: Request, path: string) {
   try {
+    const profile = configuredIndependentLiquidation();
     const svc = new ProcurementService(
       new ProcurementStore(getDb()),
       procurementPool,
       ARC_USDC_ERC20_ADDRESS,
+      undefined,
+      profile,
     );
     if (request.method === 'GET' && path === 'products')
       return NextResponse.json({
-        products: [PROCUREMENT_PRODUCT],
+        products: profile
+          ? [PROCUREMENT_PRODUCT, INDEPENDENT_LIQUIDATION_PRODUCT]
+          : [PROCUREMENT_PRODUCT],
         chainId: 5042002,
         pool: procurementPool,
       });

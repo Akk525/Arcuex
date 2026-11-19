@@ -155,6 +155,11 @@ async function worker(stage: 'initial' | 'reassessment') {
         'Examiner receives the actual same-claim dossier and persisted verifier findings',
       );
       check(
+        dossier.chronology.relation === 'during_coverage' &&
+          dossier.chronology.incident.epochMs > dossier.chronology.startsAt.epochMs,
+        'Examiner receives server-checked in-window chronology with original timestamp provenance',
+      );
+      check(
         dossier.authority.claimant.basis === 'authenticated_policy_agent' &&
           dossier.authority.claimant.agentId === policy.terms.agentId &&
           dossier.authority.policyDelegation.status === 'owner_procured_no_delegation' &&
@@ -215,7 +220,8 @@ async function worker(stage: 'initial' | 'reassessment') {
         summary: fresh
           ? 'Persisted fixture verifier is current; human contractual review is still required.'
           : 'This synthetic claim has no current persisted verifier findings. Request the versioned replay artifact and verify it.',
-        verifiedFindings: fresh ? ['The current verifier supports fixture consistency only.'] : [],
+        chronology: dossier.chronology.relation,
+        verifiedFindings: dossier.verifiedFindingIds,
         claimantAssertions: [],
         gaps: dossier.reviewBlockers,
         proposedRequests: fresh
@@ -327,6 +333,10 @@ try {
   page.setDefaultTimeout(15000);
   await page.goto(base + '/claims/' + caseId);
   await page.getByRole('heading', { name: 'Investigation · agent, examiner and human' }).waitFor();
+  await page
+    .getByText('Server-checked chronology · During the policy window', { exact: true })
+    .waitFor();
+  check(true, 'Browser displays server chronology separately from model commentary');
   if (!liveOpenAI) {
     await page.locator('[data-entry-kind="proof_submission"]').first().waitFor();
     check(
@@ -500,7 +510,7 @@ try {
           const ids = providerResponses[index].citationIds;
           return (
             payload.execution === 'live' &&
-            payload.promptVersion === 'claims-dossier-v2' &&
+            payload.promptVersion === 'claims-dossier-v3' &&
             payload.provider === 'openai' &&
             String(payload.responseId).startsWith('resp_') &&
             payload.model === 'gpt-6.1-terra' &&

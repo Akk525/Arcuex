@@ -2,6 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { isAddress, keccak256, stringToHex, type Address, type Hex } from 'viem';
 import {
   PROCUREMENT_PRODUCT as PRODUCT,
+  INDEPENDENT_LIQUIDATION_PRODUCT as INDEPENDENT,
+  isIndependentLiquidationProfile,
+  isSupportedIndependentTerms,
+  sameIndependentLiquidationProfile,
+  type IndependentLiquidationProfile,
   type ProcurementAgent,
   type ProcurementDelegation,
   type ProcurementPolicy,
@@ -79,6 +84,7 @@ export class ProcurementService {
     readonly pool: Address,
     readonly usdc: Address,
     readonly now = () => Math.floor(Date.now() / 1000),
+    readonly independentProfile?: IndependentLiquidationProfile,
   ) {}
 
   private idempotent<T>(
@@ -108,6 +114,15 @@ export class ProcurementService {
   }
   register(actor: string, input: Record<string, unknown>) {
     return this.idempotent(actor, 'register', input.idempotencyKey, input, () => {
+      const independent = input.protocol === INDEPENDENT.protocol;
+      const position = text(input.position, 'position', 120);
+      requireThat(
+        !independent ||
+          (isIndependentLiquidationProfile(this.independentProfile) &&
+            /^0x[0-9a-f]{64}$/.test(position)),
+        'INELIGIBLE',
+        'Independent enrollment requires a provisioned evidence profile and registered bytes32 position',
+      );
       const agent: ProcurementAgent = {
         id: randomUUID(),
         owner: actor,
@@ -115,14 +130,14 @@ export class ProcurementService {
         label: text(input.label, 'label', 80),
         exposure: {
           chainId: 5042002,
-          protocol: PRODUCT.protocol,
-          position: text(input.position, 'position', 120),
+          protocol: independent ? INDEPENDENT.protocol : PRODUCT.protocol,
+          position,
           notionalMicros: micros(input.exposureMicros).toString(),
         },
       };
       requireThat(
         (input.chainId === undefined || input.chainId === 5042002) &&
-          (input.protocol === undefined || input.protocol === PRODUCT.protocol),
+          (input.protocol === undefined || input.protocol === agent.exposure.protocol),
         'INELIGIBLE',
         'Only the synthetic Arc lending protocol is eligible',
       );
@@ -170,6 +185,12 @@ export class ProcurementService {
         'Only the authenticated owner may delegate',
         403,
       );
+      requireThat(
+        agent.exposure.protocol === PRODUCT.protocol,
+        'FORBIDDEN',
+        'Independent policies are owner-purchased only',
+        403,
+      );
       const expiresAt = timestamp(input.expiresAt);
       requireThat(
         expiresAt > this.now() && expiresAt <= this.now() + 30 * 86400,
@@ -205,13 +226,23 @@ export class ProcurementService {
   quote(actor: string, input: Record<string, unknown>) {
     return this.idempotent(actor, 'quote', input.idempotencyKey, input, () => {
       const agent = this.agent(input.agentId);
+      const independent = agent.exposure.protocol === INDEPENDENT.protocol;
+      const product = independent ? INDEPENDENT : PRODUCT;
+      const profile = this.independentProfile;
+      requireThat(
+        !independent || (isIndependentLiquidationProfile(profile) && agent.owner === actor),
+        'FORBIDDEN',
+        'Independent procurement requires the owner and a provisioned evidence profile',
+        403,
+      );
       const d = agent.owner === actor ? null : this.delegation(actor, agent, input.delegationId);
       const eligibility = input.eligibility as Record<string, unknown> | undefined;
       requireThat(
         eligibility &&
-          ['positionHealthy', 'noKnownIncident', 'syntheticOnly', 'ownerAttestsControl'].every(
+          ['positionHealthy', 'noKnownIncident', 'ownerAttestsControl'].every(
             (k) => eligibility[k] === true,
-          ),
+          ) &&
+          eligibility.syntheticOnly === !independent,
         'INELIGIBLE',
         'All eligibility attestations must be true; known incidents and unhealthy positions are excluded',
       );
@@ -243,12 +274,17 @@ export class ProcurementService {
         'Beneficiary is outside owner delegation',
         403,
       );
+      requireThat(
+        !independent || (days === 7 && limit === 1_000_000n && beneficiary === actor),
+        'INELIGIBLE',
+        'Independent policies require a 7-day, 1 USDC owner-beneficiary quote',
+      );
       const now = this.now();
       const terms: ProcurementQuote['terms'] = {
         version: 1,
         policyId: randomUUID(),
         quoteId: randomUUID(),
-        productCode: PRODUCT.code,
+        productCode: product.code,
         agentId: agent.id,
         owner: agent.owner,
         beneficiary,
@@ -256,7 +292,7 @@ export class ProcurementService {
         eligibility: {
           positionHealthy: true,
           noKnownIncident: true,
-          syntheticOnly: true,
+          syntheticOnly: !independent,
           ownerAttestsControl: true,
         },
         premiumMicros: (limit / 100n).toString(),
@@ -265,9 +301,10 @@ export class ProcurementService {
         effectiveAt: now + 900,
         expiresAt: now + 900 + days * 86400,
         quoteExpiresAt: now + 600,
-        insuredEvent: PRODUCT.event,
-        exclusions: [...PRODUCT.exclusions],
-        synthetic: true,
+        insuredEvent: product.event,
+        exclusions: [...product.exclusions],
+        synthetic: !independent,
+        ...(independent ? { independentProfile: profile } : {}),
       };
       const quote: ProcurementQuote = { terms, digest: procurementDigest(terms) };
       this.store.insert('quote', terms.quoteId, agent.owner, quote);
@@ -278,6 +315,19 @@ export class ProcurementService {
     const quote = this.store.get<ProcurementQuote>('quote', text(input.quoteId, 'quoteId'));
     requireThat(quote, 'NOT_FOUND', 'Quote not found', 404);
     const agent = this.agent(quote.terms.agentId);
+    if (quote.terms.synthetic === false) {
+      requireThat(
+        actor === agent.owner &&
+          isSupportedIndependentTerms(quote.terms) &&
+          sameIndependentLiquidationProfile(
+            quote.terms.independentProfile,
+            this.independentProfile,
+          ),
+        'FORBIDDEN',
+        'Independent quote profile disabled or changed',
+        403,
+      );
+    }
     const d = actor === agent.owner ? null : this.delegation(actor, agent, input.delegationId);
     requireThat(
       input.acceptedDigest === quote.digest,

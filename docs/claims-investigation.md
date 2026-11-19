@@ -64,8 +64,20 @@ its recorded expiry and revocation. Missing or inconsistent authority is surface
 These records establish the stated application roles and their limits. They provide no active-session
 attestation, reimbursement authority or independent proof of loss.
 
-`claims-dossier-v2` separates deterministic findings as summarized by the examiner, claimant
-assertions and unresolved gaps. Every proposed proof request includes a question and at least one
+The server compares the incident's recorded observation with the immutable policy start and expiry
+at millisecond precision. Both boundaries are inclusive. Procurement terms use Unix seconds and
+legacy terms use their original ISO timestamps. Incident timestamps must carry a known explicit
+offset or UTC marker and use at most millisecond precision. The chronology carries the raw values,
+source identifiers and normalized instants. Missing, conflicting or invalid timing sources require
+review. A timestamp inside the interval establishes only the recorded temporal relationship.
+Waiting periods, coverage applicability, exclusions, causation and economic loss are separate checks.
+
+`claims-dossier-v3` restricts the model's structured chronology to the server relation. References
+to verified findings must be cited IDs from current sufficient verifier records. The server
+recomputes the dossier and rejects a conflicting relation, free-text policy-timing claims recognized
+by the validation guard, and invented or stale references. Human review still treats other model
+commentary as unverified and reads the server chronology directly. Free-form semantic validation
+is limited. Earlier reports remain available as historical advisory output. Every proposed proof request includes a question and at least one
 dossier citation. The provider schema enumerates the allowed case, policy, incident, chronology,
 proof, manifest and verification IDs. The app validates those IDs again before persisting a report
 and rejects stale results. Human adoption preserves the report ID and cited records on the new

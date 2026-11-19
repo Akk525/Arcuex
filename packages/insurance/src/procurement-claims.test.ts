@@ -187,6 +187,28 @@ describe('canonical procurement → ClaimsCase integration', () => {
     expect(() =>
       intakeClaimsCase(f.repo, { ...f.input, observedEventRef: 'changed' }, claimant),
     ).toThrow('different');
+    const incident = f.repo.getIncident(a.incidentId!)!;
+    const shifted = new Date(Date.parse(incident.observedAt) + 1).toISOString();
+    expect(() => intakeClaimsCase(f.repo, { ...f.input, observedAt: shifted }, claimant)).toThrow(
+      'different',
+    );
+    expect(() =>
+      intakeClaimsCase(
+        f.repo,
+        {
+          ...f.input,
+          idempotencyKey: 'different-clock',
+          observedAt: shifted,
+        },
+        claimant,
+      ),
+    ).toThrow('persisted incident timestamp');
+    const equivalentOffset = incident.observedAt.replace('Z', '+00:00');
+    expect(
+      intakeClaimsCase(f.repo, { ...f.input, observedAt: equivalentOffset }, claimant).id,
+    ).toBe(a.id);
+    expect(f.repo.getIncident(a.incidentId!)?.observedAt).toBe(incident.observedAt);
+    f.db.close();
   });
   it('rejects foreign evidence writes and claimant assertions of independent verification', () => {
     const f = fixture(),

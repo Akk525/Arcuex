@@ -192,6 +192,7 @@ function report(f: ReturnType<typeof setup>) {
     execution: 'test_double' as const,
     analysis: {
       summary: 'Actual dossier read',
+      chronology: started.dossier.chronology.relation,
       verifiedFindings: [],
       claimantAssertions: [],
       gaps: started.dossier.reviewBlockers,
@@ -230,6 +231,97 @@ describe('same-claim insured agent, examiner and human investigation', () => {
         expect(dossier.authorityReview).toEqual(['CLAIMANT_OR_DELEGATION_AUTHORITY_UNRESOLVED']);
       f.db.close();
     }
+  });
+
+  it('rejects the reproduced contradiction, including matching enum with false prose, and preserves human review', () => {
+    const f = setup();
+    const ai = report(f);
+    expect(ai.analysis.chronology).toBe('during_coverage');
+    const incorrect =
+      'The incident was observed before policy inception and is server-linked to the policy and exposure.';
+    const variants = [
+      { chronology: 'before_inception' },
+      { summary: incorrect },
+      { verifiedFindings: [incorrect] },
+      { gaps: ['The incident preceded coverage.'] },
+      { claimantAssertions: ['Observation was outside the covered policy period.'] },
+      {
+        proposedRequests: [
+          {
+            question: 'Explain why it was observed prior to the policy start',
+            citations: [f.c.id],
+          },
+        ],
+      },
+    ];
+    for (const patch of variants) {
+      expect(() =>
+        finishClaimsExamination(
+          f.repo,
+          f.c.id,
+          { ...ai, analysis: { ...ai.analysis, ...patch } },
+          system,
+        ),
+      ).toThrow();
+    }
+    failClaimsExamination(f.repo, f.c.id, ai.requestId, system);
+    expect(f.repo.listInvestigationEntries(f.c.id).map((entry) => entry.kind)).toEqual([
+      'examiner_request',
+      'examiner_started',
+      'examiner_failure',
+    ]);
+    expect(f.repo.getClaimsCase(f.c.id)?.settlementAuthorization).toBe('none');
+    expect(
+      appendClaimsInvestigation(
+        f.repo,
+        f.c.id,
+        {
+          action: 'request_proof',
+          requestKey: newId(),
+          text: 'Review the incident and supply replay evidence',
+        },
+        reviewer,
+      ).kind,
+    ).toBe('proof_request');
+    f.db.close();
+  });
+
+  it('rejects a reserved report after the underlying observation changes', () => {
+    const f = setup();
+    const ai = report(f);
+    const incident = f.repo.getIncident(f.c.incidentId!)!;
+    f.repo.saveIncident({
+      ...incident,
+      observedAt: new Date((f.p.terms.effectiveAt - 1) * 1000).toISOString(),
+    });
+    expect(() => finishClaimsExamination(f.repo, f.c.id, ai, system)).toThrow(
+      'Stale examiner dossier',
+    );
+    expect(claimsDossier(f.repo, f.c.id, system).dossier.chronology.relation).toBe(
+      'before_inception',
+    );
+    expect(getClaimsInvestigation(f.repo, f.c.id, reviewer).reviewBlockers).toContain(
+      'COVERAGE_CHRONOLOGY_REQUIRES_REVIEW',
+    );
+    const snapshot = claimsDossier(f.repo, f.c.id, system);
+    // A historical verifier may have accepted times under an older parser.
+    const verificationId = newId();
+    f.repo.saveClaimVerification({
+      id: verificationId,
+      caseId: f.c.id,
+      requestDigest: verificationId,
+      recordJson: JSON.stringify({
+        id: verificationId,
+        contextDigest: snapshot.dossier.verificationContext,
+        executionStatus: 'completed',
+        evidenceSufficiency: 'sufficient',
+      }),
+    });
+    const current = claimsDossier(f.repo, f.c.id, system).dossier;
+    expect(current.currentVerificationIds).toContain(verificationId);
+    expect(current.verifiedFindingIds).toEqual([]);
+
+    f.db.close();
   });
 
   it('rejects unlinked or invisible proposal citations and preserves the human-adopted reference', () => {

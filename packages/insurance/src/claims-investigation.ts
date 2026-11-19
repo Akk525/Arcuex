@@ -16,17 +16,19 @@ import {
   CLAIM_FIXTURE,
   claimVerificationContext,
   verificationDigest,
-  type ClaimVerificationRecord,
+  type PersistedClaimVerification,
 } from './claim-verification';
+import { COVERAGE_RELATIONS, isWithinClaimWindow, readClaimChronology } from './claim-chronology';
 
 const text = z.string().trim().min(1).max(4000),
   uuid = z.string().uuid();
-export const CLAIMS_EXAMINER_PROMPT = 'claims-dossier-v2';
+export const CLAIMS_EXAMINER_PROMPT = 'claims-dossier-v3';
 const citationId = z.string().min(1).max(128);
 export const ExaminerAnalysisSchema = z
   .object({
     summary: text,
-    verifiedFindings: z.array(text).max(8),
+    chronology: z.enum(COVERAGE_RELATIONS),
+    verifiedFindings: z.array(uuid).max(8),
     claimantAssertions: z.array(text).max(8),
     gaps: z.array(text).max(8),
     proposedRequests: z
@@ -212,13 +214,22 @@ export function claimsDossier(repo: InsuranceRepository, caseId: string, p: Clai
     entries = repo.listInvestigationEntries(caseId);
   const verifications = repo
     .listClaimVerifications(caseId)
-    .map((r) => JSON.parse(r.recordJson) as ClaimVerificationRecord);
+    .map((r) => JSON.parse(r.recordJson) as PersistedClaimVerification);
   const timeline = repo.listClaimsCaseEvents(caseId);
   const authority = examinerAuthorityContext(repo, c, timeline);
   const outstanding = outstandingProofRequests(repo, caseId);
   const context = claimVerificationContext(repo, caseId);
   const latest = verifications.filter((v) => v.contextDigest === context);
+  const chronology = readClaimChronology(repo, c);
+  const inWindow = isWithinClaimWindow(chronology, Date.now());
+  const verifiedFindingIds = inWindow
+    ? latest
+        .filter((v) => v.executionStatus === 'completed' && v.evidenceSufficiency === 'sufficient')
+        .map((v) => v.id)
+    : [];
   const blockers: string[] = [];
+  if (!inWindow || !chronology.waitingPeriodSatisfied)
+    blockers.push('COVERAGE_CHRONOLOGY_REQUIRES_REVIEW');
   if (outstanding.length) blockers.push('OUTSTANDING_EVIDENCE_REQUESTS');
   const authorityReview = authority.requiresHumanReview
     ? ['CLAIMANT_OR_DELEGATION_AUTHORITY_UNRESOLVED']
@@ -253,6 +264,7 @@ export function claimsDossier(repo: InsuranceRepository, caseId: string, p: Clai
   const dossier = JSON.parse(
     safeJson({
       case: c,
+      chronology,
       citationIds,
       authority,
       authorityReview,
@@ -285,6 +297,7 @@ export function claimsDossier(repo: InsuranceRepository, caseId: string, p: Clai
       entries: evidenceEntries,
       verifications,
       currentVerificationIds: latest.map((v) => v.id),
+      verifiedFindingIds,
       lossAndRecovery: {
         caseFigures: {
           verifiedLossMicros: c.verifiedLossMicros,
@@ -314,6 +327,7 @@ export function getClaimsInvestigation(
     entries = repo.listInvestigationEntries(caseId);
   return {
     dossierDigest: digest,
+    chronology: dossier.chronology as ReturnType<typeof readClaimChronology>,
     reviewBlockers: dossier.reviewBlockers as string[],
     authorityReview: dossier.authorityReview as string[],
     outstandingRequests: outstandingProofRequests(repo, caseId).map((e) => e.id),
@@ -323,12 +337,7 @@ export function getClaimsInvestigation(
       proofVerificationStatus:
         e.kind === 'proof_submission' &&
         body(e).sourceClassification === 'synthetic_fixture' &&
-        dossier.verifications.some(
-          (v: ClaimVerificationRecord) =>
-            v.contextDigest === dossier.verificationContext &&
-            v.executionStatus === 'completed' &&
-            v.evidenceSufficiency === 'sufficient',
-        )
+        dossier.verifiedFindingIds.length > 0
           ? 'fixture_consistency_only'
           : 'unverified',
       stale: e.kind === 'examiner_report' && body(e).dossierDigest !== digest,
@@ -347,6 +356,10 @@ export function appendClaimsInvestigation(
   return repo.runInTransaction(() => {
     const c = accessible(repo, caseId, p, true),
       entries = repo.listInvestigationEntries(caseId);
+    if (!c.syntheticDemo && repo.getProcurementPolicy(c.policyId)?.terms.synthetic === false)
+      throw new ValidationError(
+        'Independent pilot uses the dedicated verification and human review routes',
+      );
     let kind: InvestigationKind, payload: Record<string, unknown>;
     const append = () =>
       repo.appendInvestigationEntry({
@@ -567,6 +580,34 @@ const Report = z
       .strict(),
   })
   .strict();
+// The validated relation is the only examiner chronology. Reject recognizable
+// attempts to restate policy timing in free-text advisory fields.
+function makesNarrativeTimingClaim(analysis: ExaminerAnalysis) {
+  const narrative = [
+    analysis.summary,
+    ...analysis.claimantAssertions,
+    ...analysis.gaps,
+    ...analysis.proposedRequests.map((proposal) => proposal.question),
+  ];
+  const window =
+    /\b(?:inception|expiry|expiration|effective (?:at|date|time)|(?:policy|coverage) (?:window|period|start|end)|(?:policy|coverage) (?:began|begins|started|starts|expired|expires|ended|ends|took effect|was in force)|(?:start|end|effective date) of (?:the )?(?:policy|coverage))\b/i;
+  const comparison =
+    /\b(?:before|after|pre[- ]?dates?|post[- ]?dates?|preced\w*|prior|following|within|outside|earlier|later|during|between|fall\w*|not yet|already|coincid\w*|equality|overlap\w*)\b/i;
+  return narrative.some((text) => {
+    const normalized = text
+      .normalize('NFKC')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim();
+    return (
+      (window.test(normalized) && comparison.test(normalized)) ||
+      /\b(?:pre ?inception|post ?expiry|out of window|on time|late reported|(?:before|after|during|preceded|predates) (?:the )?coverage)\b/i.test(
+        normalized,
+      ) ||
+      /\b\d{4}[-/]\d{2}[-/]\d{2}\b/.test(text)
+    );
+  });
+}
+
 export function finishClaimsExamination(
   repo: InsuranceRepository,
   caseId: string,
@@ -594,6 +635,21 @@ export function finishClaimsExamination(
     const { dossier, digest } = claimsDossier(repo, caseId, p);
     if (digest !== report.dossierDigest)
       throw new ValidationError('Stale examiner dossier; request reassessment');
+    if (
+      report.analysis.chronology !== dossier.chronology.relation ||
+      makesNarrativeTimingClaim(report.analysis)
+    )
+      throw new ValidationError(
+        'Examiner chronology contradicts or restates the server chronology',
+      );
+    if (
+      report.analysis.verifiedFindings.some(
+        (id) => !dossier.verifiedFindingIds.includes(id) || !report.analysis.citations.includes(id),
+      )
+    )
+      throw new ValidationError(
+        'Examiner verified finding must reference a current cited verification',
+      );
     const known = new Set<string>(dossier.citationIds);
     const citations = [
       ...report.analysis.citations,

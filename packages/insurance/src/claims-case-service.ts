@@ -29,6 +29,12 @@ import { deriveCanonicalClaimsLossKey } from './canonical-loss-key';
 import { intakeObservedEvent } from './claims-pipeline';
 import { checkClaimAdjudication, type ContractualReview } from './claim-adjudication-checks';
 import { computeNetLossPayable } from './net-loss';
+import {
+  computeClaimChronology,
+  isWithinClaimWindow,
+  parseClaimTimestamp,
+  readClaimPolicyWindow,
+} from './claim-chronology';
 
 function toCase(row: NonNullable<ReturnType<InsuranceRepository['getClaimsCase']>>): ClaimsCase {
   return ClaimsCaseSchema.parse(row);
@@ -177,25 +183,30 @@ export function intakeClaimsCase(
     const { policy } = assertPolicyOwnership(repo, principal, input.policyId);
     if (!policy.exposures.some((e) => e.id === input.exposureId))
       throw new ValidationError('Unknown policy exposure');
-    const at = Date.parse(input.observedAt) / 1000;
-    if (
-      !Number.isFinite(at) ||
-      at < policy.effectiveAt ||
-      at > policy.expiresAt ||
-      at > Date.now() / 1000
-    )
+    const chronology = computeClaimChronology(
+      input.policyId,
+      readClaimPolicyWindow(repo, input.policyId),
+      {
+        id: null,
+        source: 'claims-case-intake',
+        raw: input.observedAt,
+      },
+      true,
+    );
+    if (!isWithinClaimWindow(chronology, Date.now()))
       throw new ValidationError(
-        'Incident must occur within the bound coverage window and cannot be in the future',
+        'Incident must have an unambiguous timestamp within the bound coverage window and cannot be in the future',
       );
     if (!input.observedEventRef.trim() || input.observedEventRef.length > 240)
       throw new ValidationError('Canonical observed event reference required');
     const existing = repo.getClaimsCaseByIdempotencyKey(input.idempotencyKey);
     if (existing) {
+      const priorIncident = repo.getIncident(existing.incidentId ?? '');
       if (
         existing.policyId !== input.policyId ||
         existing.exposureId !== input.exposureId ||
-        repo.getIncident(existing.incidentId ?? '')?.observedEventRef !==
-          input.observedEventRef.trim()
+        priorIncident?.observedEventRef !== input.observedEventRef.trim() ||
+        parseClaimTimestamp(priorIncident?.observedAt) !== chronology.incident.epochMs
       )
         throw new IdempotencyConflictError(
           'Claims intake key reused with different policy/exposure/event',
@@ -217,6 +228,10 @@ export function intakeClaimsCase(
             ...event,
             idempotencyKey: `incident:${input.idempotencyKey}`,
           }));
+    if (parseClaimTimestamp(incident.observedAt) !== chronology.incident.epochMs)
+      throw new IdempotencyConflictError(
+        'Observed event conflicts with the persisted incident timestamp',
+      );
     const opened = openClaimsCase(
       repo,
       { ...input, incidentId: incident.id, syntheticDemo: policy.synthetic || input.syntheticDemo },
@@ -396,6 +411,13 @@ export function attachEvidenceManifest(
       );
     }
 
+    if (
+      !current.syntheticDemo &&
+      repo.getProcurementPolicy(current.policyId)?.terms.synthetic === false
+    )
+      throw new ValidationError(
+        'Independent evidence may only be recorded by the authenticated verifier',
+      );
     const { inserted } = repo.saveEvidenceManifest({
       id: newId(),
       caseId: current.id,
@@ -411,15 +433,11 @@ export function attachEvidenceManifest(
       createdAt: new Date().toISOString(),
     });
 
-    let authenticity: EvidenceAuthenticity = current.evidenceAuthenticity;
-    if (input.syntheticFixture) {
-      authenticity = 'synthetic_fixture';
-    } else if (
-      input.verificationMethod === 'independent_chain_verify' &&
-      principal.role !== 'claimant'
-    ) {
-      authenticity = 'verified_independent';
-    }
+    // A caller-chosen manifest method is metadata. Only the independent verifier
+    // may establish independent authenticity for its supported product.
+    const authenticity: EvidenceAuthenticity = input.syntheticFixture
+      ? 'synthetic_fixture'
+      : current.evidenceAuthenticity;
 
     if (authenticity !== current.evidenceAuthenticity) {
       const patched = ClaimsCaseSchema.parse({
@@ -806,6 +824,12 @@ export function authorizeSettlementPreparation(
     }
 
     const binding = JSON.parse(current.adjudicationBindingJson) as AdjudicationBinding;
+    const independentPolicy =
+      repo.getProcurementPolicy(current.policyId)?.terms.synthetic === false;
+    if (independentPolicy && !binding.verificationId)
+      throw new ValidationError(
+        'Independent settlement requires the approved verification binding',
+      );
     if (binding.verificationId) {
       const checked = checkClaimAdjudication(repo, current, {
         verificationId: binding.verificationId,
@@ -816,6 +840,13 @@ export function authorizeSettlementPreparation(
       });
       if (checked.reason)
         throw new ValidationError(`Adjudication no longer current: ${checked.reason}`);
+      if (
+        independentPolicy &&
+        checked.verification?.contextDigest !== binding.verificationContextDigest
+      )
+        throw new ValidationError(
+          'Independent settlement verification context differs from approval',
+        );
       if (binding.caseId !== current.id || binding.incidentId !== current.incidentId)
         throw new ValidationError('Binding case/incident mismatch');
     }

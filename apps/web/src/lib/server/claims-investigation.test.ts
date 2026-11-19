@@ -169,6 +169,7 @@ it('routes real worker reservation and persisted advisory findings but grants no
           execution: 'test_double',
           analysis: {
             summary: 'Missing actual persisted verification',
+            chronology: snapshot.dossier.chronology.relation,
             verifiedFindings: [],
             claimantAssertions: [],
             gaps: ['Need verification'],

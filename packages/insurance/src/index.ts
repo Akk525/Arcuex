@@ -16,3 +16,5 @@ export * from './bank-dispute-fixture';
 export * from './claim-verification';
 
 export * from './claims-investigation';
+
+export * from './independent-liquidation';

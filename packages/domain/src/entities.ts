@@ -108,7 +108,7 @@ export const IncidentSchema = z.object({
   status: IncidentStatusSchema,
   /** Observed chain/system activity — not yet a verified covered event. */
   observedEventRef: z.string().min(1),
-  observedAt: z.string().datetime(),
+  observedAt: z.string().datetime({ offset: true }),
   policyId: EntityIdSchema.nullable(),
   exposureId: EntityIdSchema.nullable(),
   source: z.string().min(1),

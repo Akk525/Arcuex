@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import type {
-  ProcurementAgent,
-  ProcurementPolicy,
-  ProcurementQuote,
-  ProcurementDelegation,
+import {
+  isSupportedIndependentTerms,
+  type ProcurementAgent,
+  type ProcurementPolicy,
+  type ProcurementQuote,
+  type ProcurementDelegation,
 } from '@arcuex/domain';
 import { ProcurementStore, type SqliteDb } from '@arcuex/persistence';
 import { procurementDigest } from '@arcuex/agent-sdk';
@@ -62,7 +63,8 @@ function completeLink(store: ProcurementStore, p: ProcurementPolicy, e: BindEvid
     if (
       !!store.db.prepare('SELECT id FROM policies WHERE id=?').get(t.policyId) ||
       t.version !== 1 ||
-      t.synthetic !== true ||
+      (t.synthetic !== true &&
+        (!isSupportedIndependentTerms(t) || p.payer !== t.owner || p.delegationId !== null)) ||
       typeof t.productCode !== 'string' ||
       !t.productCode ||
       !/^[1-9][0-9]*$/.test(t.premiumMicros) ||
@@ -98,9 +100,10 @@ function completeLink(store: ProcurementStore, p: ProcurementPolicy, e: BindEvid
       !t.insuredEvent ||
       !Array.isArray(t.exclusions) ||
       !t.exclusions.every((v) => typeof v === 'string') ||
-      !['positionHealthy', 'noKnownIncident', 'syntheticOnly', 'ownerAttestsControl'].every(
+      !['positionHealthy', 'noKnownIncident', 'ownerAttestsControl'].every(
         (k) => t.eligibility[k as keyof typeof t.eligibility] === true,
       ) ||
+      t.eligibility.syntheticOnly !== t.synthetic ||
       BigInt(t.exposure.notionalMicros) < BigInt(t.limitMicros)
     )
       return false;

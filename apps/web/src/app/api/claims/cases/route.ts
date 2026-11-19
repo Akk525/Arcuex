@@ -1,12 +1,15 @@
-import {withApiSecurity} from '@/lib/server/api-security';
+import { withApiSecurity } from '@/lib/server/api-security';
 import {
   attachEvidenceManifest,
+  INDEPENDENT_EVENT_REFERENCE,
   canAccessClaimsPolicy,
   intakeClaimsCase,
   completeEvidenceOrReview,
   listClaimsCases,
 } from '@arcuex/insurance';
 import { reconcile } from '@/lib/server/procurement-chain';
+import { sameIndependentLiquidationProfile } from '@arcuex/domain';
+import { configuredIndependentLiquidation } from '@/lib/server/independent-evidence';
 import { NextResponse } from 'next/server';
 import { getRepo } from '@/lib/server/db';
 import { authenticateClaimsRequest } from '@/lib/server/claims-auth';
@@ -104,6 +107,21 @@ async function POSTHandler(request: Request) {
           },
           { status: 409 },
         );
+      const synthetic = procurement.terms.synthetic !== false;
+      if (
+        !synthetic &&
+        (!sameIndependentLiquidationProfile(
+          procurement.terms.independentProfile,
+          configuredIndependentLiquidation(),
+        ) ||
+          !INDEPENDENT_EVENT_REFERENCE.test(body.observedEventRef))
+      )
+        return NextResponse.json(
+          {
+            error: 'Independent claim requires a provisioned profile and exact Arc event reference',
+          },
+          { status: 409 },
+        );
       if (procurement) {
         let chain;
         try {
@@ -127,7 +145,7 @@ async function POSTHandler(request: Request) {
           exposureId: body.exposureId,
           claimantRef: auth.principal.subject,
           idempotencyKey: body.idempotencyKey,
-          syntheticDemo: true,
+          syntheticDemo: synthetic,
           actor: 'ignored',
           observedEventRef: body.observedEventRef,
           observedAt: body.observedAt,
@@ -187,5 +205,5 @@ async function POSTHandler(request: Request) {
   }
 }
 
-export const GET=withApiSecurity(GETHandler);
-export const POST=withApiSecurity(POSTHandler);
+export const GET = withApiSecurity(GETHandler);
+export const POST = withApiSecurity(POSTHandler);

@@ -1,3 +1,4 @@
+import { recheckIndependentEvidence } from '@/lib/server/independent-evidence';
 import { withApiSecurity } from '@/lib/server/api-security';
 import { prepareClaimsTransaction, verifyClaimsSettlement } from '@/lib/server/claims-chain';
 import { reconcile } from '@/lib/server/procurement-chain';
@@ -46,7 +47,7 @@ async function GETHandler(request: Request, ctx: Ctx) {
       getRuntimeConfig().chainSource === 'fixture'
         ? readFixture(getDb(), getRuntimeConfig()).source
         : { mode: 'arc-testnet' },
-    fixtureCatalog: CLAIM_FIXTURE,
+    ...(c.syntheticDemo ? { fixtureCatalog: CLAIM_FIXTURE } : {}),
     linkedIncident: c.incidentId ? repo.getIncident(c.incidentId) : null,
     principalRole: auth.principal.role,
     case: serializeClaimsCase(c),
@@ -72,6 +73,7 @@ async function POSTHandler(request: Request, ctx: Ctx) {
     coverageDetermination?: 'covered' | 'not_covered' | 'review_required' | 'unknown';
     verifiedLossUsdc?: string | null;
     recoveriesUsdc?: string | null;
+    priorCompensationUsdc?: string;
     requestedUsdc?: string;
     lossKey?: string;
     forceReviewReason?: string;
@@ -105,6 +107,23 @@ async function POSTHandler(request: Request, ctx: Ctx) {
       if (!body.coverageDetermination || !body.requestedUsdc) {
         return NextResponse.json({ error: 'Missing adjudication fields' }, { status: 400 });
       }
+      if (body.coverageDetermination === 'covered' && body.verificationId) {
+        const current = getClaimsCase(repo, id);
+        if (
+          current &&
+          !current.syntheticDemo &&
+          repo.getProcurementPolicy(current.policyId)?.terms.synthetic === false
+        ) {
+          try {
+            await recheckIndependentEvidence(repo, current, body.verificationId);
+          } catch {
+            return NextResponse.json(
+              { error: 'Current canonical independent verification required' },
+              { status: 409 },
+            );
+          }
+        }
+      }
       const next = adjudicateClaimsCase(
         repo,
         {
@@ -120,6 +139,11 @@ async function POSTHandler(request: Request, ctx: Ctx) {
             body.recoveriesUsdc === null || body.recoveriesUsdc === undefined
               ? null
               : parseUsdcDecimal(body.recoveriesUsdc),
+          priorCompensationMicros:
+            repo.getProcurementPolicy(getClaimsCase(repo, id)?.policyId ?? '')?.terms.synthetic ===
+              false && body.priorCompensationUsdc !== undefined
+              ? parseUsdcDecimal(body.priorCompensationUsdc)
+              : undefined,
           requestedMicros: parseUsdcDecimal(body.requestedUsdc),
           // lossKey ignored if present — derived canonically server-side
           lossKey: body.lossKey,
@@ -169,6 +193,22 @@ async function POSTHandler(request: Request, ctx: Ctx) {
       const current = getClaimsCase(repo, id);
       if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       let preparedTransaction;
+      if (
+        !current.syntheticDemo &&
+        repo.getProcurementPolicy(current.policyId)?.terms.synthetic === false
+      ) {
+        try {
+          const binding = JSON.parse(current.adjudicationBindingJson ?? '{}') as {
+            verificationId?: string;
+          };
+          await recheckIndependentEvidence(repo, current, binding.verificationId);
+        } catch {
+          return NextResponse.json(
+            { error: 'Current canonical independent verification required' },
+            { status: 409 },
+          );
+        }
+      }
       if (repo.getProcurementPolicy(current.policyId)) {
         try {
           const policy = repo.getProcurementPolicy(current.policyId)!;
