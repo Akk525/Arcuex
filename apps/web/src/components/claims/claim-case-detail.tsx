@@ -15,6 +15,15 @@ import {
 
 type DetailResponse = {
   principalRole?: string;
+  fixtureCatalog?: { reference: string; digest: string; raw: string };
+  linkedIncident?: { id: string; observedAt: string };
+  verifications?: Array<{
+    id: string;
+    executionStatus: string;
+    evidenceSufficiency: string;
+    findings: string[];
+    independentlyAuthenticated: false;
+  }>;
   case: {
     id: string;
     status: string;
@@ -61,6 +70,8 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   const [data, setData] = useState<DetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [reviewRationale, setReviewRationale] = useState('');
+  const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -102,6 +113,63 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
         if (json.notice) setNotice(String(json.notice));
         await refresh();
       })().catch((e) => setError(e instanceof Error ? e.message : 'Action failed'));
+    });
+  }
+
+  function verifyFixture() {
+    if (!data?.fixtureCatalog || !data.linkedIncident) return;
+    const catalog = data.fixtureCatalog,
+      incident = data.linkedIncident;
+    setError(null);
+    startTransition(async () => {
+      try {
+        const evidence = await claimsFetch('any', '/api/claims/cases', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            action: 'attach_evidence',
+            caseId,
+            evidence: {
+              source: 'synthetic-fixture',
+              provenance: catalog.reference,
+              rawEvidence: catalog.raw,
+              verificationMethod: 'fixture_consistency',
+              sourceReliability: 'demo_only',
+              syntheticFixture: true,
+            },
+          }),
+        });
+        if (!evidence.ok)
+          throw new Error((await evidence.json()).error ?? 'Evidence attachment failed');
+        if (data.case.status === 'COLLECTING_EVIDENCE') {
+          const completed = await claimsFetch('any', '/api/claims/cases', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'complete_evidence', caseId, evidenceComplete: true }),
+          });
+          if (!completed.ok)
+            throw new Error((await completed.json()).error ?? 'Evidence completion failed');
+        }
+        const verified = await claimsFetch('any', `/api/claims/cases/${caseId}/verification`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            revision: (data.verifications?.length ?? 0) + 1,
+            fixtureRef: catalog.reference,
+            fixtureDigest: catalog.digest,
+            policyId: data.case.policyId,
+            incidentId: incident.id,
+            observedAt: incident.observedAt,
+          }),
+        });
+        if (!verified.ok) throw new Error((await verified.json()).error ?? 'Verification failed');
+        setNotice(
+          'Fixture verification recorded. Coverage and payment require separate human decisions.',
+        );
+        await refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Verification failed');
+      }
     });
   }
 
@@ -210,6 +278,36 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
         </Panel>
       </div>
 
+      <Panel title="Synthetic fixture verification">
+        <p className="text-sm">
+          Fixture consistency only. No real-world event or economic loss is independently
+          authenticated.
+        </p>
+        {data.verifications?.map((v) => (
+          <div key={v.id} className="mt-2 text-xs">
+            <p>
+              {v.executionStatus} · Evidence {v.evidenceSufficiency}
+            </p>
+            <ul>
+              {v.findings.map((finding, i) => (
+                <li key={i}>{finding}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        {['COLLECTING_EVIDENCE', 'INVESTIGATING', 'REVIEW'].includes(c.status) &&
+          data.principalRole !== 'authority' && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={verifyFixture}
+              className="mt-2 rounded-md border px-3 py-1.5 text-xs"
+            >
+              Attach and verify synthetic fixture
+            </button>
+          )}
+      </Panel>
+
       <Panel title="Incident timeline">
         <ol className="space-y-2 text-sm">
           {data.timeline.map((e) => (
@@ -231,22 +329,61 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
             Actions require the matching server-provisioned ops session. Sending actor strings
             cannot escalate privilege.
           </p>
+          <p className="mb-2 text-xs">
+            Catalog gross economic loss: 1.50 USDC after extinguished debt. Scenario recoveries and
+            prior compensation: zero. Policy deductible and limits still apply.
+          </p>
+          <label className="mb-2 block text-sm">
+            <input
+              type="checkbox"
+              checked={reviewConfirmed}
+              onChange={(e) => setReviewConfirmed(e.target.checked)}
+            />{' '}
+            I reviewed event applicability and resolved all policy exclusions for this synthetic
+            scenario.
+          </label>
+          <label className="mb-3 block text-sm">
+            Contractual review rationale
+            <textarea
+              value={reviewRationale}
+              onChange={(e) => setReviewRationale(e.target.value)}
+              maxLength={4000}
+              className="block w-full rounded border p-2"
+            />
+          </label>
           <div className="mb-3 flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={pending}
+              disabled={
+                pending ||
+                !reviewConfirmed ||
+                !reviewRationale.trim() ||
+                !data.verifications?.some(
+                  (v) =>
+                    v.executionStatus === 'completed' && v.evidenceSufficiency === 'sufficient',
+                )
+              }
               className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs text-white disabled:opacity-50"
               onClick={() =>
                 run('reviewer', {
                   action: 'adjudicate',
                   coverageDetermination: 'covered',
-                  verifiedLossUsdc: '1.000000',
+                  verificationId: data.verifications?.find(
+                    (v) =>
+                      v.executionStatus === 'completed' && v.evidenceSufficiency === 'sufficient',
+                  )?.id,
+                  contractualReview: {
+                    eventApplies: reviewConfirmed,
+                    exclusionsResolved: reviewConfirmed,
+                    rationale: reviewRationale,
+                  },
+                  verifiedLossUsdc: '1.500000',
                   recoveriesUsdc: '0.000000',
                   requestedUsdc: '1.000000',
                 })
               }
             >
-              Adjudicate approve (1 USDC)
+              Review and approve up to 1 USDC
             </button>
             <button
               type="button"
@@ -256,7 +393,16 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
                 run('reviewer', {
                   action: 'adjudicate',
                   coverageDetermination: 'covered',
-                  verifiedLossUsdc: '1.000000',
+                  verificationId: data.verifications?.find(
+                    (v) =>
+                      v.executionStatus === 'completed' && v.evidenceSufficiency === 'sufficient',
+                  )?.id,
+                  contractualReview: {
+                    eventApplies: reviewConfirmed,
+                    exclusionsResolved: reviewConfirmed,
+                    rationale: reviewRationale,
+                  },
+                  verifiedLossUsdc: '1.500000',
                   recoveriesUsdc: null,
                   requestedUsdc: '1.000000',
                 })
@@ -272,7 +418,7 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
                 run('reviewer', {
                   action: 'adjudicate',
                   coverageDetermination: 'not_covered',
-                  verifiedLossUsdc: '1.000000',
+                  verifiedLossUsdc: '1.500000',
                   recoveriesUsdc: '0.000000',
                   requestedUsdc: '1.000000',
                 })

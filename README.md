@@ -168,3 +168,8 @@ Plan B Sprint 1 adds server-side synthetic fixture verification records and auth
 [implementation and limits](docs/verification/plan-b-sprint1-verification.md). Verification does not approve a claim or authorize settlement.
 Plan B Sprint 1 offline settlement feasibility and authorization boundaries:
 [settlement review](docs/verification/plan-b-sprint1-settlement.md). No deployment or live operation is authorized by this review.
+
+Plan B Sprint 2 binds synthetic verification to explicit human adjudication, evidence sufficiency,
+contractual review and frozen loss calculations. See the [reconciliation, validation and readiness
+report](docs/verification/plan-b-sprint2.md). Fixture success never authorizes payment; production
+synthetic settlement restrictions remain in force.

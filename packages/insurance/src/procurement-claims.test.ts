@@ -1,3 +1,4 @@
+import { CLAIM_FIXTURE, verifyClaimFixture } from './claim-verification';
 import { describe, it, expect } from 'vitest';
 import { newId, PROCUREMENT_PRODUCT, type ProcurementPolicy } from '@arcuex/domain';
 import { openDatabase, InsuranceRepository, ProcurementStore } from '@arcuex/persistence';
@@ -17,7 +18,7 @@ const foreign = {
   walletAddress: '0x3333333333333333333333333333333333333333',
 };
 const reviewer = { role: 'reviewer' as const, subject: 'reviewer' };
-function fixture(confirmed = true, reconciled = confirmed) {
+function fixture(confirmed = true, reconciled = confirmed, limitMicros = '1000000') {
   const db = openDatabase(),
     repo = new InsuranceRepository(db),
     store = new ProcurementStore(db),
@@ -52,7 +53,7 @@ function fixture(confirmed = true, reconciled = confirmed) {
         ownerAttestsControl: true,
       },
       premiumMicros: '10000',
-      limitMicros: '1000000',
+      limitMicros,
       deductibleMicros: '100000',
       effectiveAt: now - 2000,
       expiresAt: now + 86400,
@@ -86,7 +87,7 @@ function fixture(confirmed = true, reconciled = confirmed) {
   };
   return { db, repo, store, p, input };
 }
-function investigate(f: ReturnType<typeof fixture>, key: string) {
+async function investigate(f: ReturnType<typeof fixture>, key: string) {
   const c = intakeClaimsCase(f.repo, { ...f.input, idempotencyKey: key }, claimant);
   attachEvidenceManifest(
     f.repo,
@@ -94,14 +95,32 @@ function investigate(f: ReturnType<typeof fixture>, key: string) {
       caseId: c.id,
       source: 'fixture',
       provenance: 'synthetic',
-      rawEvidence: 'loss fixture',
+      rawEvidence: CLAIM_FIXTURE.raw,
       verificationMethod: 'fixture_consistency',
       sourceReliability: 'demo_only',
       syntheticFixture: true,
     },
     claimant,
   );
-  return completeEvidenceOrReview(f.repo, { caseId: c.id, evidenceComplete: true }, claimant);
+  const investigating = completeEvidenceOrReview(
+    f.repo,
+    { caseId: c.id, evidenceComplete: true },
+    claimant,
+  );
+  const incident = f.repo.getIncident(c.incidentId!)!;
+  await verifyClaimFixture(
+    f.repo,
+    c.id,
+    {
+      fixtureRef: CLAIM_FIXTURE.reference,
+      fixtureDigest: CLAIM_FIXTURE.digest,
+      policyId: c.policyId,
+      incidentId: incident.id,
+      observedAt: incident.observedAt,
+    },
+    claimant,
+  );
+  return investigating;
 }
 describe('canonical procurement → ClaimsCase integration', () => {
   it('links the original immutable policy/exposure and freezes its beneficiary without copying a policy', () => {
@@ -195,17 +214,23 @@ describe('canonical procurement → ClaimsCase integration', () => {
       completeEvidenceOrReview(f.repo, { caseId: c.id, evidenceComplete: true }, claimant).status,
     ).toBe('REVIEW');
   });
-  it('preserves canonical keys, frozen bindings, synthetic restrictions and same-loss pending commitments', () => {
+  it('preserves canonical keys, frozen bindings, synthetic restrictions and same-loss pending commitments', async () => {
     const f = fixture(),
-      a = investigate(f, 'first-001'),
-      b = investigate(f, 'second-001');
+      a = await investigate(f, 'first-001'),
+      b = await investigate(f, 'second-001');
     const adjudicate = (id: string) =>
       adjudicateClaimsCase(
         f.repo,
         {
           caseId: id,
           coverageDetermination: 'covered',
-          verifiedLossMicros: 1000000n,
+          verifiedLossMicros: 1500000n,
+          verificationId: JSON.parse(f.repo.listClaimVerifications(id)[0]!.recordJson).id,
+          contractualReview: {
+            eventApplies: true,
+            exclusionsResolved: true,
+            rationale: 'Human reviewed synthetic terms and exclusions',
+          },
           recoveriesMicros: 0n,
           requestedMicros: 600000n,
         },
@@ -246,24 +271,30 @@ describe('canonical procurement → ClaimsCase integration', () => {
   });
 });
 
-it('blocks separately approved partials that together exceed frozen net loss below the policy cap', () => {
-  const f = fixture(),
-    a = investigate(f, 'partial-first'),
-    b = investigate(f, 'partial-second');
-  const approve = (caseId: string, requestedMicros: bigint) =>
+it('blocks separately approved partials that together exceed frozen net loss below the policy cap', async () => {
+  const f = fixture(true, true, '2000000'),
+    a = await investigate(f, 'partial-first'),
+    b = await investigate(f, 'partial-second');
+  const approve = (id: string, requestedMicros: bigint) =>
     adjudicateClaimsCase(
       f.repo,
       {
-        caseId,
+        caseId: id,
         coverageDetermination: 'covered',
-        verifiedLossMicros: 1000000n,
+        verifiedLossMicros: 1500000n,
+        verificationId: JSON.parse(f.repo.listClaimVerifications(id)[0]!.recordJson).id,
+        contractualReview: {
+          eventApplies: true,
+          exclusionsResolved: true,
+          rationale: 'Human reviewed synthetic terms and exclusions',
+        },
         recoveriesMicros: 0n,
         requestedMicros,
       },
       reviewer,
     );
   const aa = approve(a.id, 600000n),
-    bb = approve(b.id, 350000n);
+    bb = approve(b.id, 850000n);
   const authority = {
     role: 'authority' as const,
     subject: 'test',
@@ -287,18 +318,24 @@ it('blocks separately approved partials that together exceed frozen net loss bel
   expect(f.repo.getClaimsCase(bb.id)?.status).toBe('APPROVED');
 });
 
-it('counts pending commitments across different loss keys against the same policy limit', () => {
+it('counts pending commitments across different loss keys against the same policy limit', async () => {
   const f = fixture();
-  const a = investigate(f, 'policy-first');
+  const a = await investigate(f, 'policy-first');
   f.input.observedEventRef = 'synthetic:oracle:another-event';
-  const b = investigate(f, 'policy-second');
+  const b = await investigate(f, 'policy-second');
   const approve = (id: string) =>
     adjudicateClaimsCase(
       f.repo,
       {
         caseId: id,
         coverageDetermination: 'covered',
-        verifiedLossMicros: 1000000n,
+        verifiedLossMicros: 1500000n,
+        verificationId: JSON.parse(f.repo.listClaimVerifications(id)[0]!.recordJson).id,
+        contractualReview: {
+          eventApplies: true,
+          exclusionsResolved: true,
+          rationale: 'Human reviewed synthetic terms and exclusions',
+        },
         recoveriesMicros: 0n,
         requestedMicros: 600000n,
       },
@@ -322,4 +359,214 @@ it('counts pending commitments across different loss keys against the same polic
     );
   prepare(aa);
   expect(() => prepare(bb)).toThrow('Policy committed payouts');
+});
+
+const contractualReview = {
+  eventApplies: true,
+  exclusionsResolved: true,
+  rationale: 'Reviewer checked synthetic event, registered position, timing and each exclusion.',
+};
+function decision(f: ReturnType<typeof fixture>, id: string) {
+  return {
+    caseId: id,
+    verificationId: JSON.parse(f.repo.listClaimVerifications(id)[0]!.recordJson).id as string,
+    contractualReview,
+    coverageDetermination: 'covered' as const,
+    verifiedLossMicros: 1500000n,
+    recoveriesMicros: 0n,
+    requestedMicros: 1000000n,
+  };
+}
+describe('Sprint 2 verification-to-adjudication boundary', () => {
+  it('requires a human decision after fixture consistency, persists economics and reviewer identity, and cannot grant settlement authority', async () => {
+    const f = fixture(),
+      c = await investigate(f, 'sprint2-eligible');
+    expect(f.repo.getClaimsCase(c.id)?.status).toBe('INVESTIGATING');
+    expect(f.repo.getClaimsCase(c.id)?.coverageDetermination).toBe('unknown');
+    const approved = adjudicateClaimsCase(f.repo, decision(f, c.id), reviewer);
+    expect(approved.payableMicros).toBe(1000000n); // min(1.5 - .1, 1.0 policy limit, 1.0 request)
+    expect(approved.settlementAuthorization).toBe('pending_authority');
+    const binding = JSON.parse(approved.adjudicationBindingJson!);
+    expect(binding).toMatchObject({
+      caseId: c.id,
+      incidentId: c.incidentId,
+      verifiedLossMicros: '1500000',
+      recoveriesMicros: '0',
+      deductibleMicros: '100000',
+      priorCompensationMicros: '0',
+      netCoveredLossMicros: '1400000',
+      coverageLimitMicros: '1000000',
+      reviewer: { actor: 'reviewer:reviewer', role: 'reviewer', contractualReview },
+      asset: { symbol: 'USDC', scale: 6 },
+      evidenceAuthenticity: 'synthetic_fixture',
+    });
+    const event = f.repo.listClaimsCaseEvents(c.id).at(-1)!;
+    expect(JSON.parse(event.payloadJson).binding).toEqual(binding);
+    const prep = {
+      caseId: c.id,
+      confirmedRecipient: beneficiary,
+      confirmedAmountMicros: approved.payableMicros!,
+      confirmedLossKey: approved.lossKey!,
+      confirmedEvidenceRoot: approved.evidenceRoot!,
+      settlementPrepId: 'offline-only',
+    };
+    expect(() => authorizeSettlementPreparation(f.repo, prep, reviewer)).toThrow('requires role');
+    expect(() =>
+      authorizeSettlementPreparation(f.repo, prep, { role: 'authority', subject: 'auth' }),
+    ).toThrow('Synthetic');
+    f.db.close();
+  });
+  it.each([
+    ['missing verification', { verificationId: undefined }, 'PERSISTED_VERIFICATION_REQUIRED'],
+    ['wrong verification', { verificationId: 'other-case' }, 'PERSISTED_VERIFICATION_REQUIRED'],
+    ['arbitrary gross loss', { verifiedLossMicros: 99999999n }, 'LOSS_ASSESSMENT_MISMATCH'],
+    ['arbitrary recovery', { recoveriesMicros: 1n }, 'LOSS_ASSESSMENT_MISMATCH'],
+    ['unresolved recovery', { recoveriesMicros: null }, 'UNRESOLVED_RECOVERIES'],
+    ['unresolved compensation', { priorCompensationMicros: 1n }, 'LOSS_ASSESSMENT_MISMATCH'],
+    [
+      'unresolved exclusions',
+      { contractualReview: { ...contractualReview, exclusionsResolved: false } },
+      'CONTRACTUAL_REVIEW_REQUIRED',
+    ],
+    [
+      'missing rationale',
+      { contractualReview: { ...contractualReview, rationale: '' } },
+      'CONTRACTUAL_REVIEW_REQUIRED',
+    ],
+    [
+      'wrong event',
+      { contractualReview: { ...contractualReview, eventApplies: false } },
+      'CONTRACTUAL_REVIEW_REQUIRED',
+    ],
+  ])('keeps %s in human REVIEW', async (_label, patch, reason) => {
+    const f = fixture(),
+      c = await investigate(f, 'sprint2-fail-closed');
+    const reviewed = adjudicateClaimsCase(f.repo, { ...decision(f, c.id), ...patch }, reviewer);
+    expect(reviewed.status).toBe('REVIEW');
+    expect(reviewed.payableMicros).toBeNull();
+    expect(reviewed.reviewReasonCode).toBe(reason);
+    expect(reviewed.settlementAuthorization).toBe('none');
+    f.db.close();
+  });
+  it.each([
+    { fixtureDigest: undefined },
+    { policyId: 'wrong' },
+    { incidentId: 'wrong' },
+    { observedAt: '2020-01-01T00:00:00.000Z' },
+  ])(
+    'cannot cherry-pick success around unresolved contradictory/missing evidence %j',
+    async (patch) => {
+      const f = fixture(),
+        c = await investigate(f, 'sprint2-contradiction');
+      const incident = f.repo.getIncident(c.incidentId!)!;
+      await verifyClaimFixture(
+        f.repo,
+        c.id,
+        {
+          fixtureRef: CLAIM_FIXTURE.reference,
+          fixtureDigest: CLAIM_FIXTURE.digest,
+          policyId: c.policyId,
+          incidentId: incident.id,
+          observedAt: incident.observedAt,
+          ...patch,
+        },
+        claimant,
+      );
+      const reviewed = adjudicateClaimsCase(f.repo, decision(f, c.id), reviewer);
+      expect(reviewed.status).toBe('REVIEW');
+      expect(reviewed.reviewReasonCode).toBe('UNRESOLVED_VERIFICATION_FINDINGS');
+      f.db.close();
+    },
+  );
+  it.each([
+    'UPDATE policy_reconciliation_scopes SET checked_at=0',
+    'UPDATE policy_reconciliation_scopes SET healthy=0',
+  ])('rejects stale or unhealthy reconciliation at adjudication and preparation', async (sql) => {
+    for (const afterApproval of [false, true]) {
+      const f = fixture(),
+        c = await investigate(f, 'sprint2-stale-reconciliation');
+      const approved = afterApproval
+        ? adjudicateClaimsCase(f.repo, decision(f, c.id), reviewer)
+        : null;
+      f.db.transaction(() => f.db.exec(sql))();
+      if (approved) {
+        expect(() =>
+          authorizeSettlementPreparation(
+            f.repo,
+            {
+              caseId: c.id,
+              confirmedRecipient: beneficiary,
+              confirmedAmountMicros: approved.payableMicros!,
+              confirmedLossKey: approved.lossKey!,
+              confirmedEvidenceRoot: approved.evidenceRoot!,
+              settlementPrepId: 'stale',
+            },
+            { role: 'authority', subject: 'offline', allowSyntheticSettlementPrep: true },
+          ),
+        ).toThrow('no longer current');
+      } else
+        expect(adjudicateClaimsCase(f.repo, decision(f, c.id), reviewer).status).toBe('REVIEW');
+      f.db.close();
+    }
+  });
+  it('rejects changed evidence, unauthorized reviewers, repeated decisions and repeated settlement preparation', async () => {
+    const f = fixture(),
+      c = await investigate(f, 'sprint2-identity');
+    for (const column of ['policy_id', 'exposure_id', 'incident_id'])
+      expect(() =>
+        f.db.prepare(`UPDATE claims_cases SET ${column}=? WHERE id=?`).run(newId(), c.id),
+      ).toThrow('immutable');
+    expect(() => adjudicateClaimsCase(f.repo, decision(f, c.id), claimant)).toThrow(
+      'requires role',
+    );
+    const approved = adjudicateClaimsCase(f.repo, decision(f, c.id), reviewer);
+    expect(() => adjudicateClaimsCase(f.repo, decision(f, c.id), reviewer)).toThrow(
+      'requires INVESTIGATING',
+    );
+    const prep = {
+      caseId: c.id,
+      confirmedRecipient: beneficiary,
+      confirmedAmountMicros: approved.payableMicros!,
+      confirmedLossKey: approved.lossKey!,
+      confirmedEvidenceRoot: approved.evidenceRoot!,
+      settlementPrepId: 'repeat',
+    };
+    const auth = {
+      role: 'authority' as const,
+      subject: 'offline',
+      allowSyntheticSettlementPrep: true,
+    };
+    for (const patch of [
+      { confirmedRecipient: owner },
+      { confirmedAmountMicros: 1n },
+      { confirmedLossKey: 'wrong' },
+      { confirmedEvidenceRoot: 'wrong' },
+    ])
+      expect(() => authorizeSettlementPreparation(f.repo, { ...prep, ...patch }, auth)).toThrow(
+        'binding',
+      );
+    authorizeSettlementPreparation(f.repo, prep, auth);
+    expect(() => authorizeSettlementPreparation(f.repo, prep, auth)).toThrow('requires APPROVED');
+    f.db.close();
+    const changed = fixture(),
+      collecting = await investigate(changed, 'sprint2-stale-evidence');
+    attachEvidenceManifest(
+      changed.repo,
+      {
+        caseId: collecting.id,
+        source: 'additional',
+        provenance: 'client',
+        rawEvidence: 'contradictory extra evidence',
+        verificationMethod: 'fixture_consistency',
+        sourceReliability: 'demo_only',
+        syntheticFixture: true,
+      },
+      claimant,
+    );
+    expect(
+      adjudicateClaimsCase(changed.repo, decision(changed, collecting.id), reviewer)
+        .reviewReasonCode,
+    ).toBe('STALE_VERIFICATION_CONTEXT');
+    changed.db.close();
+  });
 });

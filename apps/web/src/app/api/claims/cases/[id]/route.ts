@@ -1,10 +1,12 @@
-import {withApiSecurity} from '@/lib/server/api-security';
+import { withApiSecurity } from '@/lib/server/api-security';
 import { prepareClaimsTransaction, verifyClaimsSettlement } from '@/lib/server/claims-chain';
 import { reconcile } from '@/lib/server/procurement-chain';
 import { txHash } from '@/lib/server/procurement-chain';
+import type { AdjudicateInput } from '@arcuex/insurance';
 import { parseUsdcDecimal } from '@arcuex/domain';
 import {
   adjudicateClaimsCase,
+  CLAIM_FIXTURE,
   listClaimVerifications,
   canAccessClaimsPolicy,
   authorizeSettlementPreparation,
@@ -38,6 +40,8 @@ async function GETHandler(request: Request, ctx: Ctx) {
   const manifests = repo.listEvidenceManifests(id);
   return NextResponse.json({
     dataClass: 'claims_case',
+    fixtureCatalog: CLAIM_FIXTURE,
+    linkedIncident: c.incidentId ? repo.getIncident(c.incidentId) : null,
     principalRole: auth.principal.role,
     case: serializeClaimsCase(c),
     timeline,
@@ -57,6 +61,8 @@ async function POSTHandler(request: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   let body: {
     action?: string;
+    verificationId?: string;
+    contractualReview?: AdjudicateInput['contractualReview'];
     coverageDetermination?: 'covered' | 'not_covered' | 'review_required' | 'unknown';
     verifiedLossUsdc?: string | null;
     recoveriesUsdc?: string | null;
@@ -97,6 +103,8 @@ async function POSTHandler(request: Request, ctx: Ctx) {
         repo,
         {
           caseId: id,
+          verificationId: body.verificationId,
+          contractualReview: body.contractualReview,
           coverageDetermination: body.coverageDetermination,
           verifiedLossMicros:
             body.verifiedLossUsdc === null || body.verifiedLossUsdc === undefined
@@ -236,5 +244,5 @@ async function POSTHandler(request: Request, ctx: Ctx) {
   }
 }
 
-export const GET=withApiSecurity(GETHandler);
-export const POST=withApiSecurity(POSTHandler);
+export const GET = withApiSecurity(GETHandler);
+export const POST = withApiSecurity(POSTHandler);

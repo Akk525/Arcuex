@@ -298,3 +298,38 @@ it('enforces one canonical bind while retaining orphaned provenance and the loca
   expect(db.pragma('foreign_key_check')).toEqual([]);
   db.close();
 });
+
+it('upgrades the consolidated twelve-migration Plan A schema with only append-only verification storage', () => {
+  const db = beforeIntegration([
+    ...common,
+    ...procurement,
+    ...claims,
+    '007_procurement_claims_integration.sql',
+    '008_shared_wallet_session_scope.sql',
+    '009_launch_security.sql',
+    '010_policy_reconciliation.sql',
+  ]);
+  seedClaims(db);
+  const before = [
+    'policies',
+    'incidents',
+    'claims_cases',
+    'claims_case_events',
+    'capital_pools',
+    'capital_reservations',
+    'settlements',
+    'policy_bind_events',
+    'policy_reconciliation_scopes',
+  ].map((table) => [table, db.prepare(`SELECT * FROM ${table}`).all()] as const);
+  migrate(db);
+  migrate(db);
+  for (const [table, rows] of before)
+    expect(db.prepare(`SELECT * FROM ${table}`).all()).toEqual(rows);
+  expect(db.prepare('SELECT * FROM claim_verifications').all()).toEqual([]);
+  expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(13);
+  expect(
+    db.prepare("SELECT name FROM sqlite_master WHERE name='policy_indexer_state'").get(),
+  ).toBeUndefined();
+  expect(db.pragma('foreign_key_check')).toEqual([]);
+  db.close();
+});

@@ -27,6 +27,7 @@ import {
 } from './claims-case';
 import { deriveCanonicalClaimsLossKey } from './canonical-loss-key';
 import { intakeObservedEvent } from './claims-pipeline';
+import { checkClaimAdjudication, type ContractualReview } from './claim-adjudication-checks';
 import { computeNetLossPayable } from './net-loss';
 
 function toCase(row: NonNullable<ReturnType<InsuranceRepository['getClaimsCase']>>): ClaimsCase {
@@ -465,6 +466,8 @@ export function completeEvidenceOrReview(
 }
 
 export type AdjudicateInput = {
+  verificationId?: string;
+  contractualReview?: ContractualReview;
   caseId: string;
   coverageDetermination: CoverageDetermination;
   verifiedLossMicros: UsdcMicros | null;
@@ -485,6 +488,10 @@ export function adjudicateClaimsCase(
   principal: ClaimsPrincipal,
 ): ClaimsCase {
   assertClaimsRole(principal, ['reviewer', 'authority']);
+  if (
+    !['covered', 'not_covered', 'review_required', 'unknown'].includes(input.coverageDetermination)
+  )
+    throw new ValidationError('Invalid coverage determination');
   const actor = claimsActorId(principal);
 
   return repo.runInTransaction(() => {
@@ -583,6 +590,22 @@ export function adjudicateClaimsCase(
       return persistTransition(repo, current, next, actor, 'COVERAGE_REVIEW_REQUIRED').case;
     }
 
+    const checked = checkClaimAdjudication(repo, current, input);
+    if (checked.reason) {
+      if (current.status === 'REVIEW')
+        return remainInReview(repo, current, actor, checked.reason, reviewPatch);
+      const next = transitionClaimsCase(current, {
+        to: 'REVIEW',
+        actor,
+        reasonCode: checked.reason,
+        patch: reviewPatch,
+      });
+      return persistTransition(repo, current, next, actor, checked.reason, {
+        verificationId: input.verificationId ?? null,
+        contractualReview: input.contractualReview ?? null,
+      }).case;
+    }
+
     const alreadyPaid = repo.sumPaidForLossKey(lossKey);
     const committed = repo.sumCommittedForLossKey(lossKey, current.id);
     const net = computeNetLossPayable({
@@ -646,7 +669,24 @@ export function adjudicateClaimsCase(
       throw new ValidationError('Same-loss committed payouts would exceed loss cap');
     }
 
+    const afterDeductions =
+      input.verifiedLossMicros! -
+      current.deductibleMicros -
+      input.recoveriesMicros! -
+      (input.priorCompensationMicros ?? current.priorCompensationMicros);
     const binding: AdjudicationBinding = {
+      caseId: current.id,
+      incidentId: incident.id,
+      verificationId: checked.verification!.id,
+      verificationContextDigest: checked.verification!.contextDigest,
+      reviewer: { actor, role: principal.role, contractualReview: input.contractualReview! },
+      asset: { symbol: 'USDC', scale: 6 },
+      deductibleMicros: current.deductibleMicros.toString(),
+      priorCompensationMicros: (
+        input.priorCompensationMicros ?? current.priorCompensationMicros
+      ).toString(),
+      netCoveredLossMicros: (afterDeductions > 0n ? afterDeductions : 0n).toString(),
+      coverageLimitMicros: current.lossCapMicros!.toString(),
       policyId: current.policyId,
       exposureId: current.exposureId,
       payableMicros: net.payableMicros.toString(),
@@ -754,6 +794,19 @@ export function authorizeSettlementPreparation(
     }
 
     const binding = JSON.parse(current.adjudicationBindingJson) as AdjudicationBinding;
+    if (binding.verificationId) {
+      const checked = checkClaimAdjudication(repo, current, {
+        verificationId: binding.verificationId,
+        contractualReview: binding.reviewer?.contractualReview,
+        verifiedLossMicros: current.verifiedLossMicros,
+        recoveriesMicros: current.recoveriesMicros,
+        priorCompensationMicros: current.priorCompensationMicros,
+      });
+      if (checked.reason)
+        throw new ValidationError(`Adjudication no longer current: ${checked.reason}`);
+      if (binding.caseId !== current.id || binding.incidentId !== current.incidentId)
+        throw new ValidationError('Binding case/incident mismatch');
+    }
     if (binding.policyId !== current.policyId) {
       throw new ValidationError('Binding policyId mismatch');
     }

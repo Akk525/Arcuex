@@ -13,9 +13,14 @@ import {
 
 const jsonSafe = (value: unknown) =>
   JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? v.toString() : v));
-const digest = (text: string) => `sha256:${createHash('sha256').update(text).digest('hex')}`;
+export const verificationDigest = (text: string) =>
+  `sha256:${createHash('sha256').update(text).digest('hex')}`;
 // Server-owned, versioned catalog: callers cannot supply facts, outcomes, or verifiers.
-const fixture: SyntheticOracleFixture = Object.freeze({
+const fixture: SyntheticOracleFixture & {
+  recoveriesMicros: string;
+  priorCompensationMicros: string;
+  recoveriesResolved: boolean;
+} = Object.freeze({
   expectedOutcome: 'VERIFIED',
   adapterRatioBps: 100,
   canonicalRatioBps: 200,
@@ -23,14 +28,18 @@ const fixture: SyntheticOracleFixture = Object.freeze({
   seizedMicros: '2000000',
   debtExtinguishedMicros: '500000',
   deductibleMicros: '100000',
+  recoveriesMicros: '0',
+  priorCompensationMicros: '0',
+  recoveriesResolved: true,
 });
 export const CLAIM_FIXTURE = Object.freeze({
-  reference: `${SYNTHETIC_ORACLE_WEDGE_ID}:wrongful-liquidation:v1`,
+  reference: `${SYNTHETIC_ORACLE_WEDGE_ID}:wrongful-liquidation:v2`,
   raw: JSON.stringify(fixture),
-  digest: digest(JSON.stringify(fixture)),
+  digest: verificationDigest(JSON.stringify(fixture)),
 });
 const Envelope = z
   .object({
+    revision: z.number().int().positive().optional(),
     fixtureRef: z.string(),
     fixtureDigest: z.string(),
     policyId: z.string(),
@@ -38,6 +47,31 @@ const Envelope = z
     observedAt: z.string().datetime(),
   })
   .strict();
+export function claimVerificationContext(repo: InsuranceRepository, caseId: string): string {
+  const c = repo.getClaimsCase(caseId);
+  return verificationDigest(
+    jsonSafe({
+      incident: c?.incidentId ? repo.getIncident(c.incidentId) : null,
+      policy: c ? repo.claimsPolicyContext(c.policyId) : null,
+      terms: c
+        ? (repo.getProcurementPolicy(c.policyId)?.terms ?? repo.getPolicy(c.policyId)?.terms)
+        : null,
+      manifests: repo.listEvidenceManifests(caseId),
+    }),
+  );
+}
+// Explicit synthetic scenario assumptions, never inferred from the absence of evidence.
+export const FIXTURE_LOSS_ASSESSMENT = Object.freeze({
+  grossLossMicros: (
+    BigInt(fixture.seizedMicros) - BigInt(fixture.debtExtinguishedMicros)
+  ).toString(),
+  recoveriesMicros: fixture.recoveriesMicros,
+  priorCompensationMicros: fixture.priorCompensationMicros,
+  recoveriesResolved: fixture.recoveriesResolved,
+  asset: 'USDC',
+  scale: 6,
+  basis: 'server-owned synthetic scenario; no external economic authentication',
+});
 export type ClaimVerificationRecord = {
   id: string;
   caseId: string;
@@ -50,6 +84,7 @@ export type ClaimVerificationRecord = {
   contextDigest: string;
   inputs: unknown;
   fixtureInputs: SyntheticOracleFixture;
+  lossAssessment?: typeof FIXTURE_LOSS_ASSESSMENT;
   facts: unknown[];
   findings: string[];
   executionStatus: 'completed' | 'rejected' | 'failed';
@@ -87,10 +122,10 @@ export async function verifyClaimFixture(
     throw new ValidationError('Verification requires an open evidence investigation');
   const raw = JSON.stringify(input);
   if (!raw || raw.length > 16000) throw new ValidationError('Invalid verification envelope');
-  const requestDigest = digest(raw);
+  const requestDigest = verificationDigest(raw);
   const incident = current.incidentId ? repo.getIncident(current.incidentId) : null;
   const policy = repo.claimsPolicyContext(current.policyId);
-  const contextDigest = digest(jsonSafe({ incident, policy }));
+  const contextDigest = claimVerificationContext(repo, caseId);
   const previous = listClaimVerifications(repo, caseId, principal).find(
     (r) => r.requestDigest === requestDigest,
   );
@@ -106,7 +141,7 @@ export async function verifyClaimFixture(
     requestDigest,
     actor: claimsActorId(principal),
     createdAt: new Date().toISOString(),
-    verifierVersion: `${SYNTHETIC_ORACLE_WEDGE_ID}:verifier:integration-v1`,
+    verifierVersion: `${SYNTHETIC_ORACLE_WEDGE_ID}:verifier:integration-v2`,
     fixtureReference: parsed.success ? parsed.data.fixtureRef : null,
     fixtureDigest: parsed.success ? parsed.data.fixtureDigest : null,
     contextDigest,
@@ -153,7 +188,7 @@ export async function verifyClaimFixture(
   } else if (
     parsed.data.fixtureRef !== CLAIM_FIXTURE.reference ||
     parsed.data.fixtureDigest !== CLAIM_FIXTURE.digest ||
-    digest(CLAIM_FIXTURE.raw) !== CLAIM_FIXTURE.digest
+    verificationDigest(CLAIM_FIXTURE.raw) !== CLAIM_FIXTURE.digest
   ) {
     record.findings.push('Unsupported fixture reference or untrusted digest');
   } else {
@@ -163,6 +198,8 @@ export async function verifyClaimFixture(
       const result = await createSyntheticOracleVerifier().verify({ incident, facts });
       record.findings.push(result.reason);
       record.executionStatus = 'completed';
+      if (result.verified && result.outcome === 'VERIFIED')
+        record.lossAssessment = FIXTURE_LOSS_ASSESSMENT;
       record.evidenceSufficiency =
         result.verified && result.outcome === 'VERIFIED'
           ? 'sufficient'
@@ -182,12 +219,7 @@ export async function verifyClaimFixture(
     const latest = accessible(repo, caseId, principal);
     if (
       latest.rowVersion !== current.rowVersion ||
-      digest(
-        jsonSafe({
-          incident: current.incidentId ? repo.getIncident(current.incidentId) : null,
-          policy: repo.claimsPolicyContext(current.policyId),
-        }),
-      ) !== contextDigest
+      claimVerificationContext(repo, caseId) !== contextDigest
     )
       throw new ValidationError('Investigation changed during verification; retry');
     const duplicate = listClaimVerifications(repo, caseId, principal).find(

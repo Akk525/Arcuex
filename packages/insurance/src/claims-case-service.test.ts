@@ -1,3 +1,4 @@
+import { CLAIM_FIXTURE, verifyClaimFixture } from './claim-verification';
 import { ValidationError, parseUsdcDecimal } from '@arcuex/domain';
 import { InsuranceRepository, openDatabase } from '@arcuex/persistence';
 import { describe, expect, it } from 'vitest';
@@ -97,7 +98,7 @@ async function openInvestigating(repo: InsuranceRepository) {
       source: 'synthetic-fixture',
       chain: 'arc-testnet',
       provenance: 'demo-fixture',
-      rawEvidence: JSON.stringify({ lossUsdc: '1.0' }),
+      rawEvidence: CLAIM_FIXTURE.raw,
       verificationMethod: 'fixture_consistency',
       sourceReliability: 'demo_only',
       syntheticFixture: true,
@@ -108,6 +109,18 @@ async function openInvestigating(repo: InsuranceRepository) {
     repo,
     { caseId: c.id, evidenceComplete: true },
     { role: 'system', subject: 'evidence' },
+  );
+  await verifyClaimFixture(
+    repo,
+    c.id,
+    {
+      fixtureRef: CLAIM_FIXTURE.reference,
+      fixtureDigest: CLAIM_FIXTURE.digest,
+      policyId: policy.id,
+      incidentId: incident.id,
+      observedAt: incident.observedAt,
+    },
+    principal,
   );
   const expectedLossKey = deriveCanonicalClaimsLossKey({
     policyEntityId: policy.id,
@@ -128,7 +141,13 @@ describe('ClaimsCase service security', () => {
         {
           caseId: c.id,
           coverageDetermination: 'covered',
-          verifiedLossMicros: parseUsdcDecimal('1.000000'),
+          verifiedLossMicros: parseUsdcDecimal('1.500000'),
+          verificationId: JSON.parse(repo.listClaimVerifications(c.id)[0]!.recordJson).id,
+          contractualReview: {
+            eventApplies: true,
+            exclusionsResolved: true,
+            rationale: 'Human reviewed synthetic terms and exclusions',
+          },
           recoveriesMicros: 0n,
           requestedMicros: parseUsdcDecimal('1.000000'),
         },
@@ -171,7 +190,13 @@ describe('ClaimsCase service security', () => {
         {
           caseId: opened.id,
           coverageDetermination: 'covered',
-          verifiedLossMicros: parseUsdcDecimal('1.000000'),
+          verifiedLossMicros: parseUsdcDecimal('1.500000'),
+          verificationId: JSON.parse(repo.listClaimVerifications(opened.id)[0]!.recordJson).id,
+          contractualReview: {
+            eventApplies: true,
+            exclusionsResolved: true,
+            rationale: 'Human reviewed synthetic terms and exclusions',
+          },
           recoveriesMicros: 0n,
           requestedMicros: parseUsdcDecimal('1.000000'),
           lossKey: '0x' + '11'.repeat(32),
@@ -185,7 +210,13 @@ describe('ClaimsCase service security', () => {
       {
         caseId: opened.id,
         coverageDetermination: 'covered',
-        verifiedLossMicros: parseUsdcDecimal('1.000000'),
+        verifiedLossMicros: parseUsdcDecimal('1.500000'),
+        verificationId: JSON.parse(repo.listClaimVerifications(opened.id)[0]!.recordJson).id,
+        contractualReview: {
+          eventApplies: true,
+          exclusionsResolved: true,
+          rationale: 'Human reviewed synthetic terms and exclusions',
+        },
         recoveriesMicros: 0n,
         requestedMicros: parseUsdcDecimal('1.000000'),
       },
@@ -263,7 +294,13 @@ describe('ClaimsCase service security', () => {
       {
         caseId: c.id,
         coverageDetermination: 'covered',
-        verifiedLossMicros: parseUsdcDecimal('1.000000'),
+        verifiedLossMicros: parseUsdcDecimal('1.500000'),
+        verificationId: JSON.parse(repo.listClaimVerifications(c.id)[0]!.recordJson).id,
+        contractualReview: {
+          eventApplies: true,
+          exclusionsResolved: true,
+          rationale: 'Human reviewed synthetic terms and exclusions',
+        },
         recoveriesMicros: null,
         requestedMicros: parseUsdcDecimal('1.000000'),
       },
@@ -295,9 +332,20 @@ describe('ClaimsCase service security', () => {
   });
 });
 
-it('reuses canonical legacy incidents across different customer intake keys',async()=>{
- const repo=new InsuranceRepository(openDatabase());const {policy,exposure}=await seed(repo);
- const input={policyId:policy.id,exposureId:exposure.id,idempotencyKey:'legacy-first-key',claimantRef:WALLET,syntheticDemo:true,actor:'ignored',observedEventRef:'synthetic:legacy:one-event',observedAt:new Date().toISOString()};
- const a=intakeClaimsCase(repo,input,claimant),b=intakeClaimsCase(repo,{...input,idempotencyKey:'legacy-second-key'},claimant);
- expect(a.incidentId).toBe(b.incidentId);
+it('reuses canonical legacy incidents across different customer intake keys', async () => {
+  const repo = new InsuranceRepository(openDatabase());
+  const { policy, exposure } = await seed(repo);
+  const input = {
+    policyId: policy.id,
+    exposureId: exposure.id,
+    idempotencyKey: 'legacy-first-key',
+    claimantRef: WALLET,
+    syntheticDemo: true,
+    actor: 'ignored',
+    observedEventRef: 'synthetic:legacy:one-event',
+    observedAt: new Date().toISOString(),
+  };
+  const a = intakeClaimsCase(repo, input, claimant),
+    b = intakeClaimsCase(repo, { ...input, idempotencyKey: 'legacy-second-key' }, claimant);
+  expect(a.incidentId).toBe(b.incidentId);
 });

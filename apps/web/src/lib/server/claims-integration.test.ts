@@ -303,3 +303,109 @@ it('executes catalog verification through the authenticated API and exposes read
   expect(getRepo().getClaimsCase(c.id)?.status).toBe(c.status);
   expect(getRepo().getClaimsCase(c.id)?.settlementAuthorization).toBe('none');
 });
+
+it('requires persisted verification and explicit reviewer findings at the authenticated API boundary', async () => {
+  vi.stubEnv('CLAIMS_REVIEWER_API_TOKEN', 'offline-sprint2-reviewer');
+  vi.stubEnv('CLAIMS_AUTHORITY_API_TOKEN', 'offline-sprint2-authority');
+  try {
+    const { CLAIM_FIXTURE, intakeClaimsCase, attachEvidenceManifest, completeEvidenceOrReview } =
+      await import('@arcuex/insurance');
+    const { POST: verify } = await import('@/app/api/claims/cases/[id]/verification/route');
+    const f = await fixture(),
+      repo = getRepo();
+    const principal = {
+      role: 'claimant' as const,
+      subject: f.owner.account.address,
+      walletAddress: f.owner.account.address,
+    };
+    const c = intakeClaimsCase(
+      repo,
+      {
+        policyId: f.p.terms.policyId,
+        exposureId: f.agent.id,
+        claimantRef: principal.subject,
+        idempotencyKey: crypto.randomUUID(),
+        syntheticDemo: true,
+        actor: 'ignored',
+        observedEventRef: 'synthetic:sprint2:api',
+        observedAt: new Date((f.now - 60) * 1000).toISOString(),
+      },
+      principal,
+    );
+    attachEvidenceManifest(
+      repo,
+      {
+        caseId: c.id,
+        source: 'fixture',
+        provenance: CLAIM_FIXTURE.reference,
+        rawEvidence: CLAIM_FIXTURE.raw,
+        verificationMethod: 'fixture_consistency',
+        sourceReliability: 'demo_only',
+        syntheticFixture: true,
+      },
+      principal,
+    );
+    completeEvidenceOrReview(repo, { caseId: c.id, evidenceComplete: true }, principal);
+    const path = `/api/claims/cases/${c.id}`,
+      ctx = { params: Promise.resolve({ id: c.id }) };
+    const mutate = (body: unknown, token = 'offline-sprint2-reviewer') =>
+      mutateCase(
+        new Request('http://localhost' + path, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
+        ctx,
+      );
+    const input = {
+      action: 'adjudicate',
+      coverageDetermination: 'covered',
+      verifiedLossUsdc: '1.5',
+      recoveriesUsdc: '0',
+      requestedUsdc: '1',
+      contractualReview: {
+        eventApplies: true,
+        exclusionsResolved: true,
+        rationale: 'Human reviewed synthetic terms and exclusions',
+      },
+    };
+    expect((await (await mutate(input)).json()).case.reviewReasonCode).toBe(
+      'PERSISTED_VERIFICATION_REQUIRED',
+    );
+    const response = await verify(
+      request(path + '/verification', f.owner.cookie, {
+        fixtureRef: CLAIM_FIXTURE.reference,
+        fixtureDigest: CLAIM_FIXTURE.digest,
+        policyId: c.policyId,
+        incidentId: c.incidentId,
+        observedAt: repo.getIncident(c.incidentId!)!.observedAt,
+      }),
+      ctx,
+    );
+    expect(response.status).toBe(200);
+    const verification = (await response.json()).verification;
+    const arbitrary = await (
+      await mutate({ ...input, verificationId: verification.id, verifiedLossUsdc: '99' })
+    ).json();
+    expect(arbitrary.case.reviewReasonCode).toBe('LOSS_ASSESSMENT_MISMATCH');
+    const approved = await (await mutate({ ...input, verificationId: verification.id })).json();
+    expect(approved.case.status).toBe('APPROVED');
+    expect(JSON.parse(approved.case.adjudicationBindingJson).reviewer.actor).toBe(
+      'reviewer:reviewer',
+    );
+    const rejected = await mutate(
+      {
+        action: 'prepare_settlement',
+        confirmedRecipient: f.p.terms.beneficiary,
+        confirmedAmountUsdc: approved.case.payable.usdc,
+        confirmedLossKey: approved.case.lossKey,
+        confirmedEvidenceRoot: approved.case.evidenceRoot,
+      },
+      'offline-sprint2-authority',
+    );
+    expect(rejected.status).not.toBe(200);
+    expect(repo.getClaimsCase(c.id)?.settlementAuthorization).toBe('pending_authority');
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});

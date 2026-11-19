@@ -4,11 +4,7 @@ export const CLAIMS_SIGN_IN_REQUIRED =
   'Sign in required to view claims. Use the wallet or ops session panel above.';
 
 export type ClaimsClientFailureKind =
-  | 'unauthorized'
-  | 'forbidden'
-  | 'malformed'
-  | 'http'
-  | 'network';
+  'unauthorized' | 'forbidden' | 'malformed' | 'http' | 'network';
 
 export type ClaimsClientResult<T> =
   | { ok: true; data: T }
@@ -42,10 +38,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isStringArrayItem(
-  value: unknown,
-  keys: string[],
-): value is Record<string, unknown> {
+function isStringArrayItem(value: unknown, keys: string[]): value is Record<string, unknown> {
   if (!isRecord(value)) return false;
   return keys.every((k) => typeof value[k] === 'string');
 }
@@ -83,7 +76,11 @@ export function parseClaimsCaseListPayload(json: unknown): ClaimsCaseListRow[] |
 export function parseLegacyClaimsLedgerPayload(json: unknown): LegacyClaimsLedger | null {
   if (!isRecord(json)) return null;
   if (typeof json.notice !== 'string') return null;
-  if (!Array.isArray(json.incidents) || !Array.isArray(json.claims) || !Array.isArray(json.settlements)) {
+  if (
+    !Array.isArray(json.incidents) ||
+    !Array.isArray(json.claims) ||
+    !Array.isArray(json.settlements)
+  ) {
     return null;
   }
   for (const row of json.incidents) {
@@ -100,7 +97,8 @@ export function parseLegacyClaimsLedgerPayload(json: unknown): LegacyClaimsLedge
   }
   return {
     notice: json.notice,
-    mutationsEnabled: typeof json.mutationsEnabled === 'boolean' ? json.mutationsEnabled : undefined,
+    mutationsEnabled:
+      typeof json.mutationsEnabled === 'boolean' ? json.mutationsEnabled : undefined,
     incidents: json.incidents as LegacyClaimsLedger['incidents'],
     claims: json.claims as LegacyClaimsLedger['claims'],
     settlements: json.settlements as LegacyClaimsLedger['settlements'],
@@ -138,6 +136,9 @@ export function parsePolicyOptionsPayload(json: unknown): unknown[] | null {
 
 export function parseClaimCaseDetailPayload(json: unknown): {
   principalRole?: string;
+  fixtureCatalog?: Record<string, unknown>;
+  linkedIncident?: Record<string, unknown>;
+  verifications: unknown[];
   case: Record<string, unknown>;
   timeline: unknown[];
   evidenceManifests: unknown[];
@@ -147,6 +148,9 @@ export function parseClaimCaseDetailPayload(json: unknown): {
   if (typeof json.case.id !== 'string' || typeof json.case.status !== 'string') return null;
   return {
     principalRole: typeof json.principalRole === 'string' ? json.principalRole : undefined,
+    fixtureCatalog: isRecord(json.fixtureCatalog) ? json.fixtureCatalog : undefined,
+    linkedIncident: isRecord(json.linkedIncident) ? json.linkedIncident : undefined,
+    verifications: Array.isArray(json.verifications) ? json.verifications : [],
     case: json.case,
     timeline: json.timeline,
     evidenceManifests: json.evidenceManifests,
@@ -203,10 +207,9 @@ export async function readClaimsClientResponse<T>(
   return { ok: true, data };
 }
 
-export function claimsNetworkFailure(error: unknown): Extract<
-  ClaimsClientResult<unknown>,
-  { ok: false }
-> {
+export function claimsNetworkFailure(
+  error: unknown,
+): Extract<ClaimsClientResult<unknown>, { ok: false }> {
   return {
     ok: false,
     kind: 'network',
@@ -214,9 +217,10 @@ export function claimsNetworkFailure(error: unknown): Extract<
   };
 }
 
-export function isClaimsAuthFailure(
-  result: ClaimsClientResult<unknown>,
-): result is Extract<ClaimsClientResult<unknown>, { ok: false }> & {
+export function isClaimsAuthFailure(result: ClaimsClientResult<unknown>): result is Extract<
+  ClaimsClientResult<unknown>,
+  { ok: false }
+> & {
   kind: 'unauthorized' | 'forbidden';
 } {
   return !result.ok && (result.kind === 'unauthorized' || result.kind === 'forbidden');

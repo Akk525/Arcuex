@@ -8,6 +8,7 @@ import {
   type UsdcMicros,
 } from '@arcuex/domain';
 import { z } from 'zod';
+import type { ContractualReview } from './claim-adjudication-checks';
 
 export const CLAIMS_CASE_SCHEMA_VERSION = 1 as const;
 
@@ -93,6 +94,20 @@ export const ClaimsCaseSchema = z.object({
 export type ClaimsCase = z.infer<typeof ClaimsCaseSchema>;
 
 export type AdjudicationBinding = {
+  caseId?: string;
+  incidentId?: string;
+  verificationId?: string;
+  verificationContextDigest?: string;
+  reviewer?: {
+    actor: string;
+    role: string;
+    contractualReview: ContractualReview;
+  };
+  asset?: { symbol: 'USDC'; scale: 6 };
+  deductibleMicros?: string;
+  priorCompensationMicros?: string;
+  netCoveredLossMicros?: string;
+  coverageLimitMicros?: string;
   policyId: string;
   exposureId: string;
   payableMicros: string;
@@ -117,10 +132,7 @@ export const ClaimsCaseEventSchema = z.object({
 });
 export type ClaimsCaseEvent = z.infer<typeof ClaimsCaseEventSchema>;
 
-export const CLAIMS_CASE_TRANSITIONS: Record<
-  ClaimsCaseStatus,
-  readonly ClaimsCaseStatus[]
-> = {
+export const CLAIMS_CASE_TRANSITIONS: Record<ClaimsCaseStatus, readonly ClaimsCaseStatus[]> = {
   DRAFT: ['SUBMITTED'],
   SUBMITTED: ['COLLECTING_EVIDENCE'],
   COLLECTING_EVIDENCE: ['INVESTIGATING', 'REVIEW'],
@@ -133,10 +145,7 @@ export const CLAIMS_CASE_TRANSITIONS: Record<
   SETTLEMENT_FAILED: ['SETTLEMENT_PENDING'],
 };
 
-export function assertClaimsCaseTransition(
-  from: ClaimsCaseStatus,
-  to: ClaimsCaseStatus,
-): void {
+export function assertClaimsCaseTransition(from: ClaimsCaseStatus, to: ClaimsCaseStatus): void {
   if (!CLAIMS_CASE_TRANSITIONS[from]?.includes(to)) {
     throw new InvalidTransitionError('ClaimsCase', from, to);
   }
@@ -284,9 +293,7 @@ export function transitionClaimsCase(
   if (input.to === 'SETTLEMENT_PENDING') {
     const auth = input.patch?.settlementAuthorization ?? next.settlementAuthorization;
     if (auth !== 'authorized') {
-      throw new ValidationError(
-        'SETTLEMENT_PENDING requires settlementAuthorization=authorized',
-      );
+      throw new ValidationError('SETTLEMENT_PENDING requires settlementAuthorization=authorized');
     }
     next.settlementAuthorization = 'authorized';
     next.authorityActor = input.actor;
