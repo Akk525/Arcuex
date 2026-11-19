@@ -1,5 +1,11 @@
 # Disposable Plan B hosted candidate prerequisites
 
+Sprint 4 update: the user authorized disposable candidate deployment conditional on proven isolation.
+The source/checkpoint and fixture-labeling gates below remain unresolved, so no resources were
+provisioned or deployed. See the [dated decision and validation](../verification/plan-b-sprint4.md).
+References below to future deployment approval describe the original Sprint 3 preparation boundary;
+the current blocker is technical isolation/provenance, not missing repeat approval.
+
 Prepared November 18, 2026 (America/Indiana/Indianapolis). **Preparation only.** No Railway
 account read, service/environment creation, variable update, volume operation or deployment was
 performed. IDs below are requirements, not provisioned resources. Deployment remains gated on

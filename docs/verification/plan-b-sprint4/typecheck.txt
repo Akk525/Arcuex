@@ -1,0 +1,18 @@
+$ pnpm -r typecheck
+Scope: 8 of 9 workspace projects
+packages/chain typecheck$ tsc -p tsconfig.json --noEmit
+packages/domain typecheck$ tsc -p tsconfig.json --noEmit
+packages/domain typecheck: Done
+packages/chain typecheck: Done
+packages/onchain typecheck$ tsc -p tsconfig.json --noEmit
+packages/persistence typecheck$ tsc -p tsconfig.json --noEmit
+packages/quicknode typecheck$ tsc -p tsconfig.json --noEmit
+packages/persistence typecheck: Done
+packages/quicknode typecheck: Done
+packages/onchain typecheck: Done
+packages/insurance typecheck$ tsc -p tsconfig.json --noEmit
+packages/insurance typecheck: Done
+packages/agent-sdk typecheck$ tsc -p tsconfig.json --noEmit
+packages/agent-sdk typecheck: Done
+apps/web typecheck$ tsc -p tsconfig.json --noEmit
+apps/web typecheck: Done

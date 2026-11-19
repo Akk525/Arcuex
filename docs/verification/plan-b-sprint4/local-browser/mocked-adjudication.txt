@@ -1,0 +1,6 @@
+PASS Approval disabled before persisted verification and human review
+PASS Fixture action attaches, completes collection and persists verification without adjudication
+PASS Successful fixture verification leaves human approval disabled
+PASS Explicit contractual review and rationale enable reviewer decision
+PASS Decision carries persisted verification, catalog economics and human contractual findings
+PASS Claimants see findings without reviewer approval controls

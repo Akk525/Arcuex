@@ -178,3 +178,8 @@ Plan B Sprint 3 exercises the real local policyholder/reviewer journey with disp
 an explicitly synthetic read-only RPC boundary. See [browser evidence and lifecycle UX changes](docs/verification/plan-b-sprint3.md)
 and [hosted candidate prerequisites](docs/deployments/plan-b-disposable-candidate.md). Hosted deployment
 and financial operations remain separately authorized; no reimbursement occurred in this rehearsal.
+
+Plan B Sprint 4 integrates Sprint 3 into an isolated release-candidate branch and revalidates the
+local journey, migration constraints and read-only Arc pool controls. The hosted gate remains closed
+on fixture provenance/checkpoint requirements; no Railway candidate was deployed. See the
+[Sprint 4 decision and evidence](docs/verification/plan-b-sprint4.md).

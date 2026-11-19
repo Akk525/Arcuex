@@ -309,7 +309,7 @@ it('upgrades the consolidated twelve-migration Plan A schema with only append-on
     '009_launch_security.sql',
     '010_policy_reconciliation.sql',
   ]);
-  seedClaims(db);
+  const caseId = seedClaims(db);
   const before = [
     'policies',
     'incidents',
@@ -331,5 +331,36 @@ it('upgrades the consolidated twelve-migration Plan A schema with only append-on
     db.prepare("SELECT name FROM sqlite_master WHERE name='policy_indexer_state'").get(),
   ).toBeUndefined();
   expect(db.pragma('foreign_key_check')).toEqual([]);
+  const insert = db.prepare('INSERT INTO claim_verifications VALUES (?,?,?,?)');
+  db.transaction(() => insert.run('upgrade-verification', caseId, 'request-digest', '{}'))();
+  expect(() =>
+    db.transaction(() => insert.run('duplicate-request', caseId, 'request-digest', '{}'))(),
+  ).toThrow(/UNIQUE/);
+  expect(() =>
+    db.transaction(() => insert.run('orphan-record', 'missing-case', 'other-request', '{}'))(),
+  ).toThrow(/FOREIGN KEY/);
+  expect(() =>
+    db.transaction(() =>
+      db.prepare("UPDATE claim_verifications SET record_json='changed'").run(),
+    )(),
+  ).toThrow(/immutable/);
+  expect(() => db.transaction(() => db.prepare('DELETE FROM claim_verifications').run())()).toThrow(
+    /immutable/,
+  );
+  expect(() =>
+    db.transaction(() =>
+      db.prepare("UPDATE claims_cases SET policy_id='changed' WHERE id=?").run(caseId),
+    )(),
+  ).toThrow();
+  expect(db.prepare('SELECT * FROM claim_verifications').all()).toEqual([
+    {
+      id: 'upgrade-verification',
+      case_id: caseId,
+      request_digest: 'request-digest',
+      record_json: '{}',
+    },
+  ]);
+  expect(db.pragma('foreign_key_check')).toEqual([]);
+  expect(db.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }]);
   db.close();
 });

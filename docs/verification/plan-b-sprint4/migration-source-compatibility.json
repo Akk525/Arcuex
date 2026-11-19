@@ -1,0 +1,74 @@
+{
+  "planACommit": "f8365a85f0c4a6298f713be7e799cb7538ca1fc7",
+  "candidateMerge": "6a600a50890c3d3aac4455addef5594212e488ed",
+  "originalMigrations": [
+    {
+      "file": "packages/persistence/src/migrations/001_init.sql",
+      "sha256": "90f1d48fe39e85502f6a557f058647c78fc49dc2e01c28f012a23225dfc8e8f7",
+      "matchesPlanA": true
+    },
+    {
+      "file": "packages/persistence/src/migrations/002_onchain.sql",
+      "sha256": "26a2a4f5d68797c5156abc5851f6080b38be25dc063bd6eba5edaa58d9dfb6fa",
+      "matchesPlanA": true
+    },
+    {
+      "file": "packages/persistence/src/migrations/003_streams_inbox.sql",
+      "sha256": "335c24e38115dedea4537f512eb1d76668188130f30d3c4ad2d6007660a12b60",
+      "matchesPlanA": true
+    },
+    {
+      "file": "packages/persistence/src/migrations/004_claims_cases.sql",
+      "sha256": "aa3196dea3b0a263f7b12c41c66e47d86372c7451feea6f0da0055ca7de9e9b3",
+      "matchesPlanA": true
+    },
+    {
+      "file": "packages/persistence/src/migrations/004_procurement.sql",
+      "sha256": "e469616d190bb216d0128e597f246db13478d7edf795d2f32c31eb8d0eac2446",
+      "matchesPlanA": true
+    },
+    {
+      "file": "packages/persistence/src/migrations/005_claims_case_binding.sql",
+      "sha256": "b26f867a24ed11117e01689bce280a12b42e22a3fd8a4e0b4b1b2f18026392ec",
+      "matchesPlanA": true
+    },
+    {
+      "file": "packages/persistence/src/migrations/005_procurement_immutability.sql",
+      "sha256": "df92f4b7aa6f57b1d209618fc765f928d85c1b961de3ad89d90a3e527fa603cc",
+      "matchesPlanA": true
+    },
+    {
+      "file": "packages/persistence/src/migrations/006_claims_auth_sessions.sql",
+      "sha256": "b066656e37fe8865e10e21e819bf33988b5fadc279c6050e699ef6f80d9df76b",
+      "matchesPlanA": true
+    },
+    {
+      "file": "packages/persistence/src/migrations/007_procurement_claims_integration.sql",
+      "sha256": "0d4b5f7ce5b8af07c0da8d49f54b442dfac4b0ffd55da17c26501052ed218f9c",
+      "matchesPlanA": true
+    },
+    {
+      "file": "packages/persistence/src/migrations/008_shared_wallet_session_scope.sql",
+      "sha256": "1ab4bc9877bdf84dba4692d519ab11b87ad52a071e187e78be6b20f3fbb4f037",
+      "matchesPlanA": true
+    },
+    {
+      "file": "packages/persistence/src/migrations/009_launch_security.sql",
+      "sha256": "e0c0f1a9462685029c2e653975d206fa2875164362519d0d9d6473ad726850a8",
+      "matchesPlanA": true
+    },
+    {
+      "file": "packages/persistence/src/migrations/010_policy_reconciliation.sql",
+      "sha256": "abf7f727e4d2a9d542ad3d63bfee86bcdaffb25bc781411eefbc887c321d45f6",
+      "matchesPlanA": true
+    }
+  ],
+  "originalCount": 12,
+  "allOriginalsUnchanged": true,
+  "migration011": {
+    "sha256": "806951cc73865afcfd6d128866021f79f3bec1369568796c8acbb850068fb5f9",
+    "matchesSprint3": true,
+    "matchesSprint1": true
+  },
+  "scope": "Source compatibility and disposable test databases only; no production backup or database opened"
+}

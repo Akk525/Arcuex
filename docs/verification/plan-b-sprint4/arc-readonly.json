@@ -1,0 +1,32 @@
+{
+  "verifiedAt": "2026-11-19T01:46:24.159Z",
+  "source": "LIVE public Arc Testnet RPC; no fixtures",
+  "rpc": "https://rpc.testnet.arc.io",
+  "chainId": 5042002,
+  "pool": "0x6657974EEdF488380251bDD95A7FFfb0D456E49E",
+  "blockNumber": "72943977",
+  "blockHash": "0x070746456870a5eeda4a258a83503b30934d9851e7c7c761ee2d3fae9b2b5c78",
+  "blockTimestamp": "1795052783",
+  "bytecodeHash": "0xffcc03f8145add8bb21b8af7e7eb8146c871c62aeca92b85dae1692c8741b398",
+  "usdc": "0x3600000000000000000000000000000000000000",
+  "decimals": 6,
+  "owner": "0x2E2Da4311Ea87Cfa31c372D59B4A0d567c15D760",
+  "claimsAuthority": "0xA6876A60748c638f66b911aaEe03Bd712D85AF36",
+  "feeRecipient": "0x69797270A2b8B355D55676787a29D2B1057411C7",
+  "totalAssets": "4110000",
+  "totalReserved": "2000000",
+  "totalShares": "5112439",
+  "availableCapital": "2110000",
+  "usdcBalance": "4110000",
+  "controls": {
+    "assetMatchesManifest": true,
+    "sixDecimals": true,
+    "solvent": true,
+    "balanceCoversAssets": true,
+    "availableMatchesAccounting": true,
+    "assertSolventReadSucceeded": true
+  },
+  "signerAccess": "NOT INSPECTED; no keys loaded",
+  "policyDeadline": "No fresh policy selected",
+  "broadcasts": 0
+}
