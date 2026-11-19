@@ -14,9 +14,10 @@ import { Callout } from '@/components/ui/callout';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/panel';
+import { displayDate, usdc, usdToMicros } from '@/lib/procurement/presentation';
 import { StatusBadge } from '@/components/status-badge';
 
-export function DelegationsPanel() {
+export function DelegationsPanel({ initialAgentId }: { initialAgentId?: string }) {
   const { api, run, busy, error, wallet } = useProcurement();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentId, setAgentId] = useState('');
@@ -38,11 +39,12 @@ export function DelegationsPanel() {
   );
   const canGrant = authenticated && eligibleAgents.some((agent) => agent.id === agentId);
 
-  const [premium, setPremium] = useState('1000000');
-  const [limit, setLimit] = useState('10000000');
+  const [premium, setPremium] = useState('1');
+  const [limit, setLimit] = useState('10');
   const [beneficiary, setBeneficiary] = useState('');
   const [hours, setHours] = useState(24);
   const [loaded, setLoaded] = useState(false);
+  const [handoff, setHandoff] = useState('');
 
   useEffect(() => {
     generation.current++;
@@ -50,7 +52,7 @@ export function DelegationsPanel() {
     setObservedAt(null);
     setAgents([]);
     setAgentId('');
-    setBeneficiary('');
+    setBeneficiary(walletAddress ?? '');
     setLoaded(false);
   }, [walletAddress, wallet.chainId]);
 
@@ -80,7 +82,9 @@ export function DelegationsPanel() {
       const eligible = result.agents.filter(
         (agent) => agent.owner === walletAddress && agent.exposure.protocol === PRODUCT.protocol,
       );
-      return eligible.some((agent) => agent.id === previous) ? previous : (eligible[0]?.id ?? '');
+      return eligible.some((agent) => agent.id === previous)
+        ? previous
+        : (eligible.find((agent) => agent.id === initialAgentId)?.id ?? eligible[0]?.id ?? '');
     });
     setRows(result.delegations);
     setClock(performance.now());
@@ -100,12 +104,20 @@ export function DelegationsPanel() {
           <div>
             <h2 className="text-lg font-semibold text-[var(--ink)]">Your agents</h2>
             <p className="mt-1 text-sm text-[var(--ink-muted)]">
-              Sign in from the header, then load agents owned by this wallet.
+              Load agents you own and exposures assigned to your connected signer.
             </p>
           </div>
-          <Button variant="secondary" disabled={busy} onClick={() => void run(load)}>
-            {busy ? 'Loading…' : 'Refresh agents'}
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/coverage?from=build"
+              className="inline-flex min-h-11 items-center underline"
+            >
+              Register an agent
+            </Link>
+            <Button variant="secondary" disabled={busy} onClick={() => void run(load)}>
+              {busy ? 'Loading…' : 'Refresh agents'}
+            </Button>
+          </div>
         </div>
         {error && (
           <p role="alert" className="rounded-[var(--radius)] bg-rose-50 p-3 text-sm text-rose-800">
@@ -117,13 +129,16 @@ export function DelegationsPanel() {
             title="No agents registered"
             description="Register a synthetic exposure in Coverage, then return here to configure delegation."
             action={
-              <Link href="/coverage" className="text-sm font-medium text-[var(--accent)] underline">
+              <Link
+                href="/coverage?from=build"
+                className="text-sm font-medium text-[var(--accent)] underline"
+              >
                 Register agent in Coverage
               </Link>
             }
           />
         ) : null}
-        {agents.length > 0 ? (
+        {authenticated && agents.length > 0 ? (
           <ul className="divide-y divide-[var(--line)] rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)]">
             {agents.map((a) => (
               <li
@@ -132,20 +147,25 @@ export function DelegationsPanel() {
               >
                 <div>
                   <p className="font-medium text-[var(--ink)]">{a.label}</p>
-                  <p className="font-mono text-xs text-[var(--ink-muted)]">{a.signer}</p>
+                  <p className="break-all font-mono text-xs text-[var(--ink-muted)]">
+                    Signer {a.signer}
+                  </p>
+                  <p className="break-all text-xs text-[var(--ink-muted)]">
+                    Policyholder {a.owner}
+                  </p>
                 </div>
-                <p className="text-sm text-[var(--ink-muted)]">{a.exposure.position}</p>
+                <p className="min-w-0 break-all text-sm text-[var(--ink-muted)]">
+                  {a.exposure.position} · {usdc(a.exposure.notionalMicros)}
+                </p>
               </li>
             ))}
           </ul>
         ) : null}
-        <p className="text-sm text-[var(--ink-muted)]">
-          New agents are registered via the{' '}
-          <Link href="/coverage" className="underline">
-            Coverage
-          </Link>{' '}
-          wizard (Register exposure step).
-        </p>
+        {initialAgentId && !loaded && (
+          <p role="status" className="text-sm">
+            Refresh agents to select the position just registered.
+          </p>
+        )}
       </section>
 
       <section className="space-y-4 border-t border-[var(--line)] pt-8">
@@ -173,7 +193,7 @@ export function DelegationsPanel() {
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
             <label>
-              Cumulative premium cap (USDC micros)
+              Cumulative premium cap (USDC)
               <input
                 value={premium}
                 onChange={(e) => setPremium(e.target.value)}
@@ -181,7 +201,7 @@ export function DelegationsPanel() {
               />
             </label>
             <label>
-              Per-policy limit cap (USDC micros)
+              Per-policy limit cap (USDC)
               <input value={limit} onChange={(e) => setLimit(e.target.value)} inputMode="numeric" />
             </label>
             <label>
@@ -212,8 +232,8 @@ export function DelegationsPanel() {
               void run(async () => {
                 await api('delegations', {
                   agentId,
-                  premiumCapMicros: premium,
-                  limitCapMicros: limit,
+                  premiumCapMicros: usdToMicros(premium),
+                  limitCapMicros: usdToMicros(limit),
                   beneficiary: beneficiary || wallet.address,
                   expiresAt: Math.floor(Date.now() / 1000) + hours * 3600,
                 });
@@ -225,6 +245,11 @@ export function DelegationsPanel() {
           </Button>
         </fieldset>
 
+        {handoff && authenticated && (
+          <p role="status" className="text-sm">
+            {handoff}
+          </p>
+        )}
         {loaded && authenticated && rows.length === 0 && (
           <p role="status" className="text-sm text-[var(--ink-muted)]">
             No delegation grants found.
@@ -235,6 +260,8 @@ export function DelegationsPanel() {
             {rows.map((d) => {
               const permission = delegationPresentation(d, elapsed(), authenticated);
               const canRevoke = permission.active && d.owner === walletAddress;
+              const agent = agents.find((row) => row.id === d.agentId);
+              const quotePath = `/coverage?agentId=${d.agentId}&delegationId=${d.id}`;
               return (
                 <li
                   key={d.id}
@@ -248,21 +275,51 @@ export function DelegationsPanel() {
                     <span className="break-all font-mono text-xs">{d.id}</span>
                   </div>
                   <p className="mt-2 text-[var(--ink-muted)]">
-                    Agent {d.agentId} · premium cap {d.premiumCapMicros} · limit cap{' '}
-                    {d.limitCapMicros}
+                    {agent?.label ?? 'Registered agent'} · Premium cap {usdc(d.premiumCapMicros)} ·
+                    Limit cap {usdc(d.limitCapMicros)}
                   </p>
                   <p className="mt-2 break-words text-[var(--ink-muted)]">
                     {d.productCode} · {d.position} · Beneficiary {d.beneficiary}
                   </p>
                   <p className="mt-1 text-[var(--ink-muted)]">
-                    Expires {new Date(d.expiresAt * 1000).toLocaleString()}
+                    Expires {displayDate(d.expiresAt)}
                     {d.revokedAt !== null &&
                       d.revokedAt !== undefined &&
-                      ` · Revoked ${new Date(d.revokedAt * 1000).toLocaleString()}`}
+                      ` · Revoked ${displayDate(d.revokedAt)}`}
                     {d.remainingPremiumMicros !== undefined &&
-                      ` · Remaining premium budget ${d.remainingPremiumMicros} micros`}
+                      ` · Remaining premium budget ${usdc(d.remainingPremiumMicros)}`}
                   </p>
                   <p className="mt-1">{permission.detail}</p>
+                  {permission.active && d.limitation !== 'budget_exhausted' && (
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                      {agent?.signer === walletAddress && d.owner !== walletAddress && (
+                        <Link
+                          href={quotePath}
+                          className="inline-flex min-h-11 items-center underline"
+                        >
+                          Start a delegated quote
+                        </Link>
+                      )}
+                      {d.owner === walletAddress && agent?.signer !== walletAddress && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() =>
+                            void run(async () => {
+                              await navigator.clipboard.writeText(
+                                new URL(quotePath, window.location.origin).href,
+                              );
+                              setHandoff(
+                                'Copied the quote link. Share it with the registered agent signer.',
+                              );
+                            })
+                          }
+                        >
+                          Copy agent quote link
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   {canRevoke ? (
                     <Button
                       className="mt-3"

@@ -1,8 +1,8 @@
 'use client';
 import Link from 'next/link';
-import type { PolicyLifecycle } from '@arcuex/domain';
+import type { PolicyLifecycle, ProcurementAgent } from '@arcuex/domain';
 import { useEffect, useRef, useState } from 'react';
-import { formatUnits, type Hex } from 'viem';
+import { formatUnits } from 'viem';
 import {
   PROCUREMENT_OFFERINGS,
   type ProcurementPolicy as Policy,
@@ -11,6 +11,13 @@ import { useProcurement } from '@/hooks/use-procurement';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Callout } from '@/components/ui/callout';
 import { StatusBadge } from '@/components/status-badge';
+import {
+  displayDate,
+  freshLifecycle,
+  isBindHash,
+  policyPhase,
+} from '@/lib/procurement/presentation';
+import { readBindAttempt, saveBindAttempt } from '@/lib/procurement/bind-attempt';
 import { useFixtureMode } from '@/providers/source-mode';
 function statusTone(label: string): 'neutral' | 'ok' | 'warn' | 'error' | 'pending' | 'synthetic' {
   if (label.startsWith('Confirmed')) return 'ok';
@@ -37,6 +44,7 @@ export function PoliciesPanel({ id }: { id?: string }) {
     Array<{ onchainPolicyId: string; completeness: string; claimsEligible: false }>
   >([]);
   const [now, setNow] = useState(Date.now());
+  const [agents, setAgents] = useState<ProcurementAgent[]>([]);
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -45,6 +53,7 @@ export function PoliciesPanel({ id }: { id?: string }) {
     const reset = () => {
       identityRevision.current++;
       setPolicies(null);
+      setAgents([]);
       setLifecycles({});
       setPending([]);
     };
@@ -59,6 +68,7 @@ export function PoliciesPanel({ id }: { id?: string }) {
   useEffect(() => {
     identityRevision.current++;
     setPolicies(null);
+    setAgents([]);
     setLifecycles({});
     setPending([]);
     setLive(null);
@@ -84,12 +94,16 @@ export function PoliciesPanel({ id }: { id?: string }) {
       setApprovals(result.approvals ?? []);
       setLive(result.reconciliation);
       setChainError(result.reconciliationError ?? '');
-      setHash(result.policy.bindTx ?? sessionStorage.getItem(`arcuex-bind:${id}`) ?? '');
+      const attempt = readBindAttempt(id);
+      setHash(result.policy.bindTx ?? (attempt?.state === 'submitted' ? attempt.hash : ''));
     } else {
       rows = await api<Policy[]>('policies');
       if (revision !== identityRevision.current) return;
       setPolicies(rows);
     }
+    const visibleAgents = await api<ProcurementAgent[]>('agents');
+    if (revision !== identityRevision.current) return;
+    setAgents(visibleAgents);
     const records = await api<{ version: 1; records: typeof pending }>(
       '/api/policies/reconciliation',
     );
@@ -103,44 +117,48 @@ export function PoliciesPanel({ id }: { id?: string }) {
   }
   function status(p: Policy) {
     const lifecycle = lifecycles[p.terms.policyId];
-    if (!lifecycle) return 'Verification unavailable — no coverage confirmed';
-    if (fixtureMode || lifecycle.source?.mode === 'fixture') {
-      return lifecycle.state === 'fixture_ready' && lifecycle.source?.checkpoint &&
-        now / 1000 < lifecycle.source.checkpoint.validUntil
-        ? 'Synthetic fixture ready · no chain confirmation' : 'Fixture unavailable · claims disabled';
-    }
-    if (
-      lifecycle.state === 'confirmed' &&
-      (lifecycle.completeness !== 'VERIFIED_LINKED' ||
-        lifecycle.checkedAt === null ||
-        now / 1000 > lifecycle.checkedAt + 300)
-    )
-      return 'Reconciliation pending — no coverage confirmed';
-    if (lifecycle.state === 'expired') return 'Expired';
-    if (lifecycle.state === 'prepared') return 'Prepared — no coverage confirmed';
-    if (lifecycle.state !== 'confirmed') return 'Reconciliation pending — no coverage confirmed';
+    const attempt = readBindAttempt(p.terms.policyId);
+    const phase = policyPhase(p, lifecycle, Math.floor(now / 1000), attempt?.state);
+    if (fixtureMode)
+      return phase === 'fixture'
+        ? 'Synthetic fixture ready · no chain confirmation'
+        : 'Fixture unavailable · claims disabled';
+    if (live?.cancelled) return 'Reservation released / cancelled';
+    if (live?.bound && !live.matches) return 'Chain mismatch — investigate';
     if (live?.matches && BigInt(live.paidOutMicros) >= BigInt(p.terms.limitMicros))
       return 'Policy limit exhausted';
-    if (live?.cancelled) return 'Reservation released / cancelled';
-    if (live && !live.matches) return 'Chain mismatch — investigate';
-    if (Math.floor(now / 1000) > p.terms.expiresAt) return 'Expired';
-    return now / 1000 < p.terms.effectiveAt
-      ? 'Confirmed · scheduled'
-      : 'Confirmed · effective window';
+    const labels = {
+      prepared: 'Prepared — no coverage confirmed',
+      submitted: 'Bind submitted · receipt pending',
+      uncertain: 'Bind status unknown · check wallet',
+      reconciling: 'Reconciliation pending — no coverage confirmed',
+      expired: 'Expired',
+      scheduled: 'Confirmed · scheduled',
+      effective: 'Confirmed · effective window',
+      unknown: 'Verification unavailable — no coverage confirmed',
+      fixture: 'Synthetic fixture ready · no chain confirmation',
+    };
+    return labels[phase];
   }
   return (
     <div className="procurement space-y-6">
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="grid gap-6">
         <div className="space-y-3">
-          <Callout kind="synthetic" title={fixtureMode ? 'Synthetic rehearsal · no live chain state' : 'Arc Testnet procurement'}>
-            {fixtureMode ? 'Policy, reservation and checkpoint are synthetic fixture data. No bind or settlement transactions are available. Restart never renews the checkpoint.' : 'Product type and confirmation are shown for each policy. Accepted quotes remain offchain until a canonical bind is linked.'}
+          <Callout
+            kind="synthetic"
+            title={
+              fixtureMode ? 'Synthetic rehearsal · no live chain state' : 'Arc Testnet procurement'
+            }
+          >
+            {fixtureMode
+              ? 'Policy, reservation and checkpoint are synthetic fixture data. No bind or settlement transactions are available. Restart never renews the checkpoint.'
+              : 'Product type and confirmation are shown for each policy. Accepted quotes remain offchain until a canonical bind is linked.'}
           </Callout>
           <button className="proc-btn" disabled={busy} onClick={() => void run(load)}>
             {busy ? 'Loading…' : 'Refresh my policies'}
           </button>
           <p className="text-xs text-[var(--ink-muted)]">
-            Connect and sign in from the header. This list is filtered to policies owned or paid for by the authenticated
-            session.
+            Connect and sign in to see policies owned or paid for by this wallet.
           </p>
         </div>
       </div>
@@ -177,6 +195,19 @@ export function PoliciesPanel({ id }: { id?: string }) {
       {policies?.map((p) => {
         const label = status(p);
         const lifecycle = lifecycles[p.terms.policyId];
+        const agent = agents.find((row) => row.id === p.terms.agentId);
+        const offering = PROCUREMENT_OFFERINGS.find((row) => row.code === p.terms.productCode);
+        const attempt = readBindAttempt(p.terms.policyId);
+        const canClaim =
+          lifecycle?.claimsEligible &&
+          freshLifecycle(lifecycle, Math.floor(now / 1000)) &&
+          (label === 'Confirmed · effective window' ||
+            label === 'Synthetic fixture ready · no chain confirmation');
+        const canResume =
+          !fixtureMode &&
+          p.state === 'prepared' &&
+          p.payer === wallet.address?.toLowerCase() &&
+          (Boolean(attempt) || now / 1000 < p.terms.quoteExpiresAt);
         return (
           <article
             key={p.terms.policyId}
@@ -184,23 +215,30 @@ export function PoliciesPanel({ id }: { id?: string }) {
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <StatusBadge label={p.terms.synthetic ? 'SYNTHETIC COVER' : 'INDEPENDENT-EVIDENCE PILOT'} tone={p.terms.synthetic ? 'synthetic' : 'pending'} />
+                <StatusBadge
+                  label={p.terms.synthetic ? 'SYNTHETIC COVER' : 'INDEPENDENT-EVIDENCE PILOT'}
+                  tone={p.terms.synthetic ? 'synthetic' : 'pending'}
+                />
                 <h3 className="mt-2 break-all font-mono text-sm">
                   <Link className="underline" href={`/policies/${p.terms.policyId}`}>
-                    {p.terms.policyId}
+                    {offering?.name ?? p.terms.productCode}
                   </Link>
                 </h3>
               </div>
               <StatusBadge label={label} tone={statusTone(label)} />
             </div>
+            <p className="text-sm">{p.terms.insuredEvent}</p>
             <dl className="grid gap-4 text-sm sm:grid-cols-3">
               {[
                 ['Premium', `${formatUnits(BigInt(p.terms.premiumMicros), 6)} USDC`],
                 ['Limit', `${formatUnits(BigInt(p.terms.limitMicros), 6)} USDC`],
                 ['Deductible', `${formatUnits(BigInt(p.terms.deductibleMicros), 6)} USDC`],
+                ['Insured agent', agent?.label ?? p.terms.agentId],
+                ['Policyholder', p.terms.owner],
+                ['Payer', p.payer],
                 ['Beneficiary', p.terms.beneficiary],
-                ['Effective', new Date(p.terms.effectiveAt * 1000).toLocaleString()],
-                ['Expiry', new Date(p.terms.expiresAt * 1000).toLocaleString()],
+                ['Effective', displayDate(p.terms.effectiveAt)],
+                ['Expiry', displayDate(p.terms.expiresAt)],
                 ['Position', p.terms.exposure.position],
               ].map(([k, v]) => (
                 <div key={k}>
@@ -221,32 +259,65 @@ export function PoliciesPanel({ id }: { id?: string }) {
                   Premium approval receipt: {a.hash}
                 </a>
               ))}
-            {!fixtureMode && lifecycle?.source?.mode !== 'fixture' && p.bindTx && (
-              <a
-                className="block break-all text-sm underline"
-                target="_blank"
-                rel="noreferrer"
-                href={`https://explorer.testnet.arc.io/tx/${p.bindTx}`}
-              >
-                Bind receipt: {p.bindTx}
-              </a>
-            )}
-            {id &&
-              lifecycle?.claimsEligible &&
-              lifecycle.completeness === 'VERIFIED_LINKED' &&
-              lifecycle.checkedAt !== null &&
-              now / 1000 <= lifecycle.checkedAt + 300 && (
+            {!fixtureMode &&
+              lifecycle?.source?.mode === 'arc-testnet' &&
+              (lifecycle.confirmation || p.bindTx) && (
+                <a
+                  className="block break-all text-sm underline"
+                  target="_blank"
+                  rel="noreferrer"
+                  href={`https://explorer.testnet.arc.io/tx/${lifecycle.confirmation?.transactionHash ?? p.bindTx}`}
+                >
+                  {lifecycle.confirmation
+                    ? 'Indexed bind receipt'
+                    : 'Recorded bind receipt · reconciliation pending'}
+                  : {lifecycle.confirmation?.transactionHash ?? p.bindTx}
+                </a>
+              )}
+            <p className="text-sm" aria-live="polite">
+              {canClaim
+                ? 'Eligible to begin a claim.'
+                : label === 'Confirmed · scheduled'
+                  ? 'Claim intake opens when coverage starts.'
+                  : 'Claim intake is unavailable for this policy and session.'}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {canClaim ? (
                 <Link
-                  className="inline-block rounded-md bg-zinc-900 px-4 py-2 text-sm text-white"
+                  className="inline-flex min-h-11 items-center rounded-md bg-zinc-900 px-4 py-2 text-sm text-white"
                   href={`/claims/new?policyId=${p.terms.policyId}`}
                 >
                   {p.terms.synthetic ? 'Submit a synthetic claim' : 'Open an independent claim'}
                 </Link>
+              ) : null}
+              {canResume && (
+                <Link
+                  className="inline-flex min-h-11 items-center underline"
+                  href={`/coverage?policyId=${p.terms.policyId}`}
+                >
+                  {attempt ? 'Check submitted purchase' : 'Resume accepted purchase'}
+                </Link>
               )}
+              {!id && !canResume && (
+                <Link
+                  className="inline-flex min-h-11 items-center underline"
+                  href={`/policies/${p.terms.policyId}`}
+                >
+                  View policy details
+                </Link>
+              )}
+            </div>
             {id && lifecycle && (
               <div className="space-y-2 text-sm">
                 <p>{lifecycle.notice}</p>
-                {lifecycle.source && <p className="break-all">Source: {lifecycle.source.mode} · {lifecycle.source.id} · {lifecycle.source.digest ?? 'live RPC'} {lifecycle.source.checkpoint && `· checkpoint ${lifecycle.source.checkpoint.sequence} · created ${new Date(lifecycle.source.checkpoint.createdAt * 1000).toISOString()} · expires ${new Date(lifecycle.source.checkpoint.validUntil * 1000).toISOString()}`}</p>}
+                {lifecycle.source && (
+                  <p className="break-all">
+                    Source: {lifecycle.source.mode} · {lifecycle.source.id} ·{' '}
+                    {lifecycle.source.digest ?? 'live RPC'}{' '}
+                    {lifecycle.source.checkpoint &&
+                      `· checkpoint ${lifecycle.source.checkpoint.sequence} · created ${new Date(lifecycle.source.checkpoint.createdAt * 1000).toISOString()} · expires ${new Date(lifecycle.source.checkpoint.validUntil * 1000).toISOString()}`}
+                  </p>
+                )}
                 {lifecycle.confirmation?.explorerUrl && (
                   <a
                     className="underline"
@@ -279,7 +350,12 @@ export function PoliciesPanel({ id }: { id?: string }) {
             {id && (
               <>
                 <p className="break-all text-sm">Beneficiary: {p.terms.beneficiary}</p>
-                <p className="text-sm leading-6">{PROCUREMENT_OFFERINGS.find((offering) => offering.code === p.terms.productCode)?.limitations}</p>
+                <p className="text-sm leading-6">
+                  {
+                    PROCUREMENT_OFFERINGS.find((offering) => offering.code === p.terms.productCode)
+                      ?.limitations
+                  }
+                </p>
                 {live && (
                   <p className="text-sm">
                     {fixtureMode ? 'Synthetic snapshot check' : 'Live contract check'}:{' '}
@@ -290,11 +366,6 @@ export function PoliciesPanel({ id }: { id?: string }) {
                 )}
                 {!fixtureMode && p.state === 'prepared' && (
                   <div className="space-y-3">
-                    {p.payer === wallet.address?.toLowerCase() && now / 1000 < p.terms.quoteExpiresAt && (
-                      <Link className="text-sm underline" href={`/coverage?policyId=${p.terms.policyId}`}>
-                        Resume accepted purchase
-                      </Link>
-                    )}
                     <label>
                       Recover a submitted bind receipt
                       <input
@@ -305,10 +376,13 @@ export function PoliciesPanel({ id }: { id?: string }) {
                     </label>
                     <button
                       className="proc-btn-secondary"
-                      disabled={busy || !hash}
+                      disabled={busy || !isBindHash(hash.trim())}
                       onClick={() =>
                         void run(async () => {
-                          await api('confirm', { policyId: p.terms.policyId, hash: hash as Hex });
+                          const receipt = hash.trim();
+                          if (!isBindHash(receipt)) return;
+                          await api('confirm', { policyId: p.terms.policyId, hash: receipt });
+                          saveBindAttempt(p.terms.policyId, { state: 'submitted', hash: receipt });
                           await load();
                         })
                       }
@@ -325,6 +399,11 @@ export function PoliciesPanel({ id }: { id?: string }) {
                   <summary className="cursor-pointer text-sm">
                     Immutable policy terms & digest
                   </summary>
+                  <ul className="ml-5 my-2 list-disc text-sm">
+                    {p.terms.exclusions.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
                   <pre className="mt-3 overflow-auto rounded-lg bg-[var(--surface-inset)] p-4 font-mono text-xs">
                     {JSON.stringify(p, null, 2)}
                   </pre>

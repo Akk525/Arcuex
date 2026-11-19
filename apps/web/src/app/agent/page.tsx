@@ -3,7 +3,12 @@ import { DelegationsPanel } from '@/components/agent/delegations-panel';
 import { PageHeader } from '@/components/ui/page-header';
 import { Callout } from '@/components/ui/callout';
 
-export default function AgentPage() {
+export default async function AgentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ agentId?: string }>;
+}) {
+  const { agentId } = await searchParams;
   return (
     <AppShell>
       <PageHeader
@@ -16,7 +21,7 @@ export default function AgentPage() {
         remain separate.
       </Callout>
       <div className="mt-6">
-        <DelegationsPanel />
+        <DelegationsPanel initialAgentId={agentId} />
       </div>
     </AppShell>
   );

@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import type { PolicyLifecycle } from '@arcuex/domain';
+import { useRouter } from 'next/navigation';
+import type { PolicyLifecycle, ProcurementDelegationView } from '@arcuex/domain';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePublicClient, useWalletClient } from 'wagmi';
-import { formatUnits, type Hex, type Address } from 'viem';
+import { type Hex, type Address } from 'viem';
 import {
   type ProcurementCatalog,
   type ProcurementCapacity,
@@ -20,7 +21,22 @@ import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { useFixtureMode } from '@/providers/source-mode';
 
-const usdc = (value: string) => `${formatUnits(BigInt(value), 6)} USDC`;
+import {
+  displayDate,
+  eligibleLimits,
+  isBindHash,
+  isWalletRejection,
+  policyPhase,
+  usdc,
+  usdToMicros,
+} from '@/lib/procurement/presentation';
+import {
+  bindAttemptKey,
+  clearBindAttempt,
+  readBindAttempt,
+  saveBindAttempt,
+} from '@/lib/procurement/bind-attempt';
+import { delegationPresentation } from '@/lib/delegation-presentation';
 
 type Acceptance = { policy: Policy; state: 'accepted_offchain' };
 type Payment = {
@@ -31,7 +47,19 @@ type Payment = {
 
 type WizardStage = 1 | 2 | 3 | 4;
 
-export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: string }) {
+export function HumanProcurementPanel({
+  resumePolicyId,
+  requestedAgentId,
+  requestedGrantId,
+  fromBuild,
+}: {
+  resumePolicyId?: string;
+  requestedAgentId?: string;
+  requestedGrantId?: string;
+  fromBuild?: boolean;
+}) {
+  const router = useRouter();
+  const delegated = Boolean(requestedGrantId);
   const fixtureMode = useFixtureMode();
   const { wallet, api, run, busy, error } = useProcurement();
   const publicClient = usePublicClient();
@@ -45,10 +73,16 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
   const [stage, setStage] = useState<WizardStage>(1);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentId, setAgentId] = useState('');
+  const [loaded, setLoaded] = useState(false);
+  const [grant, setGrant] = useState<ProcurementDelegationView>();
+  const [grantLoadedAt, setGrantLoadedAt] = useState(0);
+  const [bindUncertain, setBindUncertain] = useState(false);
+  const [recoveryHash, setRecoveryHash] = useState('');
+  const [allowanceChecking, setAllowanceChecking] = useState(false);
   const [label, setLabel] = useState('');
   const [position, setPosition] = useState('');
   const [signer, setSigner] = useState('');
-  const [exposure, setExposure] = useState('100000000');
+  const [exposure, setExposure] = useState('100');
   const [limit, setLimit] = useState('1000000');
   const [days, setDays] = useState(7);
   const [beneficiary, setBeneficiary] = useState('');
@@ -63,13 +97,31 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
   const [lifecycle, setLifecycle] = useState<PolicyLifecycle | null>(null);
   const [notice, setNotice] = useState('');
   const [now, setNow] = useState(Date.now());
-  const confirmed =
-    lifecycle?.state === 'confirmed' &&
-    lifecycle.completeness === 'VERIFIED_LINKED' &&
-    lifecycle.checkedAt !== null &&
-    now / 1000 <= lifecycle.checkedAt + 300
-      ? prep?.policy
-      : null;
+  const phase = prep
+    ? policyPhase(
+        prep.policy,
+        lifecycle,
+        Math.floor(now / 1000),
+        hash ? 'submitted' : bindUncertain ? 'uncertain' : undefined,
+      )
+    : undefined;
+  const confirmed = phase === 'scheduled' || phase === 'effective' ? prep?.policy : null;
+  const selectedAgent = agents.find((a) => a.id === agentId);
+  const grantStatus = grant
+    ? delegationPresentation(
+        grant,
+        Math.max(0, now - grantLoadedAt) / 1000,
+        wallet.uiStatus === 'ready',
+      )
+    : undefined;
+  const grantCanQuote =
+    !delegated || (grantStatus?.active && grant?.limitation !== 'budget_exhausted');
+  const limitChoices =
+    product && selectedAgent
+      ? eligibleLimits(product.limitsMicros, selectedAgent.exposure.notionalMicros, grant)
+      : [];
+  const selectedLimit = limitChoices.includes(limit) ? limit : limitChoices[0];
+  const submitted = Boolean(hash || bindUncertain || prep?.policy.bindTx);
   const [stepError, setStepError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,7 +132,9 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
         if (!r.ok) throw new Error('Product catalog unavailable');
         const data = (await r.json()) as ProcurementCatalog;
         setCatalog(data);
-        setProductCode(data.products[0]?.code ?? '');
+        setProductCode(
+          (delegated ? data.products.find((row) => row.synthetic) : data.products[0])?.code ?? '',
+        );
       })
       .catch(() => {
         if (!controller.signal.aborted) setCatalogError(true);
@@ -93,12 +147,16 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
         /* A quote can still be created. */
       });
     return () => controller.abort();
-  }, []);
+  }, [delegated]);
 
   useEffect(() => {
     const reset = () => {
       identityRevision.current++;
       setLifecycle(null);
+      setGrant(undefined);
+      setAgents([]);
+      setAgentId('');
+      setLoaded(false);
     };
     window.addEventListener('arcuex-session-changed', reset);
     return () => window.removeEventListener('arcuex-session-changed', reset);
@@ -111,6 +169,10 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
 
   useEffect(() => {
     identityRevision.current++;
+    setLoaded(false);
+    setGrant(undefined);
+    setBindUncertain(false);
+    setRecoveryHash('');
     setAgents([]);
     setAgentId('');
     setQuote(null);
@@ -171,17 +233,65 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
     if (revision === identityRevision.current) setLifecycle(result);
   }
 
+  async function refreshCapacity() {
+    const response = await fetch('/api/procurement/capacity', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Capacity check unavailable. Try again before paying.');
+    setCapacity(await response.json());
+  }
+
   async function loadAgents() {
-    const rows = await api<Agent[]>('agents');
-    setAgents(rows);
-    setAgentId(
-      rows.find(
+    const start = Date.now();
+    const result = await api<{ agents: Agent[]; delegations: ProcurementDelegationView[] }>('list');
+    const signerAddress = wallet.address?.toLowerCase();
+    setLoaded(true);
+    if (delegated) {
+      const scopedGrant = result.delegations.find(
+        (row) => row.id === requestedGrantId && row.agentId === requestedAgentId,
+      );
+      const agent = result.agents.find(
         (row) =>
-          row.owner === wallet.address?.toLowerCase() &&
-          row.exposure.protocol === product?.protocol,
-      )?.id ?? '',
+          row.id === scopedGrant?.agentId &&
+          row.signer === signerAddress &&
+          row.owner !== signerAddress,
+      );
+      if (!scopedGrant || !agent) {
+        setGrant(undefined);
+        setAgentId('');
+        setAgents([]);
+        throw new Error(
+          'This grant is unavailable to the connected wallet. Connect the registered agent signer or ask the policyholder for the correct grant.',
+        );
+      }
+      setAgents([agent]);
+      setGrant(scopedGrant);
+      setGrantLoadedAt(start);
+      setAgentId(agent.id);
+      setBeneficiary(scopedGrant.beneficiary);
+      return;
+    }
+    const owned = result.agents.filter((row) => row.owner === signerAddress);
+    setAgents(owned);
+    setAgentId(
+      owned.find(
+        (row) => row.id === requestedAgentId && row.exposure.protocol === product?.protocol,
+      )?.id ??
+        owned.find((row) => row.exposure.protocol === product?.protocol)?.id ??
+        '',
     );
   }
+
+  useEffect(() => {
+    if (!prep) return;
+    const policyId = prep.policy.terms.policyId;
+    const sync = (event: StorageEvent) => {
+      if (event.key !== bindAttemptKey(policyId)) return;
+      const attempt = readBindAttempt(policyId);
+      setHash(attempt?.state === 'submitted' ? attempt.hash : null);
+      setBindUncertain(attempt?.state === 'uncertain');
+    };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, [prep]);
 
   async function confirmPayment(kind: 'approve' | 'bind', txHash: Hex, policyId: string) {
     if (!publicClient) throw new Error('Connect to Arc Testnet to check this receipt.');
@@ -191,13 +301,19 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
       timeout: 20_000,
     });
     if (receipt.status !== 'success') {
-      sessionStorage.removeItem(`arcuex-${kind}:${policyId}`);
-      if (kind === 'bind') setHash(null);
-      else setApprovalHash(null);
+      if (kind === 'bind') {
+        clearBindAttempt(policyId);
+        setBindUncertain(false);
+        setHash(null);
+      } else {
+        sessionStorage.removeItem(`arcuex-${kind}:${policyId}`);
+        setApprovalHash(null);
+      }
       throw new Error('Transaction reverted. You can retry while the quote is open.');
     }
     if (kind === 'bind') {
-      await api<Policy>('confirm', { policyId, hash: txHash });
+      const policy = await api<Policy>('confirm', { policyId, hash: txHash });
+      setPrep({ policy, state: 'accepted_offchain' });
       await refreshLifecycle(policyId);
       setNotice(
         'Receipt checked. Coverage follows canonical reconciliation and the effective window.',
@@ -216,7 +332,13 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
     if (wallet.uiStatus !== 'ready' || wallet.address?.toLowerCase() !== prep.policy.payer)
       throw new Error('Wrong account or network; reconnect the accepted payer.');
     if ((await walletClient.getChainId()) !== 5042002) throw new Error('Switch to Arc Testnet.');
-    const pendingHash = kind === 'bind' ? hash : approvalHash;
+    const bindAttempt = readBindAttempt(policyId);
+    if (kind === 'bind' && bindAttempt?.state === 'uncertain')
+      throw new Error('Check your wallet activity and enter the bind hash before trying again.');
+    const pendingHash =
+      kind === 'bind'
+        ? (hash ?? (bindAttempt?.state === 'submitted' ? bindAttempt.hash : null))
+        : approvalHash;
     if (pendingHash) {
       await confirmPayment(kind, pendingHash, policyId);
       return;
@@ -254,25 +376,69 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
         ? 'Review the exact premium allowance in your wallet.'
         : 'Review the premium and policy bind in your wallet.',
     );
-    const txHash = await walletClient.sendTransaction({
-      account: wallet.address,
-      chain: walletClient.chain,
-      to: tx.to,
-      data: tx.data,
-      maxFeePerGas: ARC_MIN_MAX_FEE_PER_GAS,
-      maxPriorityFeePerGas: ARC_MIN_MAX_FEE_PER_GAS,
-    });
-    if (kind === 'bind') setHash(txHash);
-    else setApprovalHash(txHash);
-    sessionStorage.setItem(`arcuex-${kind}:${policyId}`, txHash);
-    setNotice('Transaction submitted. Check the receipt before retrying.');
-    await confirmPayment(kind, txHash, policyId);
+    const send = async () => {
+      if (kind === 'bind') {
+        if (readBindAttempt(policyId))
+          throw new Error('A bind attempt already exists. Check its status before paying again.');
+        saveBindAttempt(policyId, { state: 'uncertain' });
+        setBindUncertain(true);
+      }
+      let txHash: Hex;
+      try {
+        txHash = await walletClient.sendTransaction({
+          account: wallet.address,
+          chain: walletClient.chain,
+          to: tx.to,
+          data: tx.data,
+          maxFeePerGas: ARC_MIN_MAX_FEE_PER_GAS,
+          maxPriorityFeePerGas: ARC_MIN_MAX_FEE_PER_GAS,
+        });
+      } catch (cause) {
+        if (isWalletRejection(cause)) {
+          if (kind === 'bind') {
+            clearBindAttempt(policyId);
+            setBindUncertain(false);
+          }
+          throw new Error(
+            'You declined the wallet request. You can retry while the quote is open.',
+          );
+        }
+        throw new Error(
+          kind === 'bind'
+            ? 'Wallet response interrupted. Check wallet activity and recover the submitted bind before trying again.'
+            : 'Wallet response interrupted. Check wallet activity or your existing allowance before retrying.',
+        );
+      }
+      if (kind === 'bind') {
+        setHash(txHash);
+        setBindUncertain(false);
+        saveBindAttempt(policyId, { state: 'submitted', hash: txHash });
+      } else {
+        setApprovalHash(txHash);
+        sessionStorage.setItem(`arcuex-approve:${policyId}`, txHash);
+      }
+      setNotice('Transaction submitted. Check the receipt before retrying.');
+      await confirmPayment(kind, txHash, policyId);
+    };
+    if (kind === 'bind' && navigator.locks) {
+      await navigator.locks.request(
+        bindAttemptKey(policyId),
+        { ifAvailable: true },
+        async (lock) => {
+          if (!lock)
+            throw new Error('This purchase is open in another tab. Check the existing bind there.');
+          await send();
+        },
+      );
+    } else await send();
   }
 
   function openPayment(acceptance: Acceptance) {
     const id = acceptance.policy.terms.policyId;
     setPrep(acceptance);
-    setHash(sessionStorage.getItem(`arcuex-bind:${id}`) as Hex | null);
+    const attempt = readBindAttempt(id);
+    setHash(attempt?.state === 'submitted' ? attempt.hash : null);
+    setBindUncertain(attempt?.state === 'uncertain');
     setApprovalHash(sessionStorage.getItem(`arcuex-approve:${id}`) as Hex | null);
     setApproved(false);
     setStage(4);
@@ -287,7 +453,7 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
       throw new Error('Connect the accepted payer to resume this purchase.');
     if (!catalog?.products.some((p) => p.code === policy.terms.productCode))
       throw new Error('This product is currently unavailable for payment.');
-    const hadSubmission = sessionStorage.getItem(`arcuex-bind:${policy.terms.policyId}`);
+    const hadSubmission = readBindAttempt(policy.terms.policyId);
     if (
       !hadSubmission &&
       policy.state !== 'confirmed' &&
@@ -297,7 +463,7 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
     setProductCode(policy.terms.productCode);
     setQuote({ terms: policy.terms, digest: policy.digest });
     openPayment({ policy, state: 'accepted_offchain' });
-    if (policy.state === 'confirmed') await refreshLifecycle(policy.terms.policyId);
+    await refreshLifecycle(policy.terms.policyId);
   }
 
   function goBack() {
@@ -308,6 +474,10 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
   async function continueFromStage() {
     setStepError(null);
     if (stage === 1) {
+      if (delegated && !grantCanQuote) {
+        setStepError('Check the current delegation before starting a quote.');
+        return;
+      }
       if (!product || !agentId) {
         setStepError('Select or register an agent exposure before continuing.');
         return;
@@ -316,7 +486,7 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
       return;
     }
     if (stage === 2) {
-      if (!product || !checks.every(Boolean)) {
+      if (!product || !selectedLimit || !checks.every(Boolean)) {
         setStepError('Confirm every eligibility attestation before generating a quote.');
         return;
       }
@@ -327,7 +497,8 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
             agentId,
             productCode: product.code,
             productVersion: product.version,
-            limitMicros: limit,
+            limitMicros: selectedLimit,
+            ...(grant ? { delegationId: grant.id } : {}),
             durationDays: days,
             beneficiary,
             eligibility: {
@@ -355,6 +526,7 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
       await run(async () => {
         const acceptance = await api<Acceptance>('accept', {
           quoteId: quote.terms.quoteId,
+          ...(grant ? { delegationId: grant.id } : {}),
           acceptedDigest: quote.digest,
         });
         openPayment(acceptance);
@@ -390,14 +562,16 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
               Approved coverage product
               <select
                 value={productCode}
-                disabled={stage !== 1 || busy}
+                disabled={stage !== 1 || busy || delegated}
                 onChange={(e) => {
                   const selected = catalog?.products.find(
                     (option) => option.code === e.target.value,
                   );
                   if (!selected) return;
                   setProductCode(selected.code);
-                  setAgentId('');
+                  setAgentId(
+                    agents.find((a) => a.exposure.protocol === selected.protocol)?.id ?? '',
+                  );
                   setPosition('');
                   setLimit(selected.limitsMicros[0]);
                   setDays(7);
@@ -416,6 +590,24 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
               {product.event}
             </p>
             <p className="text-sm text-[var(--ink)]">{product.pricing}</p>
+            <p className="text-sm">
+              Limits {product.limitsMicros.map(usdc).join(', ')} · Durations{' '}
+              {product.durationsDays.join(', ')} days.
+            </p>
+            <details className="text-sm">
+              <summary className="cursor-pointer py-2 font-medium">
+                Eligibility and exclusions
+              </summary>
+              <p>
+                Use a registered position, attest its health and control, and disclose any known
+                incident.
+              </p>
+              <ul className="ml-5 mt-2 list-disc">
+                {product.exclusions.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </details>
             <p className="text-xs text-[var(--ink-muted)]">
               {capacity?.status === 'verified'
                 ? `Available pool capacity at last check: ${usdc(capacity.availableMicros!)}. Quotes do not reserve capital.`
@@ -439,19 +631,34 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
         {quote && !prep ? (
           <StatusBadge label={expired ? 'Quote expired' : 'Offchain quote'} tone="pending" />
         ) : null}
-        {prep && !approved && !hash && !expired && !confirmed ? (
+        {prep && !approved && !submitted && !expired && !confirmed ? (
           <StatusBadge label="Wallet approval pending" tone="pending" />
         ) : null}
-        {approved && !hash && !expired && !confirmed ? (
+        {approved && !submitted && !expired && !confirmed ? (
           <StatusBadge label="Allowance confirmed · bind required" tone="pending" />
         ) : null}
-        {prep && expired && !hash && !confirmed ? (
+        {prep && expired && !submitted && !confirmed ? (
           <StatusBadge label="Quote expired · start a fresh quote" tone="warn" />
         ) : null}
-        {hash && !confirmed ? (
-          <StatusBadge label="Reconciliation pending — no coverage confirmed" tone="pending" />
+        {bindUncertain && !hash && !confirmed && (
+          <StatusBadge label="Bind status unknown · check your wallet" tone="warn" />
+        )}
+        {(hash || prep?.policy.bindTx) && !confirmed ? (
+          <StatusBadge
+            label={
+              phase === 'submitted'
+                ? 'Bind submitted · receipt pending'
+                : 'Reconciliation pending — no coverage confirmed'
+            }
+            tone="pending"
+          />
         ) : null}
-        {confirmed ? <StatusBadge label="Policy confirmed on Arc Testnet" tone="ok" /> : null}
+        {confirmed ? (
+          <StatusBadge
+            label={phase === 'effective' ? 'Confirmed · effective window' : 'Confirmed · scheduled'}
+            tone="ok"
+          />
+        ) : null}
       </div>
 
       {(error || stepError) && (
@@ -467,18 +674,36 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
 
       {stage === 1 && product && (
         <section className="space-y-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-5">
-          <h3 className="text-lg font-semibold">1. Register exposure</h3>
+          <h3 className="text-lg font-semibold">
+            {delegated ? '1. Verify delegated authority' : '1. Choose an insured position'}
+          </h3>
           <p className="text-sm text-[var(--ink-muted)]">
-            Use the header Sign in control, then load agents owned by this wallet. Connect status is
-            shown in the shell — not duplicated here.
+            {delegated
+              ? 'Connect the registered agent signer. The policyholder sets the scope and beneficiary. Your wallet separately confirms allowance and payment.'
+              : 'Connect your policyholder wallet, then select or register a position you control.'}
           </p>
+          {grant && selectedAgent && (
+            <Callout
+              kind={grantCanQuote ? 'info' : 'warn'}
+              title={grantStatus?.label ?? 'Delegation'}
+            >
+              <p className="break-words">
+                <strong>{selectedAgent.label}</strong> · {selectedAgent.exposure.position} · Expires{' '}
+                {displayDate(grant.expiresAt)}.
+              </p>
+              <p className="break-all">
+                Policyholder {grant.owner} · Agent signer {selectedAgent.signer}
+              </p>
+              <p>
+                Limit cap {usdc(grant.limitCapMicros)} · Remaining premium budget{' '}
+                {usdc(grant.remainingPremiumMicros)}.
+              </p>
+            </Callout>
+          )}
           <Button variant="secondary" disabled={busy} onClick={() => void run(loadAgents)}>
-            Load my agents
+            {delegated ? 'Check delegation' : 'Load my agents'}
           </Button>
-          {agents.some(
-            (a) =>
-              a.owner === wallet.address?.toLowerCase() && a.exposure.protocol === product.protocol,
-          ) ? (
+          {!delegated && agents.some((a) => a.exposure.protocol === product.protocol) ? (
             <label>
               Registered agent
               <select value={agentId} onChange={(e) => setAgentId(e.target.value)}>
@@ -496,73 +721,84 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
               </select>
             </label>
           ) : (
-            <p className="text-sm text-[var(--ink-muted)]">No agents loaded yet.</p>
+            !delegated && (
+              <p className="text-sm text-[var(--ink-muted)]">
+                {loaded
+                  ? 'No registered positions for this product. Register one below.'
+                  : 'Load your registered positions to continue.'}
+              </p>
+            )
           )}
-          <details>
-            <summary className="cursor-pointer text-sm font-medium">
-              {product.synthetic
-                ? 'Register a new synthetic position'
-                : 'Register a reviewed position'}
-            </summary>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <label>
-                Agent label
-                <input
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                  placeholder="treasury-agent"
-                />
-              </label>
-              <label>
-                Agent wallet
-                <input value={signer} onChange={(e) => setSigner(e.target.value)} />
-              </label>
-              <label>
-                Position identifier
-                <input
-                  value={position}
-                  onChange={(e) => setPosition(e.target.value)}
-                  placeholder={product.synthetic ? 'demo-position-01' : '0x… (32-byte position ID)'}
-                />
-              </label>
-              <label>
-                Exposure value (USDC micros)
-                <input
-                  value={exposure}
-                  onChange={(e) => setExposure(e.target.value)}
-                  inputMode="numeric"
-                />
-              </label>
-              <div className="self-end">
-                <button
-                  className="proc-btn-secondary"
-                  onClick={() =>
-                    void run(async () => {
-                      const a = await api<Agent>('agents', {
-                        label,
-                        signer,
-                        position,
-                        exposureMicros: exposure,
-                        ownerAttestsControl: true,
-                        chainId: 5042002,
-                        protocol: product.protocol,
-                        productCode: product.code,
-                      });
-                      setAgents((prev) => [...prev, a]);
-                      setAgentId(a.id);
-                    })
-                  }
-                >
-                  Register position I control
-                </button>
+          {!delegated && (
+            <details open={fromBuild || undefined}>
+              <summary className="cursor-pointer text-sm font-medium">
+                {product.synthetic
+                  ? 'Register a new synthetic position'
+                  : 'Register a reviewed position'}
+              </summary>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label>
+                  Agent label
+                  <input
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                    placeholder="treasury-agent"
+                  />
+                </label>
+                <label>
+                  Agent signer wallet
+                  <input value={signer} onChange={(e) => setSigner(e.target.value)} />
+                </label>
+                <label>
+                  Position identifier
+                  <input
+                    value={position}
+                    onChange={(e) => setPosition(e.target.value)}
+                    placeholder={
+                      product.synthetic ? 'demo-position-01' : '0x… (32-byte position ID)'
+                    }
+                  />
+                </label>
+                <label>
+                  Exposure value (USDC)
+                  <input
+                    value={exposure}
+                    onChange={(e) => setExposure(e.target.value)}
+                    inputMode="numeric"
+                  />
+                </label>
+                <div className="self-end">
+                  <button
+                    className="proc-btn-secondary"
+                    onClick={() =>
+                      void run(async () => {
+                        const a = await api<Agent>('agents', {
+                          label,
+                          signer,
+                          position,
+                          exposureMicros: usdToMicros(exposure),
+                          ownerAttestsControl: true,
+                          chainId: 5042002,
+                          protocol: product.protocol,
+                          productCode: product.code,
+                        });
+                        setAgents((prev) => [...prev, a]);
+                        setAgentId(a.id);
+                        if (fromBuild) router.push(`/agent?agentId=${a.id}`);
+                      })
+                    }
+                  >
+                    {fromBuild ? 'Register and return to Build' : 'Register position I control'}
+                  </button>
+                </div>
               </div>
-            </div>
-            <p className="mt-3 text-xs text-[var(--ink-muted)]">
-              {product.synthetic
-                ? 'Registration records an attestation for a synthetic position.'
-                : 'Register the reviewed position you control. Claims require independent verification.'}
-            </p>
-          </details>
+              <p className="mt-3 text-xs text-[var(--ink-muted)]">
+                {product.synthetic
+                  ? 'Registration records an attestation for a synthetic position.'
+                  : 'Register the reviewed position you control. Claims require independent verification.'}
+              </p>
+            </details>
+          )}
         </section>
       )}
 
@@ -572,8 +808,8 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
           <div className="grid gap-4 sm:grid-cols-3">
             <label>
               Limit
-              <select value={limit} onChange={(e) => setLimit(e.target.value)}>
-                {product.limitsMicros.map((v) => (
+              <select value={selectedLimit ?? ''} onChange={(e) => setLimit(e.target.value)}>
+                {limitChoices.map((v) => (
                   <option key={v} value={v}>
                     {usdc(v)}
                   </option>
@@ -594,19 +830,28 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
               Beneficiary
               <input
                 value={beneficiary}
-                readOnly={!product.synthetic}
+                readOnly={!product.synthetic || delegated}
                 onChange={(e) => setBeneficiary(e.target.value)}
               />
             </label>
           </div>
-          <div className="grid gap-3 text-sm">
+          <p className="text-sm text-[var(--ink-muted)]">
+            {selectedAgent?.label} · {selectedAgent?.exposure.position}
+          </p>
+          {!selectedLimit && (
+            <p role="alert">This exposure or grant cannot support an available limit.</p>
+          )}
+          <fieldset className="grid min-w-0 gap-3 text-sm">
+            <legend className="mb-2 font-semibold">Underwriting declarations</legend>
             {[
               'This registered position is healthy under the canonical collateral ratio.',
               'I know of no existing incident or liquidation affecting this position.',
               product.synthetic
                 ? 'This exposure and its evidence are synthetic demo data only.'
                 : 'I will provide independent liquidation, replay and recovery evidence for any claim.',
-              'I control this position and attest that its registration is accurate.',
+              delegated
+                ? 'I verify that the policyholder authorized this registered position and its details are accurate.'
+                : 'I control this position and attest that its registration is accurate.',
             ].map((s, i) => (
               <label className="proc-check" key={s}>
                 <input
@@ -619,7 +864,7 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
                 {s}
               </label>
             ))}
-          </div>
+          </fieldset>
           <Callout kind={product.synthetic ? 'synthetic' : 'info'} title="Quote generation">
             Premium and deductible follow the testnet schedule. A quote is offchain and does not
             reserve capital.
@@ -635,12 +880,9 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
               ['Premium', usdc(quote.terms.premiumMicros)],
               ['Limit', usdc(quote.terms.limitMicros)],
               ['Deductible', usdc(quote.terms.deductibleMicros)],
-              [
-                'Effective after binding',
-                new Date(quote.terms.effectiveAt * 1000).toLocaleString(),
-              ],
-              ['Coverage expiry', new Date(quote.terms.expiresAt * 1000).toLocaleString()],
-              ['Quote expires', new Date(quote.terms.quoteExpiresAt * 1000).toLocaleString()],
+              ['Effective after binding', displayDate(quote.terms.effectiveAt)],
+              ['Coverage expiry', displayDate(quote.terms.expiresAt)],
+              ['Quote expires', displayDate(quote.terms.quoteExpiresAt)],
             ].map(([k, v]) => (
               <div key={k}>
                 <dt className="text-xs text-[var(--ink-muted)]">{k}</dt>
@@ -648,6 +890,10 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
               </div>
             ))}
           </dl>
+          <p className="break-all text-sm">
+            <strong>Payer</strong> {wallet.address} ·{' '}
+            {delegated ? 'Delegated signer' : 'Policyholder wallet'}
+          </p>
           <p className="break-all text-sm">Beneficiary: {quote.terms.beneficiary}</p>
           <p className="text-sm leading-6">{quote.terms.insuredEvent}</p>
           <div>
@@ -693,6 +939,72 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
       {stage === 4 && prep && !offline && (
         <section className="space-y-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-5">
           <h3 className="text-lg font-semibold">4. USDC allowance, bind & confirmation</h3>
+          <p className="break-all text-sm">
+            <strong>Accepted payer</strong> {prep.policy.payer}
+          </p>
+          <p className="text-sm">
+            Premium {usdc(prep.policy.terms.premiumMicros)} · Quote deadline{' '}
+            {displayDate(prep.policy.terms.quoteExpiresAt)}
+          </p>
+          <Button
+            variant="ghost"
+            disabled={busy || allowanceChecking}
+            onClick={() => {
+              setAllowanceChecking(true);
+              void run(async () => {
+                try {
+                  await refreshCapacity();
+                } finally {
+                  setAllowanceChecking(false);
+                }
+              });
+            }}
+          >
+            Refresh pool capacity
+          </Button>
+          {capacity?.availableMicros != null &&
+            BigInt(capacity.availableMicros) < BigInt(prep.policy.terms.limitMicros) && (
+              <p role="status" className="text-sm text-[var(--warn)]">
+                Observed capacity is below your limit. Refresh capacity before paying. The server
+                rechecks capacity for each wallet step.
+              </p>
+            )}
+          {bindUncertain && !hash && (
+            <Callout kind="warn" title="Check wallet activity">
+              <p>
+                The wallet did not return a bind hash. Find the transaction in your wallet, then
+                verify its receipt here or in the policy detail.
+              </p>
+              <label className="mt-2">
+                Bind transaction hash
+                <input value={recoveryHash} onChange={(e) => setRecoveryHash(e.target.value)} />
+              </label>
+              <Button
+                className="mt-2"
+                variant="secondary"
+                disabled={busy || !isBindHash(recoveryHash.trim())}
+                onClick={() =>
+                  void run(async () => {
+                    const recoveredHash = recoveryHash.trim();
+                    if (!isBindHash(recoveredHash)) return;
+                    await api<Policy>('confirm', {
+                      policyId: prep.policy.terms.policyId,
+                      hash: recoveredHash,
+                    });
+                    saveBindAttempt(prep.policy.terms.policyId, {
+                      state: 'submitted',
+                      hash: recoveredHash,
+                    });
+                    setHash(recoveredHash);
+                    setBindUncertain(false);
+                    await refreshLifecycle(prep.policy.terms.policyId);
+                  })
+                }
+              >
+                Verify bind receipt
+              </Button>
+            </Callout>
+          )}
           <ol className="list-decimal space-y-2 pl-5 text-sm text-[var(--ink-muted)]">
             <li>
               <strong className="text-[var(--ink)]">Allowance:</strong> approve the exact premium.
@@ -710,7 +1022,7 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
           <div className="flex flex-wrap gap-3">
             <Button
               variant="secondary"
-              disabled={busy || (expired && !approvalHash) || approved || !!hash || !!confirmed}
+              disabled={busy || (expired && !approvalHash) || approved || submitted || !!confirmed}
               onClick={() => void run(() => payment('approve'))}
             >
               {approvalHash && !approved
@@ -718,10 +1030,20 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
                 : 'Approve exact USDC premium'}
             </Button>
             <Button
-              disabled={busy || (expired && !hash) || !!confirmed}
-              onClick={() => void run(() => payment('bind'))}
+              disabled={
+                busy || bindUncertain || (expired && !hash && !prep.policy.bindTx) || !!confirmed
+              }
+              onClick={() =>
+                void run(() =>
+                  prep.policy.bindTx && !hash
+                    ? refreshLifecycle(prep.policy.terms.policyId)
+                    : payment('bind'),
+                )
+              }
             >
-              {hash ? 'Re-check bind confirmation' : 'Pay premium & bind policy'}
+              {hash || prep.policy.bindTx
+                ? 'Re-check bind confirmation'
+                : 'Pay premium & bind policy'}
             </Button>
           </div>
           {hash && (
@@ -737,36 +1059,39 @@ export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: str
           {confirmed && (
             <Callout kind="live" title="Policy confirmed">
               <p>
-                Confirmed on Arc Testnet. Coverage follows the scheduled effective window — not
-                merely this UI state.{' '}
+                {phase === 'scheduled'
+                  ? `Canonical bind verified. Coverage starts ${displayDate(confirmed.terms.effectiveAt)}.`
+                  : 'Canonical bind verified. The coverage window has started.'}{' '}
                 <Link className="underline" href={`/policies/${confirmed.terms.policyId}`}>
                   Open policy
                 </Link>
               </p>
             </Callout>
           )}
-          <Button
-            variant="ghost"
-            disabled={busy}
-            onClick={() => {
-              setPrep(null);
-              setQuote(null);
-              setAccepted(false);
-              setApproved(false);
-              setHash(null);
-              setApprovalHash(null);
-              setLifecycle(null);
-              setStage(2);
-            }}
-          >
-            Start a fresh quote
-          </Button>
+          {!submitted && !confirmed && (
+            <Button
+              variant="ghost"
+              disabled={busy}
+              onClick={() => {
+                setPrep(null);
+                setQuote(null);
+                setAccepted(false);
+                setApproved(false);
+                setHash(null);
+                setApprovalHash(null);
+                setLifecycle(null);
+                setStage(2);
+              }}
+            >
+              Start a fresh quote
+            </Button>
+          )}
         </section>
       )}
 
       {!confirmed && (
         <div className="flex flex-wrap gap-3 border-t border-[var(--line)] pt-4">
-          <Button variant="secondary" disabled={busy || stage === 1} onClick={goBack}>
+          <Button variant="secondary" disabled={busy || stage === 1 || submitted} onClick={goBack}>
             Back
           </Button>
           {stage < 4 && !(stage === 3 && offline) ? (
