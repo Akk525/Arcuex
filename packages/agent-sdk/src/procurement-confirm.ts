@@ -1,6 +1,10 @@
 import type { PublicClient, Hex } from 'viem';
 import { readOnchainPolicy, toPolicyIdBytes32 } from '@arcuex/onchain';
-import { ProcurementError, type ProcurementService } from './procurement';
+import {
+  hasProcurementBindAuthority,
+  ProcurementError,
+  type ProcurementService,
+} from './procurement';
 
 /** Read-only receipt and state reconciliation. Never signs or broadcasts. */
 export async function confirmProcurement(
@@ -55,6 +59,12 @@ export async function confirmProcurement(
     throw new ProcurementError(
       'CHAIN_MISMATCH',
       'Receipt or deployed policy differs from accepted terms, payer, amounts or binding deadline. This policy is not recognized by the beta backend.',
+      409,
+    );
+  if (!hasProcurementBindAuthority(service.store, policy, Number(block.timestamp)))
+    throw new ProcurementError(
+      'BIND_AUTHORITY_INVALID',
+      'The payer lacked authority at the bind block',
       409,
     );
   service.store.confirm(t.policyId, hash.toLowerCase(), Number(block.timestamp));

@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { explorerTxUrl } from '@arcuex/chain';
-import type { PolicyLifecycle } from '@arcuex/domain';
+import { sameIndependentLiquidationProfile, type PolicyLifecycle } from '@arcuex/domain';
+import { configuredIndependentLiquidation } from './independent-evidence';
+import { canAccessClaimsPolicy } from '@arcuex/insurance';
 import { toPolicyIdBytes32 } from '@arcuex/onchain';
 import { ProcurementStore } from '@arcuex/persistence';
 import { authenticateClaimsRequest } from './claims-auth';
-import { getDb } from './db';
+import { getDb, getRepo } from './db';
 import {
   reconciliationRows,
   reconciliationScope,
@@ -65,7 +67,8 @@ export function readPolicies(request: Request, policyId?: string) {
     !policy ||
     (p.role === 'claimant' &&
       policy.terms?.owner !== p.walletAddress &&
-      policy.payer !== p.walletAddress)
+      policy.payer !== p.walletAddress &&
+      !canAccessClaimsPolicy(getRepo(), p, policyId))
   )
     return NextResponse.json({ error: 'Policy not found' }, { status: 404, headers });
   const linked = rows.filter((r) => r.local_policy_id === policyId);
@@ -76,10 +79,7 @@ export function readPolicies(request: Request, policyId?: string) {
     { healthy: number; checked_at: number } | undefined;
   const now = Math.floor(Date.now() / 1000);
   const verified =
-    row?.status === 'VERIFIED_LINKED' &&
-    scope?.healthy === 1 &&
-    scope.checked_at <= now &&
-    scope.checked_at >= now - 300;
+    row?.canonical === 1 && row.status === 'VERIFIED_LINKED' && store.claimsEligible(policyId, now);
   const evidence = row ? (JSON.parse(row.payload) as BindEvidence) : null;
   const settlements = db
     .prepare(
@@ -105,7 +105,18 @@ export function readPolicies(request: Request, policyId?: string) {
     completeness: row?.status ?? null,
     chainId: 5042002,
     pool: procurementPool,
-    claimsEligible: Boolean(verified && p.walletAddress === policy.terms?.owner),
+    claimsEligible: Boolean(
+      verified &&
+      p.role === 'claimant' &&
+      canAccessClaimsPolicy(getRepo(), p, policyId) &&
+      now >= policy.terms.effectiveAt &&
+      (policy.terms.synthetic ||
+        (now <= policy.terms.expiresAt &&
+          sameIndependentLiquidationProfile(
+            policy.terms.independentProfile,
+            configuredIndependentLiquidation(),
+          ))),
+    ),
     checkedAt: scope?.checked_at ?? null,
     confirmation:
       evidence && !fixture
@@ -128,7 +139,9 @@ export function readPolicies(request: Request, policyId?: string) {
     })),
     notice: fixture
       ? 'SYNTHETIC FIXTURE: policy, reservation and checkpoint are rehearsal data, not Arc confirmations. No live financial operations.'
-      : 'Arc Testnet synthetic demo. Preparation is offchain. A record alone does not guarantee coverage. Settlement references require independent chain verification.',
+      : policy.terms.synthetic
+        ? 'Synthetic cover on Arc Testnet. An accepted quote is offchain until a canonical bind is linked.'
+        : 'Independent-evidence pilot on Arc Testnet. Coverage follows the reconciled bind and effective window.',
   };
   return NextResponse.json(body, { headers });
 }

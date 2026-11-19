@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { hasAllowedOrigin, canonicalSigningOrigin } from './request-boundary';
 import { getRuntimeConfig } from './runtime-config';
-import { INDEPENDENT_LIQUIDATION_PRODUCT, PROCUREMENT_PRODUCT } from '@arcuex/domain';
+import { PROCUREMENT_OFFERINGS, type ProcurementCapacity } from '@arcuex/domain';
 import { configuredIndependentLiquidation } from './independent-evidence';
 import { ProcurementStore } from '@arcuex/persistence';
+import { hasProcurementBindAuthority } from '@arcuex/agent-sdk';
 import { ARC_USDC_ERC20_ADDRESS } from '@arcuex/chain';
 import { authenticateClaimsRequest } from './claims-auth';
 import {
@@ -17,6 +18,8 @@ import { ProcurementService, ProcurementError, check, text } from '@/lib/server/
 import { readFixture } from './fixture-source';
 import {
   preflight,
+  preflightPayment,
+  readProcurementCapacity,
   transactions,
   verifyReceipt,
   verifyApproval,
@@ -26,6 +29,7 @@ import {
 } from '@/lib/server/procurement-chain';
 export async function handle(request: Request, path: string) {
   try {
+    const runtime = getRuntimeConfig();
     const profile = configuredIndependentLiquidation();
     const svc = new ProcurementService(
       new ProcurementStore(getDb()),
@@ -35,14 +39,38 @@ export async function handle(request: Request, path: string) {
       profile,
     );
     if (request.method === 'GET' && path === 'products')
-      return NextResponse.json({
-        products: profile
-          ? [PROCUREMENT_PRODUCT, INDEPENDENT_LIQUIDATION_PRODUCT]
-          : [PROCUREMENT_PRODUCT],
-        chainId: 5042002,
-        pool: procurementPool,
-      });
-    const runtime = getRuntimeConfig();
+      return NextResponse.json(
+        {
+          products: PROCUREMENT_OFFERINGS.filter((p) => p.synthetic || profile),
+          chainId: 5042002,
+          pool: procurementPool,
+          paymentMode:
+            runtime.chainSource === 'fixture'
+              ? 'fixture_offline'
+              : 'arc_testnet_preflight_required',
+        },
+        { headers: { 'Cache-Control': 'no-store' } },
+      );
+    if (request.method === 'GET' && path === 'capacity') {
+      let capacity: ProcurementCapacity = {
+        status: runtime.chainSource === 'fixture' ? 'offline' : 'unavailable',
+        availableMicros: null,
+        checkedAt: null,
+      };
+      if (runtime.chainSource === 'arc-testnet') {
+        try {
+          const available = await readProcurementCapacity();
+          capacity = {
+            status: 'verified',
+            availableMicros: available.toString(),
+            checkedAt: new Date().toISOString(),
+          };
+        } catch {
+          /* Quote pricing stays available without RPC; no payment can be prepared. */
+        }
+      }
+      return NextResponse.json(capacity, { headers: { 'Cache-Control': 'no-store' } });
+    }
     const origin = canonicalSigningOrigin(request, runtime);
     if (!hasAllowedOrigin(request, runtime))
       throw new ProcurementError('ORIGIN', 'Cross-origin requests rejected', 403);
@@ -117,7 +145,8 @@ export async function handle(request: Request, path: string) {
       } else throw new ProcurementError('NOT_FOUND', 'Unknown endpoint', 404);
     } else if (request.method === 'POST') {
       check(
-        runtime.chainSource !== 'fixture' || !['procure', 'approvals', 'confirm'].includes(path),
+        runtime.chainSource !== 'fixture' ||
+          !['accept', 'payment', 'procure', 'approvals', 'confirm'].includes(path),
         'Financial preparation and receipt confirmation disabled in fixture mode',
         'FIXTURE_FINANCIAL_DISABLED',
       );
@@ -128,9 +157,28 @@ export async function handle(request: Request, path: string) {
         result = svc.revoke(principal, text(b.id, 'Delegation ID'));
       else if (path === 'authority') result = svc.authority(principal, b.delegationId);
       else if (path === 'quotes') result = svc.quote(principal, b);
-      else if (path === 'procure') {
-        const policy = svc.prepare(principal, b).policy;
-        if (policy.state !== 'confirmed') await preflight(policy);
+      else if (path === 'accept') {
+        const policy = svc.accept(principal, b);
+        result = { policy, state: 'accepted_offchain' };
+      } else if (path === 'payment') {
+        const stage = b.stage;
+        check(stage === 'approve' || stage === 'bind', 'Select an exact payment step');
+        const policy = svc.authorizedPayment(principal, b.policyId, b.acceptedDigest);
+        if (policy.state !== 'confirmed') await preflightPayment(policy, stage);
+        const current = svc.authorizedPayment(principal, b.policyId, b.acceptedDigest);
+        result = {
+          policy: current,
+          transaction:
+            current.state === 'confirmed'
+              ? null
+              : transactions(current)[stage === 'approve' ? 0 : 1],
+          stage,
+          chainId: 5042002,
+        };
+      } else if (path === 'procure') {
+        const accepted = svc.accept(principal, b);
+        if (accepted.state !== 'confirmed') await preflight(accepted);
+        const policy = svc.authorizedPayment(principal, accepted.terms.policyId, b.acceptedDigest);
         result = {
           policy,
           transactions: policy.state === 'confirmed' ? [] : transactions(policy),
@@ -141,7 +189,13 @@ export async function handle(request: Request, path: string) {
         check(policy.payer === principal, 'Only the payer may register an approval', 'FORBIDDEN');
         const hash = txHash(b.hash),
           at = await verifyApproval(policy, hash);
-        if (!svc.store.get('approval', hash))
+        const existing = svc.store.get<{ policyId: string }>('approval', hash);
+        check(
+          !existing || existing.policyId === policy.terms.policyId,
+          'Approval receipt is already linked to another policy',
+          'DUPLICATE_APPROVAL_RECEIPT',
+        );
+        if (!existing)
           svc.store.insert('approval', hash, policy.terms.owner, {
             policyId: policy.terms.policyId,
             hash,
@@ -158,12 +212,12 @@ export async function handle(request: Request, path: string) {
           'ALREADY_BOUND',
         );
         const at = await verifyReceipt(policy, hash);
-        const acceptance = svc.store.get<{ at: number }>('acceptance', policy.terms.policyId);
-        check(
-          acceptance && at >= acceptance.at,
-          'Binding must follow explicit terms acceptance',
-          'INVALID_RECEIPT',
-        );
+        if (!hasProcurementBindAuthority(svc.store, policy, at))
+          throw new ProcurementError(
+            'BIND_AUTHORITY_INVALID',
+            'The payer lacked authority at the bind block',
+            409,
+          );
         const current = await reconcile(policy);
         check(
           current.matches,
@@ -171,7 +225,13 @@ export async function handle(request: Request, path: string) {
           'RECONCILIATION_MISMATCH',
         );
         svc.store.confirm(policy.terms.policyId, hash, at);
-        result = svc.store.policy(policy.terms.policyId);
+        const confirmed = svc.store.policy(policy.terms.policyId);
+        check(
+          confirmed?.bindTx === hash,
+          'Policy is linked to a different receipt',
+          'ALREADY_BOUND',
+        );
+        result = confirmed;
       } else throw new ProcurementError('NOT_FOUND', 'Unknown endpoint', 404);
     } else throw new ProcurementError('METHOD_NOT_ALLOWED', 'Unsupported method', 405);
     if (runtime.chainSource === 'fixture') {

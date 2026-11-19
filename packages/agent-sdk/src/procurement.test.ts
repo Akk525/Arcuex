@@ -1,3 +1,4 @@
+import { hasProcurementBindAuthority } from './procurement';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { openDatabase, ProcurementStore } from '@arcuex/persistence';
@@ -107,7 +108,7 @@ describe('authenticated procurement', () => {
         acceptedDigest: q.digest,
         delegationId: 'fake',
       }),
-    ).toThrow('Delegation');
+    ).toThrow('different payer or delegation');
     now += 601;
     expect(() =>
       service.prepare(who, { quoteId: q.terms.quoteId, acceptedDigest: q.digest }),
@@ -243,7 +244,7 @@ it('enforces an owner-chosen beneficiary at quote and acceptance, with expiry on
       acceptedDigest: ownerQuote.digest,
       delegationId: d.id,
     }),
-  ).toThrow('beneficiary');
+  ).toThrow('different payer or delegation');
   now += 601;
   expect(() => service.prepare(agentWho, accept)).toThrow('Quote expired');
 });
@@ -268,5 +269,32 @@ it('rejects a limit above the registered exposure and unsupported chain registra
       chainId: 1,
       ownerAttestsControl: true,
     }),
-  ).toThrow('synthetic Arc');
+  ).toThrow('Protocol or chain is not approved');
+});
+
+it('evaluates delegated bind authority at the chain block, including revocation and expiry', () => {
+  const agent = register();
+  const grant = service.delegate(who, {
+    idempotencyKey: 'bind-authority',
+    agentId: agent.id,
+    premiumCapMicros: '100000',
+    limitCapMicros: '10000000',
+    expiresAt: now + 600,
+  });
+  const q = quote(agent.id, 'bound-to-grant', agentWho, grant.id);
+  const policy = service.accept(agentWho, {
+    quoteId: q.terms.quoteId,
+    acceptedDigest: q.digest,
+    delegationId: grant.id,
+  });
+  expect(hasProcurementBindAuthority(service.store, policy, now - 1)).toBe(false);
+  expect(hasProcurementBindAuthority(service.store, policy, now + 1)).toBe(true);
+  expect(hasProcurementBindAuthority(service.store, policy, grant.expiresAt)).toBe(false);
+  now += 5;
+  service.revoke(who, grant.id);
+  expect(() => service.authorizedPayment(agentWho, policy.terms.policyId, q.digest)).toThrow(
+    'revoked',
+  );
+  expect(hasProcurementBindAuthority(service.store, policy, now - 1)).toBe(true);
+  expect(hasProcurementBindAuthority(service.store, policy, now)).toBe(false);
 });

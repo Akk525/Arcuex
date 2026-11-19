@@ -18,6 +18,7 @@ import { Callout } from '@/components/ui/callout';
 type PolicyOption = {
   id: string;
   status: string;
+  synthetic?: boolean;
   exposures: Array<{ id: string; exposureKey: string; description: string }>;
 };
 
@@ -66,6 +67,7 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
   }, [initialPolicyId]);
 
   const selected = (policies ?? []).find((p) => p.id === policyId);
+  const independent = selected?.synthetic === false;
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -85,7 +87,7 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
             idempotencyKey: key,
             observedEventRef: eventRef,
             observedAt: new Date(observedAt).toISOString(),
-            syntheticDemo: true,
+            syntheticDemo: !independent,
           }),
         });
         const opened = await openRes.json();
@@ -93,6 +95,10 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
         const caseId = opened.case.id as string;
 
         setCreatedCaseId(caseId);
+        if (independent) {
+          router.push(`/claims/${caseId}`);
+          return;
+        }
         let evidence = rawEvidence;
         if (useFixture) {
           const detailResponse = await claimsFetch('claimant', `/api/claims/cases/${caseId}`);
@@ -143,12 +149,27 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
   return (
     <Panel
       title="Submit claim"
-      action={<StatusBadge label="SYNTHETIC DEMO MODE" tone="synthetic" />}
+      action={
+        selected ? (
+          <StatusBadge
+            label={independent ? 'INDEPENDENT-EVIDENCE PILOT' : 'SYNTHETIC DEMO MODE'}
+            tone={independent ? 'pending' : 'synthetic'}
+          />
+        ) : undefined
+      }
     >
-      <Callout kind="synthetic" title="Synthetic fixture mode">
-        Submissions prove workflow consistency only. They are not independently verified real-world
-        losses and cannot authorize payout without claims authority.
-      </Callout>
+      {selected &&
+        (independent ? (
+          <Callout kind="info" title="Independent evidence required">
+            Open the case with the Arc event reference and block timestamp. Submit the signed replay
+            and recovery envelope through the verification API.
+          </Callout>
+        ) : (
+          <Callout kind="synthetic" title="Synthetic fixture mode">
+            Fixture evidence verifies the demo workflow. Production settlement remains disabled for
+            synthetic claims.
+          </Callout>
+        ))}
       {error && !authRequired ? (
         <p className="mb-3 mt-3 text-sm text-[var(--danger)]">{error}</p>
       ) : null}
@@ -207,7 +228,11 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
             </select>
           </label>
           <label className="block space-y-1">
-            <span>Canonical synthetic incident reference</span>
+            <span>
+              {independent
+                ? 'Arc liquidation event reference'
+                : 'Canonical synthetic incident reference'}
+            </span>
             <input
               required
               maxLength={240}
@@ -217,7 +242,9 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
                 setEventRef(e.target.value);
                 setIntakeKey('');
               }}
-              placeholder="synthetic:oracle-adapter:event-001"
+              placeholder={
+                independent ? 'evm:5042002:0x…:logIndex' : 'synthetic:oracle-adapter:event-001'
+              }
             />
             <span className="text-xs text-zinc-500">
               Use the same reference for the same economic event. A retry must not invent a new
@@ -229,6 +256,7 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
             <input
               required
               type="datetime-local"
+              step={independent ? 1 : undefined}
               className="w-full rounded-md border border-zinc-200 px-2 py-2"
               value={observedAt}
               onChange={(e) => {
@@ -237,38 +265,47 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
               }}
             />
             <span className="text-xs text-zinc-500">
-              Entered in your browser’s local time and saved as UTC. Must fall after effective
-              coverage, within expiry, and before now. Synthetic attestation; subject to review.
+              Enter the incident time in your browser’s local time. The server saves it in UTC.
+              {independent
+                ? ' Use the exact Arc block timestamp.'
+                : ' The time must fall in the effective coverage window.'}
             </span>
           </label>
           <p className="text-xs text-zinc-500">
             Policyholder identity comes from your authenticated wallet session.
           </p>
-          <label className="block space-y-1">
-            <input
-              type="checkbox"
-              checked={useFixture}
-              onChange={(e) => setUseFixture(e.target.checked)}
-            />{' '}
-            Use the supported synthetic fixture
-          </label>
-          <p className="text-xs text-zinc-500">
-            The server-owned scenario describes 1.50 USDC gross economic loss and resolved zero
-            recoveries. It is not proof of a real event. Verification and human review follow
-            submission.
-          </p>
-          {!useFixture && (
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-zinc-600">Supporting evidence (raw)</span>
-              <textarea
-                className="min-h-24 w-full rounded-md border border-zinc-200 px-2 py-1.5 font-mono text-xs"
-                value={rawEvidence}
-                onChange={(e) => setRawEvidence(e.target.value)}
-              />
-              <span className="text-xs text-zinc-500">
-                Missing or unsupported evidence requires review and cannot establish a payable loss.
-              </span>
-            </label>
+          {!independent && (
+            <>
+              <label className="block space-y-1">
+                <input
+                  type="checkbox"
+                  checked={useFixture}
+                  onChange={(e) => setUseFixture(e.target.checked)}
+                />{' '}
+                Use the supported synthetic fixture
+              </label>
+              <p className="text-xs text-zinc-500">
+                The server-owned scenario describes 1.50 USDC gross economic loss and resolved zero
+                recoveries. It is not proof of a real event. Verification and human review follow
+                submission.
+              </p>
+              {!useFixture && (
+                <label className="block space-y-1">
+                  <span className="text-xs font-medium text-zinc-600">
+                    Supporting evidence (raw)
+                  </span>
+                  <textarea
+                    className="min-h-24 w-full rounded-md border border-zinc-200 px-2 py-1.5 font-mono text-xs"
+                    value={rawEvidence}
+                    onChange={(e) => setRawEvidence(e.target.value)}
+                  />
+                  <span className="text-xs text-zinc-500">
+                    Missing or unsupported evidence requires review and cannot establish a payable
+                    loss.
+                  </span>
+                </label>
+              )}
+            </>
           )}
           {error && !authRequired ? (
             <p role="alert" className="text-rose-700">

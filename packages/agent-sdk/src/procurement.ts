@@ -4,6 +4,7 @@ import {
   PROCUREMENT_PRODUCT as PRODUCT,
   INDEPENDENT_LIQUIDATION_PRODUCT as INDEPENDENT,
   isIndependentLiquidationProfile,
+  PROCUREMENT_OFFERINGS,
   isSupportedIndependentTerms,
   sameIndependentLiquidationProfile,
   type IndependentLiquidationProfile,
@@ -77,6 +78,48 @@ export function procurementDigest(value: unknown): Hex {
   return keccak256(stringToHex(canonical(value)));
 }
 
+/** Evaluate the recorded grant at the bind block, independent of whether a receipt is submitted later. */
+export function hasProcurementBindAuthority(
+  store: ProcurementStore,
+  policy: ProcurementPolicy,
+  at: number,
+) {
+  const t = policy.terms;
+  const acceptance = store.get<{ actor: string; at: number; digest: string }>(
+    'acceptance',
+    t.policyId,
+  );
+  if (
+    !acceptance ||
+    acceptance.digest !== policy.digest ||
+    acceptance.actor !== policy.payer ||
+    !Number.isSafeInteger(acceptance.at) ||
+    !Number.isSafeInteger(at) ||
+    acceptance.at > at
+  )
+    return false;
+  if (policy.payer === t.owner) return policy.delegationId === null;
+  const agent = store.get<ProcurementAgent>('agent', t.agentId);
+  const grant =
+    policy.delegationId && store.get<ProcurementDelegation>('delegation', policy.delegationId);
+  const revocation = grant && store.get<{ at: number }>('revocation', grant.id);
+  return Boolean(
+    agent &&
+    grant &&
+    agent.owner === t.owner &&
+    agent.signer === policy.payer &&
+    grant.owner === t.owner &&
+    grant.agentId === t.agentId &&
+    grant.position === t.exposure.position &&
+    grant.productCode === t.productCode &&
+    grant.beneficiary === t.beneficiary &&
+    grant.expiresAt > at &&
+    (!revocation || revocation.at > at) &&
+    BigInt(grant.premiumCapMicros) >= BigInt(t.premiumMicros) &&
+    BigInt(grant.limitCapMicros) >= BigInt(t.limitMicros),
+  );
+}
+
 /** No wallet or signer lives here. All permissions are backend-only. */
 export class ProcurementService {
   constructor(
@@ -123,6 +166,12 @@ export class ProcurementService {
         'INELIGIBLE',
         'Independent enrollment requires a provisioned evidence profile and registered bytes32 position',
       );
+      requireThat(
+        input.productCode === undefined ||
+          input.productCode === (independent ? INDEPENDENT.code : PRODUCT.code),
+        'PRODUCT_MISMATCH',
+        'Product does not match the registered protocol',
+      );
       const agent: ProcurementAgent = {
         id: randomUUID(),
         owner: actor,
@@ -139,12 +188,12 @@ export class ProcurementService {
         (input.chainId === undefined || input.chainId === 5042002) &&
           (input.protocol === undefined || input.protocol === agent.exposure.protocol),
         'INELIGIBLE',
-        'Only the synthetic Arc lending protocol is eligible',
+        'Protocol or chain is not approved for procurement',
       );
       requireThat(
         input.ownerAttestsControl === true,
         'INELIGIBLE',
-        'Owner must attest control of this synthetic position',
+        'Owner must attest control of the registered position',
       );
       this.store.insert('agent', agent.id, actor, agent);
       return agent;
@@ -220,14 +269,21 @@ export class ProcurementService {
     return {
       revoked: true,
       notice:
-        'Previously prepared transactions remain executable onchain. No onchain delegation exists.',
+        'Revocation blocks recognized coverage for later binds. The contract cannot revoke previously issued calldata.',
     };
   }
   quote(actor: string, input: Record<string, unknown>) {
     return this.idempotent(actor, 'quote', input.idempotencyKey, input, () => {
       const agent = this.agent(input.agentId);
       const independent = agent.exposure.protocol === INDEPENDENT.protocol;
-      const product = independent ? INDEPENDENT : PRODUCT;
+      const product = PROCUREMENT_OFFERINGS[independent ? 1 : 0];
+      requireThat(
+        (input.productCode === undefined || input.productCode === product.code) &&
+          (input.productVersion === undefined || input.productVersion === product.version),
+        'PRODUCT_MISMATCH',
+        'Product version or registered exposure changed; select a current product',
+        409,
+      );
       const profile = this.independentProfile;
       requireThat(
         !independent || (isIndependentLiquidationProfile(profile) && agent.owner === actor),
@@ -244,13 +300,13 @@ export class ProcurementService {
           ) &&
           eligibility.syntheticOnly === !independent,
         'INELIGIBLE',
-        'All eligibility attestations must be true; known incidents and unhealthy positions are excluded',
+        'Eligibility answers must match the product; known incidents and unhealthy positions are excluded',
       );
       const limit = micros(input.limitMicros);
       requireThat(
-        [1_000_000n, 10_000_000n, 50_000_000n, 100_000_000n].includes(limit),
+        product.limitsMicros.some((option) => BigInt(option) === limit),
         'INVALID_LIMIT',
-        'Demo limits: 1, 10, 50 or 100 USDC',
+        'Limit is outside the approved product schedule',
       );
       requireThat(
         limit <= BigInt(agent.exposure.notionalMicros),
@@ -258,7 +314,11 @@ export class ProcurementService {
         'Coverage limit cannot exceed registered exposure',
       );
       const days = timestamp(input.durationDays);
-      requireThat([1, 7, 30].includes(days), 'INVALID_DURATION', 'Demo durations: 1, 7 or 30 days');
+      requireThat(
+        product.durationsDays.some((option) => option === days),
+        'INVALID_DURATION',
+        'Duration is outside the approved product schedule',
+      );
       if (d)
         requireThat(
           limit <= BigInt(d.limitCapMicros) && limit / 100n <= BigInt(d.premiumCapMicros),
@@ -308,13 +368,28 @@ export class ProcurementService {
       };
       const quote: ProcurementQuote = { terms, digest: procurementDigest(terms) };
       this.store.insert('quote', terms.quoteId, agent.owner, quote);
+      this.store.insert('quote_authority', terms.quoteId, actor, {
+        actor,
+        delegationId: d?.id ?? null,
+      });
       return quote;
     });
   }
-  prepare(actor: string, input: Record<string, unknown>) {
+  accept(actor: string, input: Record<string, unknown>) {
     const quote = this.store.get<ProcurementQuote>('quote', text(input.quoteId, 'quoteId'));
     requireThat(quote, 'NOT_FOUND', 'Quote not found', 404);
     const agent = this.agent(quote.terms.agentId);
+    const offering = PROCUREMENT_OFFERINGS.find((p) => p.code === quote.terms.productCode);
+    requireThat(
+      offering &&
+        offering.version === quote.terms.version &&
+        offering.protocol === agent.exposure.protocol &&
+        offering.synthetic === quote.terms.synthetic &&
+        quote.digest === procurementDigest(quote.terms),
+      'STALE_QUOTE',
+      'Product terms or quote integrity changed; request a new quote',
+      409,
+    );
     if (quote.terms.synthetic === false) {
       requireThat(
         actor === agent.owner &&
@@ -328,7 +403,30 @@ export class ProcurementService {
         403,
       );
     }
-    const d = actor === agent.owner ? null : this.delegation(actor, agent, input.delegationId);
+    const authority = this.store.get<{ actor: string; delegationId: string | null }>(
+      'quote_authority',
+      quote.terms.quoteId,
+    );
+    const existingPolicy = this.store.policy(quote.terms.policyId);
+    const issuedTo =
+      authority ??
+      (existingPolicy && {
+        actor: existingPolicy.payer,
+        delegationId: existingPolicy.delegationId,
+      });
+    requireThat(
+      issuedTo,
+      'STALE_QUOTE',
+      'Quote is missing its authority snapshot; request a new quote',
+      409,
+    );
+    requireThat(
+      issuedTo.actor === actor && (input.delegationId ?? null) === issuedTo.delegationId,
+      'FORBIDDEN',
+      'Quote was issued to a different payer or delegation',
+      403,
+    );
+    const d = actor === agent.owner ? null : this.delegation(actor, agent, issuedTo.delegationId);
     requireThat(
       input.acceptedDigest === quote.digest,
       'TERMS_NOT_ACCEPTED',
@@ -355,10 +453,7 @@ export class ProcurementService {
           'Quote expired; request a new quote',
           409,
         );
-        return {
-          policy: existing,
-          transactions: existing.state === 'confirmed' ? [] : this.transactions(existing),
-        };
+        return existing;
       }
       requireThat(
         quote.terms.quoteExpiresAt > this.now(),
@@ -393,8 +488,26 @@ export class ProcurementService {
         actor,
         at: this.now(),
       });
-      return { policy, transactions: this.transactions(policy) };
+      return policy;
     })();
+  }
+  authorizedPayment(actor: string, policyId: unknown, acceptedDigest: unknown) {
+    const policy = this.inspect(actor, policyId);
+    requireThat(
+      policy.payer === actor,
+      'FORBIDDEN',
+      'Only the accepted payer may prepare payment or bind',
+      403,
+    );
+    return this.accept(actor, {
+      quoteId: policy.terms.quoteId,
+      acceptedDigest,
+      delegationId: policy.delegationId ?? undefined,
+    });
+  }
+  prepare(actor: string, input: Record<string, unknown>) {
+    const policy = this.accept(actor, input);
+    return { policy, transactions: policy.state === 'confirmed' ? [] : this.transactions(policy) };
   }
   transactions(p: ProcurementPolicy): PreparedTx[] {
     const t = p.terms;

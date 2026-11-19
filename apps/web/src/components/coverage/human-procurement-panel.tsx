@@ -6,7 +6,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePublicClient, useWalletClient } from 'wagmi';
 import { formatUnits, type Hex, type Address } from 'viem';
 import {
-  PROCUREMENT_PRODUCT as PRODUCT,
+  type ProcurementCatalog,
+  type ProcurementCapacity,
   type ProcurementAgent as Agent,
   type ProcurementQuote as Quote,
   type ProcurementPolicy as Policy,
@@ -21,24 +22,26 @@ import { useFixtureMode } from '@/providers/source-mode';
 
 const usdc = (value: string) => `${formatUnits(BigInt(value), 6)} USDC`;
 
-type Preparation = {
+type Acceptance = { policy: Policy; state: 'accepted_offchain' };
+type Payment = {
   policy: Policy;
-  transactions: { to: Address; data: Hex; account: Address; description: string }[];
+  transaction: { to: Address; data: Hex; account: Address; description: string } | null;
   chainId: number;
 };
 
 type WizardStage = 1 | 2 | 3 | 4;
 
-/**
- * Progressive four-stage coverage wizard.
- * Stages: (1) exposure (2) quote (3) immutable terms (4) allowance → bind → confirm.
- * Business/API behavior unchanged from prior panel.
- */
-export function HumanProcurementPanel() {
+export function HumanProcurementPanel({ resumePolicyId }: { resumePolicyId?: string }) {
   const fixtureMode = useFixtureMode();
   const { wallet, api, run, busy, error } = useProcurement();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
+  const [catalog, setCatalog] = useState<ProcurementCatalog | null>(null);
+  const [catalogError, setCatalogError] = useState(false);
+  const [productCode, setProductCode] = useState('');
+  const [capacity, setCapacity] = useState<ProcurementCapacity | null>(null);
+  const product = catalog?.products.find((p) => p.code === productCode);
+  const offline = fixtureMode || catalog?.paymentMode === 'fixture_offline';
   const [stage, setStage] = useState<WizardStage>(1);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentId, setAgentId] = useState('');
@@ -52,9 +55,10 @@ export function HumanProcurementPanel() {
   const [checks, setChecks] = useState([false, false, false, false]);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [accepted, setAccepted] = useState(false);
-  const [prep, setPrep] = useState<Preparation | null>(null);
+  const [prep, setPrep] = useState<Acceptance | null>(null);
   const [approved, setApproved] = useState(false);
   const [hash, setHash] = useState<Hex | null>(null);
+  const [approvalHash, setApprovalHash] = useState<Hex | null>(null);
   const identityRevision = useRef(0);
   const [lifecycle, setLifecycle] = useState<PolicyLifecycle | null>(null);
   const [notice, setNotice] = useState('');
@@ -67,6 +71,29 @@ export function HumanProcurementPanel() {
       ? prep?.policy
       : null;
   const [stepError, setStepError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const options = { signal: controller.signal, cache: 'no-store' as const };
+    void fetch('/api/procurement/products', options)
+      .then(async (r) => {
+        if (!r.ok) throw new Error('Product catalog unavailable');
+        const data = (await r.json()) as ProcurementCatalog;
+        setCatalog(data);
+        setProductCode(data.products[0]?.code ?? '');
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setCatalogError(true);
+      });
+    void fetch('/api/procurement/capacity', options)
+      .then(async (r) => {
+        if (r.ok) setCapacity(await r.json());
+      })
+      .catch(() => {
+        /* A quote can still be created. */
+      });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const reset = () => {
@@ -89,6 +116,7 @@ export function HumanProcurementPanel() {
     setQuote(null);
     setPrep(null);
     setHash(null);
+    setApprovalHash(null);
     setLifecycle(null);
     setAccepted(false);
     setApproved(false);
@@ -104,6 +132,7 @@ export function HumanProcurementPanel() {
       setPrep(null);
       setApproved(false);
       setHash(null);
+      setApprovalHash(null);
     }
   }, [agentId, limit, days, beneficiary, checks, stage]);
 
@@ -145,39 +174,86 @@ export function HumanProcurementPanel() {
   async function loadAgents() {
     const rows = await api<Agent[]>('agents');
     setAgents(rows);
-    if (rows[0]) setAgentId(rows[0].id);
+    setAgentId(
+      rows.find(
+        (row) =>
+          row.owner === wallet.address?.toLowerCase() &&
+          row.exposure.protocol === product?.protocol,
+      )?.id ?? '',
+    );
+  }
+
+  async function confirmPayment(kind: 'approve' | 'bind', txHash: Hex, policyId: string) {
+    if (!publicClient) throw new Error('Connect to Arc Testnet to check this receipt.');
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash: txHash,
+      confirmations: 1,
+      timeout: 20_000,
+    });
+    if (receipt.status !== 'success') {
+      sessionStorage.removeItem(`arcuex-${kind}:${policyId}`);
+      if (kind === 'bind') setHash(null);
+      else setApprovalHash(null);
+      throw new Error('Transaction reverted. You can retry while the quote is open.');
+    }
+    if (kind === 'bind') {
+      await api<Policy>('confirm', { policyId, hash: txHash });
+      await refreshLifecycle(policyId);
+      setNotice(
+        'Receipt checked. Coverage follows canonical reconciliation and the effective window.',
+      );
+    } else {
+      await api('approvals', { policyId, hash: txHash });
+      setApproved(true);
+      setNotice('Premium allowance confirmed. Continue to authorize the bind.');
+    }
   }
 
   async function payment(kind: 'approve' | 'bind') {
-    if (fixtureMode) throw new Error('Wallet transactions disabled in synthetic fixture mode');
+    if (offline) throw new Error('Wallet transactions disabled in synthetic fixture mode');
     if (!prep || !quote || !publicClient || !walletClient) throw new Error('Wallet not ready');
+    const policyId = prep.policy.terms.policyId;
     if (wallet.uiStatus !== 'ready' || wallet.address?.toLowerCase() !== prep.policy.payer)
-      throw new Error('Wrong account or network; reconnect the policy payer.');
-    if (Date.now() / 1000 >= quote.terms.quoteExpiresAt)
-      throw new Error('Quote expired. Request a new quote.');
+      throw new Error('Wrong account or network; reconnect the accepted payer.');
     if ((await walletClient.getChainId()) !== 5042002) throw new Error('Switch to Arc Testnet.');
-    const fresh = await api<Preparation>('procure', {
-      quoteId: quote.terms.quoteId,
-      acceptedDigest: quote.digest,
-    });
-    if (fresh.policy.state === 'confirmed') {
-      await refreshLifecycle(fresh.policy.terms.policyId);
+    const pendingHash = kind === 'bind' ? hash : approvalHash;
+    if (pendingHash) {
+      await confirmPayment(kind, pendingHash, policyId);
       return;
     }
-    const tx = fresh.transactions[kind === 'approve' ? 0 : 1];
-    if (!tx) throw new Error('No transaction available. Refresh policy status.');
+    if (Date.now() / 1000 >= quote.terms.quoteExpiresAt)
+      throw new Error('Quote expired. Request a new quote.');
+    const fresh = await api<Payment>('payment', {
+      policyId,
+      acceptedDigest: quote.digest,
+      stage: kind,
+    });
+    if (fresh.policy.state === 'confirmed') {
+      await refreshLifecycle(policyId);
+      return;
+    }
+    const tx = fresh.transaction;
+    if (
+      !tx ||
+      fresh.chainId !== 5042002 ||
+      fresh.policy.digest !== quote.digest ||
+      tx.account.toLowerCase() !== prep.policy.payer
+    )
+      throw new Error('Payment details changed. Refresh the policy.');
     await publicClient.call({ account: wallet.address, to: tx.to, data: tx.data });
-    setNotice(
-      kind === 'approve'
-        ? 'Approve the exact premium in your wallet.'
-        : 'Confirm the policy bind in your wallet.',
-    );
     const currentAddresses = await walletClient.getAddresses();
     if (
       currentAddresses[0]?.toLowerCase() !== prep.policy.payer ||
       (await walletClient.getChainId()) !== 5042002
     )
       throw new Error('Wallet account or network changed. Reconnect before authorizing.');
+    if (Date.now() / 1000 >= quote.terms.quoteExpiresAt)
+      throw new Error('Quote expired before wallet authorization.');
+    setNotice(
+      kind === 'approve'
+        ? 'Review the exact premium allowance in your wallet.'
+        : 'Review the premium and policy bind in your wallet.',
+    );
     const txHash = await walletClient.sendTransaction({
       account: wallet.address,
       chain: walletClient.chain,
@@ -186,30 +262,42 @@ export function HumanProcurementPanel() {
       maxFeePerGas: ARC_MIN_MAX_FEE_PER_GAS,
       maxPriorityFeePerGas: ARC_MIN_MAX_FEE_PER_GAS,
     });
-    if (kind === 'bind') {
-      setHash(txHash);
-      sessionStorage.setItem(`arcuex-bind:${prep.policy.terms.policyId}`, txHash);
-    }
-    setNotice('Transaction submitted. Waiting for confirmation…');
-    const receipt = await publicClient.waitForTransactionReceipt({
-      hash: txHash,
-      confirmations: 1,
-    });
-    if (receipt.status !== 'success')
-      throw new Error('Transaction reverted. No coverage confirmed.');
-    if (kind === 'bind') {
-      await api<Policy>('confirm', { policyId: prep.policy.terms.policyId, hash: txHash });
-      await refreshLifecycle(prep.policy.terms.policyId);
-      setNotice(
-        'Bind receipt checked. Canonical reconciliation must verify the policy before coverage is confirmed.',
-      );
-    } else {
-      await api('approvals', { policyId: prep.policy.terms.policyId, hash: txHash });
-      setApproved(true);
-      setNotice(
-        'Premium approval confirmed. Continue to bind; approval alone provides no coverage.',
-      );
-    }
+    if (kind === 'bind') setHash(txHash);
+    else setApprovalHash(txHash);
+    sessionStorage.setItem(`arcuex-${kind}:${policyId}`, txHash);
+    setNotice('Transaction submitted. Check the receipt before retrying.');
+    await confirmPayment(kind, txHash, policyId);
+  }
+
+  function openPayment(acceptance: Acceptance) {
+    const id = acceptance.policy.terms.policyId;
+    setPrep(acceptance);
+    setHash(sessionStorage.getItem(`arcuex-bind:${id}`) as Hex | null);
+    setApprovalHash(sessionStorage.getItem(`arcuex-approve:${id}`) as Hex | null);
+    setApproved(false);
+    setStage(4);
+  }
+
+  async function resumePayment() {
+    if (!resumePolicyId || offline) return;
+    const { policy } = await api<{ policy: Policy }>(
+      `policies/${encodeURIComponent(resumePolicyId)}`,
+    );
+    if (policy.payer !== wallet.address?.toLowerCase())
+      throw new Error('Connect the accepted payer to resume this purchase.');
+    if (!catalog?.products.some((p) => p.code === policy.terms.productCode))
+      throw new Error('This product is currently unavailable for payment.');
+    const hadSubmission = sessionStorage.getItem(`arcuex-bind:${policy.terms.policyId}`);
+    if (
+      !hadSubmission &&
+      policy.state !== 'confirmed' &&
+      Date.now() / 1000 >= policy.terms.quoteExpiresAt
+    )
+      throw new Error('This quote expired. Start a fresh quote.');
+    setProductCode(policy.terms.productCode);
+    setQuote({ terms: policy.terms, digest: policy.digest });
+    openPayment({ policy, state: 'accepted_offchain' });
+    if (policy.state === 'confirmed') await refreshLifecycle(policy.terms.policyId);
   }
 
   function goBack() {
@@ -220,7 +308,7 @@ export function HumanProcurementPanel() {
   async function continueFromStage() {
     setStepError(null);
     if (stage === 1) {
-      if (!agentId) {
+      if (!product || !agentId) {
         setStepError('Select or register an agent exposure before continuing.');
         return;
       }
@@ -228,7 +316,7 @@ export function HumanProcurementPanel() {
       return;
     }
     if (stage === 2) {
-      if (!checks.every(Boolean)) {
+      if (!product || !checks.every(Boolean)) {
         setStepError('Confirm every eligibility attestation before generating a quote.');
         return;
       }
@@ -237,13 +325,15 @@ export function HumanProcurementPanel() {
         setQuote(
           await api<Quote>('quotes', {
             agentId,
+            productCode: product.code,
+            productVersion: product.version,
             limitMicros: limit,
             durationDays: days,
             beneficiary,
             eligibility: {
               positionHealthy: checks[0],
               noKnownIncident: checks[1],
-              syntheticOnly: checks[2],
+              syntheticOnly: product.synthetic,
               ownerAttestsControl: checks[3],
             },
           }),
@@ -254,8 +344,8 @@ export function HumanProcurementPanel() {
       return;
     }
     if (stage === 3) {
-      if (!quote || !accepted) {
-        setStepError('Accept the exact synthetic terms to prepare payment.');
+      if (offline || !quote || !accepted) {
+        setStepError('Review and accept the exact quote for Arc Testnet payment.');
         return;
       }
       if (expired) {
@@ -263,14 +353,14 @@ export function HumanProcurementPanel() {
         return;
       }
       await run(async () => {
-        setPrep(
-          await api<Preparation>('procure', {
-            quoteId: quote.terms.quoteId,
-            acceptedDigest: quote.digest,
-          }),
-        );
-        setNotice('Terms accepted and payment prepared. Approve USDC, then bind.');
-        setStage(4);
+        const acceptance = await api<Acceptance>('accept', {
+          quoteId: quote.terms.quoteId,
+          acceptedDigest: quote.digest,
+        });
+        openPayment(acceptance);
+        setNotice('Terms accepted offchain. Authorize each payment step separately.');
+        if (acceptance.policy.state === 'confirmed')
+          await refreshLifecycle(acceptance.policy.terms.policyId);
       });
     }
   }
@@ -279,23 +369,84 @@ export function HumanProcurementPanel() {
     <div className="procurement space-y-6">
       <div className="space-y-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-5">
         <div className="flex flex-wrap gap-2">
-          <StatusBadge label="SYNTHETIC PRODUCT" tone="synthetic" />
-          <StatusBadge label="REAL TESTNET TRANSFERS" tone="live" />
+          {product && (
+            <StatusBadge
+              label={product.synthetic ? 'SYNTHETIC PRODUCT' : 'INDEPENDENT-EVIDENCE PILOT'}
+              tone={product.synthetic ? 'synthetic' : 'pending'}
+            />
+          )}
+          {catalog && (
+            <StatusBadge
+              label={offline ? 'OFFLINE QUOTES ONLY' : 'ARC TESTNET · PAYMENT PREFLIGHT REQUIRED'}
+              tone="pending"
+            />
+          )}
         </div>
-        <h2 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">{PRODUCT.name}</h2>
-        <p className="max-w-2xl text-sm leading-relaxed text-[var(--ink-muted)]">{PRODUCT.event}</p>
-        <p className="text-sm text-[var(--ink)]">{PRODUCT.pricing}</p>
+        {catalogError && <p role="alert">Product catalog unavailable. Reload to retry.</p>}
+        {!catalog && !catalogError && <p role="status">Loading approved products…</p>}
+        {product && (
+          <>
+            <label>
+              Approved coverage product
+              <select
+                value={productCode}
+                disabled={stage !== 1 || busy}
+                onChange={(e) => {
+                  const selected = catalog?.products.find(
+                    (option) => option.code === e.target.value,
+                  );
+                  if (!selected) return;
+                  setProductCode(selected.code);
+                  setAgentId('');
+                  setPosition('');
+                  setLimit(selected.limitsMicros[0]);
+                  setDays(7);
+                  setBeneficiary(wallet.address ?? '');
+                  setChecks([false, false, false, false]);
+                }}
+              >
+                {catalog?.products.map((p) => (
+                  <option value={p.code} key={p.code}>
+                    {p.name} · v{p.version}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="max-w-2xl text-sm leading-relaxed text-[var(--ink-muted)]">
+              {product.event}
+            </p>
+            <p className="text-sm text-[var(--ink)]">{product.pricing}</p>
+            <p className="text-xs text-[var(--ink-muted)]">
+              {capacity?.status === 'verified'
+                ? `Available pool capacity at last check: ${usdc(capacity.availableMicros!)}. Quotes do not reserve capital.`
+                : offline
+                  ? 'Fixture source. No onchain capacity or payment available.'
+                  : 'Current pool capacity is unverified.'}
+            </p>
+          </>
+        )}
       </div>
+
+      {resumePolicyId && catalog && !offline && stage === 1 && (
+        <Button variant="secondary" disabled={busy} onClick={() => void run(resumePayment)}>
+          Resume accepted purchase
+        </Button>
+      )}
 
       <Stepper steps={steps} ariaLabel="Coverage wizard progress" />
 
       <div className="flex flex-wrap gap-2" aria-live="polite">
-        {quote && !prep ? <StatusBadge label="Quote created" tone="pending" /> : null}
-        {prep && !approved && !confirmed ? (
+        {quote && !prep ? (
+          <StatusBadge label={expired ? 'Quote expired' : 'Offchain quote'} tone="pending" />
+        ) : null}
+        {prep && !approved && !hash && !expired && !confirmed ? (
           <StatusBadge label="Wallet approval pending" tone="pending" />
         ) : null}
-        {approved && !confirmed ? (
+        {approved && !hash && !expired && !confirmed ? (
           <StatusBadge label="Allowance confirmed · bind required" tone="pending" />
+        ) : null}
+        {prep && expired && !hash && !confirmed ? (
+          <StatusBadge label="Quote expired · start a fresh quote" tone="warn" />
         ) : null}
         {hash && !confirmed ? (
           <StatusBadge label="Reconciliation pending — no coverage confirmed" tone="pending" />
@@ -314,7 +465,7 @@ export function HumanProcurementPanel() {
         </Callout>
       )}
 
-      {stage === 1 && (
+      {stage === 1 && product && (
         <section className="space-y-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-5">
           <h3 className="text-lg font-semibold">1. Register exposure</h3>
           <p className="text-sm text-[var(--ink-muted)]">
@@ -324,15 +475,24 @@ export function HumanProcurementPanel() {
           <Button variant="secondary" disabled={busy} onClick={() => void run(loadAgents)}>
             Load my agents
           </Button>
-          {agents.length > 0 ? (
+          {agents.some(
+            (a) =>
+              a.owner === wallet.address?.toLowerCase() && a.exposure.protocol === product.protocol,
+          ) ? (
             <label>
               Registered agent
               <select value={agentId} onChange={(e) => setAgentId(e.target.value)}>
-                {agents.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.label} · {a.exposure.position}
-                  </option>
-                ))}
+                {agents
+                  .filter(
+                    (a) =>
+                      a.owner === wallet.address?.toLowerCase() &&
+                      a.exposure.protocol === product.protocol,
+                  )
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.label} · {a.exposure.position}
+                    </option>
+                  ))}
               </select>
             </label>
           ) : (
@@ -340,7 +500,9 @@ export function HumanProcurementPanel() {
           )}
           <details>
             <summary className="cursor-pointer text-sm font-medium">
-              Register a new synthetic position
+              {product.synthetic
+                ? 'Register a new synthetic position'
+                : 'Register a reviewed position'}
             </summary>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label>
@@ -360,7 +522,7 @@ export function HumanProcurementPanel() {
                 <input
                   value={position}
                   onChange={(e) => setPosition(e.target.value)}
-                  placeholder="demo-position-01"
+                  placeholder={product.synthetic ? 'demo-position-01' : '0x… (32-byte position ID)'}
                 />
               </label>
               <label>
@@ -383,7 +545,8 @@ export function HumanProcurementPanel() {
                         exposureMicros: exposure,
                         ownerAttestsControl: true,
                         chainId: 5042002,
-                        protocol: PRODUCT.protocol,
+                        protocol: product.protocol,
+                        productCode: product.code,
                       });
                       setAgents((prev) => [...prev, a]);
                       setAgentId(a.id);
@@ -395,21 +558,22 @@ export function HumanProcurementPanel() {
               </div>
             </div>
             <p className="mt-3 text-xs text-[var(--ink-muted)]">
-              Registration attests ownership of a synthetic position. No external protocol ownership
-              verification is integrated.
+              {product.synthetic
+                ? 'Registration records an attestation for a synthetic position.'
+                : 'Register the reviewed position you control. Claims require independent verification.'}
             </p>
           </details>
         </section>
       )}
 
-      {stage === 2 && (
+      {stage === 2 && product && (
         <section className="space-y-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-5">
           <h3 className="text-lg font-semibold">2. Configure coverage & generate quote</h3>
           <div className="grid gap-4 sm:grid-cols-3">
             <label>
               Limit
               <select value={limit} onChange={(e) => setLimit(e.target.value)}>
-                {['1000000', '10000000', '50000000', '100000000'].map((v) => (
+                {product.limitsMicros.map((v) => (
                   <option key={v} value={v}>
                     {usdc(v)}
                   </option>
@@ -419,7 +583,7 @@ export function HumanProcurementPanel() {
             <label>
               Duration
               <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
-                {[1, 7, 30].map((v) => (
+                {product.durationsDays.map((v) => (
                   <option key={v} value={v}>
                     {v} days
                   </option>
@@ -428,14 +592,20 @@ export function HumanProcurementPanel() {
             </label>
             <label>
               Beneficiary
-              <input value={beneficiary} onChange={(e) => setBeneficiary(e.target.value)} />
+              <input
+                value={beneficiary}
+                readOnly={!product.synthetic}
+                onChange={(e) => setBeneficiary(e.target.value)}
+              />
             </label>
           </div>
           <div className="grid gap-3 text-sm">
             {[
               'This registered position is healthy under the canonical collateral ratio.',
               'I know of no existing incident or liquidation affecting this position.',
-              'This exposure and its evidence are synthetic demo data only.',
+              product.synthetic
+                ? 'This exposure and its evidence are synthetic demo data only.'
+                : 'I will provide independent liquidation, replay and recovery evidence for any claim.',
               'I control this position and attest that its registration is accurate.',
             ].map((s, i) => (
               <label className="proc-check" key={s}>
@@ -450,13 +620,14 @@ export function HumanProcurementPanel() {
               </label>
             ))}
           </div>
-          <Callout kind="synthetic" title="Quote generation">
-            Continuing generates a demo quote from these exact attestations. It is not risk pricing.
+          <Callout kind={product.synthetic ? 'synthetic' : 'info'} title="Quote generation">
+            Premium and deductible follow the testnet schedule. A quote is offchain and does not
+            reserve capital.
           </Callout>
         </section>
       )}
 
-      {stage === 3 && quote && (
+      {stage === 3 && quote && product && (
         <section className="space-y-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-5">
           <h3 className="text-lg font-semibold">3. Accept immutable terms</h3>
           <dl className="grid gap-4 rounded-[var(--radius)] bg-[var(--surface-inset)] p-5 sm:grid-cols-3">
@@ -488,7 +659,7 @@ export function HumanProcurementPanel() {
             </ul>
           </div>
           <Callout kind="warn" title="Limitations">
-            {PRODUCT.limitations} Coverage begins only after canonical reconciliation verifies a
+            {product.limitations} Coverage begins only after canonical reconciliation verifies a
             matching bind and the scheduled start. Late binds are ineligible.
           </Callout>
           <details>
@@ -497,14 +668,20 @@ export function HumanProcurementPanel() {
               {JSON.stringify(quote, null, 2)}
             </pre>
           </details>
-          <label className="proc-check text-sm">
-            <input
-              type="checkbox"
-              checked={accepted}
-              onChange={(e) => setAccepted(e.target.checked)}
-            />
-            I accept these exact synthetic terms and the testnet premium.
-          </label>
+          {offline ? (
+            <Callout kind="synthetic" title="Offline quote">
+              This fixture deployment cannot accept quotes for payment or bind a new policy.
+            </Callout>
+          ) : (
+            <label className="proc-check text-sm">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+              />
+              I accept these exact terms and the Arc Testnet premium.
+            </label>
+          )}
           {expired && (
             <p role="alert" className="text-sm text-amber-800">
               Quote expired. Go back and generate a new quote.
@@ -513,7 +690,7 @@ export function HumanProcurementPanel() {
         </section>
       )}
 
-      {stage === 4 && prep && (
+      {stage === 4 && prep && !offline && (
         <section className="space-y-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-5">
           <h3 className="text-lg font-semibold">4. USDC allowance, bind & confirmation</h3>
           <ol className="list-decimal space-y-2 pl-5 text-sm text-[var(--ink-muted)]">
@@ -533,31 +710,19 @@ export function HumanProcurementPanel() {
           <div className="flex flex-wrap gap-3">
             <Button
               variant="secondary"
-              disabled={busy || expired || !!confirmed}
+              disabled={busy || (expired && !approvalHash) || approved || !!hash || !!confirmed}
               onClick={() => void run(() => payment('approve'))}
             >
-              Approve exact USDC premium
+              {approvalHash && !approved
+                ? 'Re-check premium approval'
+                : 'Approve exact USDC premium'}
             </Button>
             <Button
-              disabled={busy || expired || !!confirmed}
+              disabled={busy || (expired && !hash) || !!confirmed}
               onClick={() => void run(() => payment('bind'))}
             >
-              Pay premium & bind policy
+              {hash ? 'Re-check bind confirmation' : 'Pay premium & bind policy'}
             </Button>
-            {hash && !confirmed ? (
-              <Button
-                variant="secondary"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    await api<Policy>('confirm', { policyId: prep.policy.terms.policyId, hash });
-                    await refreshLifecycle(prep.policy.terms.policyId);
-                  })
-                }
-              >
-                Re-check bind confirmation
-              </Button>
-            ) : null}
           </div>
           {hash && (
             <a
@@ -589,6 +754,7 @@ export function HumanProcurementPanel() {
               setAccepted(false);
               setApproved(false);
               setHash(null);
+              setApprovalHash(null);
               setLifecycle(null);
               setStage(2);
             }}
@@ -603,11 +769,14 @@ export function HumanProcurementPanel() {
           <Button variant="secondary" disabled={busy || stage === 1} onClick={goBack}>
             Back
           </Button>
-          {stage < 4 ? (
-            <Button disabled={busy} onClick={() => void continueFromStage()}>
+          {stage < 4 && !(stage === 3 && offline) ? (
+            <Button
+              disabled={busy || !product || (stage === 3 && expired)}
+              onClick={() => void continueFromStage()}
+            >
               {stage === 1 && 'Continue'}
               {stage === 2 && (busy ? 'Generating quote…' : 'Generate quote & continue')}
-              {stage === 3 && (busy ? 'Preparing…' : 'Accept & prepare payment')}
+              {stage === 3 && (busy ? 'Accepting…' : 'Accept terms')}
             </Button>
           ) : null}
         </div>

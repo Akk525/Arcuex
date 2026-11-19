@@ -106,6 +106,17 @@ describe('fixture API source and financial boundaries', () => {
     expect(getArcRpcUrl).toThrow(/disabled/);
     expect(getQuickNodeRpcUrl).toThrow(/disabled/);
     expect(procurementClient).toThrow(/disabled/);
+    expect(
+      await (await handle(request('/api/procurement/products'), 'products')).json(),
+    ).toMatchObject({
+      paymentMode: 'fixture_offline',
+    });
+    expect(
+      await (await handle(request('/api/procurement/capacity'), 'capacity')).json(),
+    ).toMatchObject({
+      status: 'offline',
+      availableMicros: null,
+    });
     expect(() => transactions(seeded.snapshot.policy)).toThrow(/disabled/);
     await expect(reconcilePolicyBinds(db, 0n, 1n)).rejects.toThrow(/disabled/);
     await expect(
@@ -117,7 +128,7 @@ describe('fixture API source and financial boundaries', () => {
     await expect(
       verifyClaimsSettlement({} as ClaimsCase, `0x${'ab'.repeat(32)}`, {} as PublicClient),
     ).rejects.toThrow(/Fixture source/);
-    for (const path of ['procure', 'approvals', 'confirm']) {
+    for (const path of ['accept', 'payment', 'procure', 'approvals', 'confirm']) {
       const response = await handle(request(`/api/procurement/${path}`, {}), path);
       expect(response.status).toBe(400);
       expect(await response.json()).toMatchObject({ code: 'FIXTURE_FINANCIAL_DISABLED' });

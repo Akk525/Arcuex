@@ -4,10 +4,9 @@ import {
   type ProcurementAgent,
   type ProcurementPolicy,
   type ProcurementQuote,
-  type ProcurementDelegation,
 } from '@arcuex/domain';
 import { ProcurementStore, type SqliteDb } from '@arcuex/persistence';
-import { procurementDigest } from '@arcuex/agent-sdk';
+import { hasProcurementBindAuthority, procurementDigest } from '@arcuex/agent-sdk';
 import { decodePoolLog, insurancePoolAbi, toPolicyIdBytes32 } from '@arcuex/onchain';
 import { procurementClient, procurementPool, verifyBindEvent } from './procurement-chain';
 import { getRuntimeConfig } from './runtime-config';
@@ -50,16 +49,12 @@ export function reconciliationRows(db: SqliteDb): ReconciliationRow[] {
 }
 
 /** Backend attestations are authenticated by immutable quote/acceptance/agent records and the committed digest.
- * These attestations concern synthetic positions; they are not independent proofs of real financial exposure. */
+ * Underwriting attestations still require the approved claims evidence profile. */
 function completeLink(store: ProcurementStore, p: ProcurementPolicy, e: BindEvidence): boolean {
   try {
     const t = p.terms;
     const agent = store.get<ProcurementAgent>('agent', t.agentId);
     const quote = store.get<ProcurementQuote>('quote', t.quoteId);
-    const accepted = store.get<{ digest: string; actor: string; at: number }>(
-      'acceptance',
-      t.policyId,
-    );
     if (
       !!store.db.prepare('SELECT id FROM policies WHERE id=?').get(t.policyId) ||
       t.version !== 1 ||
@@ -80,14 +75,10 @@ function completeLink(store: ProcurementStore, p: ProcurementPolicy, e: BindEvid
       /^0x0{40}$/.test(p.payer) ||
       !agent ||
       !quote ||
-      !accepted ||
       procurementDigest(t) !== p.digest ||
       quote.digest !== p.digest ||
       procurementDigest(quote.terms) !== p.digest ||
-      accepted.digest !== p.digest ||
-      accepted.actor !== p.payer ||
-      !Number.isSafeInteger(accepted.at) ||
-      accepted.at > e.timestamp ||
+      !hasProcurementBindAuthority(store, p, e.timestamp) ||
       agent.owner !== t.owner ||
       agent.id !== t.agentId ||
       procurementDigest(agent.exposure) !== procurementDigest(t.exposure) ||
@@ -107,26 +98,6 @@ function completeLink(store: ProcurementStore, p: ProcurementPolicy, e: BindEvid
       BigInt(t.exposure.notionalMicros) < BigInt(t.limitMicros)
     )
       return false;
-    if (p.payer !== t.owner) {
-      const d = p.delegationId
-        ? store.get<ProcurementDelegation>('delegation', p.delegationId)
-        : null;
-      if (
-        !d ||
-        agent.signer !== p.payer ||
-        d.owner !== t.owner ||
-        d.agentId !== t.agentId ||
-        d.position !== t.exposure.position ||
-        d.productCode !== t.productCode ||
-        d.beneficiary !== t.beneficiary ||
-        d.expiresAt <= accepted.at ||
-        BigInt(d.limitCapMicros) < BigInt(t.limitMicros) ||
-        BigInt(d.premiumCapMicros) < BigInt(t.premiumMicros)
-      )
-        return false;
-      const revoked = store.get<{ at: number }>('revocation', d.id);
-      if (revoked && revoked.at <= accepted.at) return false;
-    }
     verifyBindEvent(
       p,
       {

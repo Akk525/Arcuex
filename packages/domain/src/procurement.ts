@@ -39,6 +39,32 @@ export const INDEPENDENT_LIQUIDATION_PRODUCT = {
   limitations:
     'Requires separately approved Arc protocol, independent replay and recovery authorities. Testnet pilot only.',
 } as const;
+export const PROCUREMENT_OFFERINGS = [
+  {
+    ...PROCUREMENT_PRODUCT,
+    limitsMicros: ['1000000', '10000000', '50000000', '100000000'],
+    durationsDays: [1, 7, 30],
+    purchaseAuthority: 'owner_or_delegated_agent',
+  },
+  {
+    ...INDEPENDENT_LIQUIDATION_PRODUCT,
+    limitsMicros: ['1000000'],
+    durationsDays: [7],
+    purchaseAuthority: 'owner',
+  },
+] as const;
+export type ProcurementOffering = (typeof PROCUREMENT_OFFERINGS)[number];
+export type ProcurementCatalog = {
+  products: ProcurementOffering[];
+  chainId: 5042002;
+  pool: string;
+  paymentMode: 'fixture_offline' | 'arc_testnet_preflight_required';
+};
+export type ProcurementCapacity = {
+  status: 'verified' | 'unavailable' | 'offline';
+  availableMicros: string | null;
+  checkedAt: string | null;
+};
 export const INDEPENDENT_LIQUIDATION_VERIFIER = 'arc-oracle-liquidation-independent-v1';
 export type IndependentLiquidationProfile = {
   verifier: typeof INDEPENDENT_LIQUIDATION_VERIFIER;

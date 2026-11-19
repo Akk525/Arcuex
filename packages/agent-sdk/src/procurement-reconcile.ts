@@ -31,10 +31,13 @@ export async function reconcileProcurement(
   else if (!p.bindTx) status = 'Bound onchain; receipt must be verified before backend recognition';
   else if (chain.cancelled) status = 'Reservation released / cancelled by claims authority';
   else if (chain.paidOut >= chain.limit) status = 'Policy limit exhausted';
-  else if (block.timestamp >= chain.coverageEnd) status = 'Coverage expired';
+  else if (block.timestamp > chain.coverageEnd) status = 'Coverage expired';
   else if (block.timestamp < chain.coverageStart)
     status = 'Confirmed and scheduled; coverage has not started';
-  else status = 'Active synthetic coverage; onchain fields reconcile';
+  else
+    status = t.synthetic
+      ? 'Active synthetic coverage; onchain fields reconcile'
+      : 'Independent-evidence pilot in its effective window; onchain fields reconcile';
   return {
     status,
     block: block.number?.toString(),

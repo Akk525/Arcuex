@@ -1,4 +1,13 @@
-import { createPublicClient, decodeEventLog, http, type Hash, type Hex, type Address } from 'viem';
+import {
+  createPublicClient,
+  decodeEventLog,
+  erc20Abi,
+  http,
+  keccak256,
+  type Hash,
+  type Hex,
+  type Address,
+} from 'viem';
 import { arcTestnet, ARC_USDC_ERC20_ADDRESS } from '@arcuex/chain';
 import {
   insurancePoolAbi,
@@ -49,12 +58,7 @@ export function transactions(policy: ProcurementPolicy) {
     }),
   ];
 }
-export async function preflight(policy: ProcurementPolicy) {
-  check(
-    getRuntimeConfig().chainSource !== 'fixture',
-    'Financial preflight disabled in fixture mode',
-  );
-  const client = procurementClient();
+export async function readProcurementCapacity(client = procurementClient()) {
   check((await client.getChainId()) === 5042002, 'RPC is not Arc Testnet', 'CHAIN_MISMATCH');
   const [code, usdc, capital] = await Promise.all([
     client.getCode({ address: procurementPool }),
@@ -70,18 +74,76 @@ export async function preflight(policy: ProcurementPolicy) {
     'Deployment mismatch',
     'CHAIN_MISMATCH',
   );
-  const onchain = await readOnchainPolicy(
-    client,
-    procurementPool,
-    toPolicyIdBytes32(policy.terms.policyId),
+  return capital;
+}
+export async function preflight(policy: ProcurementPolicy, client = procurementClient()) {
+  check(
+    getRuntimeConfig().chainSource !== 'fixture',
+    'Financial preflight disabled in fixture mode',
   );
+  const [capital, onchain] = await Promise.all([
+    readProcurementCapacity(client),
+    readOnchainPolicy(client, procurementPool, toPolicyIdBytes32(policy.terms.policyId)),
+  ]);
   check(!onchain.bound, 'Policy is already bound; reconcile the receipt', 'ALREADY_BOUND');
+  if (policy.terms.synthetic === false) {
+    const profile = policy.terms.independentProfile;
+    check(profile, 'Independent evidence profile unavailable', 'PRODUCT_UNAVAILABLE');
+    const runtime = await client.getCode({ address: profile.emitter });
+    check(
+      runtime && runtime !== '0x' && keccak256(runtime) === profile.runtimeCodeHash,
+      'Approved independent evidence protocol could not be verified',
+      'PRODUCT_UNAVAILABLE',
+    );
+  }
   check(
     capital >= BigInt(policy.terms.limitMicros),
     'Insufficient available pool capital',
     'CAPITAL_UNAVAILABLE',
   );
 }
+
+export async function preflightPayment(
+  policy: ProcurementPolicy,
+  stage: 'approve' | 'bind',
+  client = procurementClient(),
+) {
+  await preflight(policy, client);
+  const account = policy.payer as Address;
+  const premium = BigInt(policy.terms.premiumMicros);
+  const [block, balance, allowance] = await Promise.all([
+    client.getBlock(),
+    client.readContract({
+      address: ARC_USDC_ERC20_ADDRESS,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [account],
+    }),
+    stage === 'bind' &&
+      client.readContract({
+        address: ARC_USDC_ERC20_ADDRESS,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [account, procurementPool],
+      }),
+  ]);
+  check(
+    block.timestamp < BigInt(policy.terms.quoteExpiresAt),
+    'Quote expired on Arc; request a fresh quote',
+    'QUOTE_EXPIRED',
+  );
+  check(
+    balance >= premium,
+    'Payer needs enough testnet USDC for the premium',
+    'INSUFFICIENT_PREMIUM_BALANCE',
+  );
+  check(
+    stage === 'approve' || (allowance !== false && allowance >= premium),
+    'Approve the premium before preparing the bind',
+    'PREMIUM_ALLOWANCE_REQUIRED',
+  );
+}
+
 export function verifyBindEvent(
   policy: ProcurementPolicy,
   args: Record<string, unknown>,
@@ -104,7 +166,7 @@ export function verifyBindEvent(
     timestamp >= t.quoteExpiresAt - 600 &&
       timestamp < t.quoteExpiresAt &&
       timestamp < t.effectiveAt,
-    'Late bind is not eligible for this demo product',
+    'Late bind or pre-quote block is outside the accepted quote window',
     'LATE_BIND',
   );
 }

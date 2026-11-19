@@ -179,7 +179,7 @@ describe('shared read APIs', () => {
     const confirmed = await (await read()).json();
     expect(confirmed).toMatchObject({
       state: 'confirmed',
-      claimsEligible: true,
+      claimsEligible: false,
       confirmation: {
         transactionHash,
         blockNumber: '10',

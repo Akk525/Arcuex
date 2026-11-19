@@ -5,6 +5,7 @@ import { toPolicyIdBytes32 } from '@arcuex/onchain';
 import {
   verifyBindEvent,
   transactions,
+  preflightPayment,
   verifyApproval,
   type procurementClient,
 } from './procurement-chain';
@@ -110,4 +111,49 @@ it('verifies exact approval receipts and rejects altered approval calldata or pa
   await expect(verifyApproval(p, hash, client)).rejects.toThrow('does not match');
   tx = { ...tx, input: expected.data, from: '0x2222222222222222222222222222222222222222' };
   await expect(verifyApproval(p, hash, client)).rejects.toThrow('does not match');
+});
+
+it('checks fresh chain capacity, duplicate binding, payer balance, and allowance before returning payment data', async () => {
+  const { p } = fixture();
+  let capital = 10000000n;
+  let payerBalance = 99999n;
+  let allowance = 0n;
+  let bound = false;
+  let timestamp = BigInt(p.terms.quoteExpiresAt - 1);
+  const client = {
+    getChainId: async () => 5042002,
+    getCode: async () => '0x6000',
+    getBlock: async () => ({ timestamp }),
+    readContract: async ({ functionName }: { functionName: string }) => {
+      switch (functionName) {
+        case 'usdc':
+          return token;
+        case 'availableCapital':
+          return capital;
+        case 'balanceOf':
+          return payerBalance;
+        case 'allowance':
+          return allowance;
+        case 'policies':
+          return [p.digest, owner, owner, 10000000n, 100000n, 0n, 0n, 10000000n, 0n, bound, false];
+        default:
+          throw new Error('Unexpected read');
+      }
+    },
+  } as unknown as ReturnType<typeof procurementClient>;
+  await expect(preflightPayment(p, 'approve', client)).rejects.toThrow('enough testnet USDC');
+  payerBalance = 100000n;
+  await expect(preflightPayment(p, 'approve', client)).resolves.toBeUndefined();
+  await expect(preflightPayment(p, 'bind', client)).rejects.toThrow('Approve the premium');
+  allowance = 100000n;
+  await expect(preflightPayment(p, 'bind', client)).resolves.toBeUndefined();
+  timestamp++;
+  await expect(preflightPayment(p, 'bind', client)).rejects.toThrow('Quote expired on Arc');
+  timestamp--;
+  capital--;
+  await expect(preflightPayment(p, 'bind', client)).rejects.toThrow(
+    'Insufficient available pool capital',
+  );
+  bound = true;
+  await expect(preflightPayment(p, 'bind', client)).rejects.toThrow('already bound');
 });

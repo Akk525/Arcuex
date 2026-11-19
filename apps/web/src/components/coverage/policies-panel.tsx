@@ -4,7 +4,7 @@ import type { PolicyLifecycle } from '@arcuex/domain';
 import { useEffect, useRef, useState } from 'react';
 import { formatUnits, type Hex } from 'viem';
 import {
-  PROCUREMENT_PRODUCT as PRODUCT,
+  PROCUREMENT_OFFERINGS,
   type ProcurementPolicy as Policy,
 } from '@arcuex/domain/procurement';
 import { useProcurement } from '@/hooks/use-procurement';
@@ -123,8 +123,8 @@ export function PoliciesPanel({ id }: { id?: string }) {
       return 'Policy limit exhausted';
     if (live?.cancelled) return 'Reservation released / cancelled';
     if (live && !live.matches) return 'Chain mismatch — investigate';
-    if (Date.now() / 1000 >= p.terms.expiresAt) return 'Expired';
-    return Date.now() / 1000 < p.terms.effectiveAt
+    if (Math.floor(now / 1000) > p.terms.expiresAt) return 'Expired';
+    return now / 1000 < p.terms.effectiveAt
       ? 'Confirmed · scheduled'
       : 'Confirmed · effective window';
   }
@@ -132,14 +132,14 @@ export function PoliciesPanel({ id }: { id?: string }) {
     <div className="procurement space-y-6">
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-3">
-          <Callout kind="synthetic" title={fixtureMode ? 'Synthetic rehearsal · no live chain state' : 'Synthetic product terms · live bind receipts'}>
-            {fixtureMode ? 'Policy, reservation and checkpoint are synthetic fixture data. No bind or settlement transactions are available. Restart never renews the checkpoint.' : 'Immutable demo cover wording with real Arc Testnet transaction references when bound. Prepared records provide no coverage and are never labeled active.'}
+          <Callout kind="synthetic" title={fixtureMode ? 'Synthetic rehearsal · no live chain state' : 'Arc Testnet procurement'}>
+            {fixtureMode ? 'Policy, reservation and checkpoint are synthetic fixture data. No bind or settlement transactions are available. Restart never renews the checkpoint.' : 'Product type and confirmation are shown for each policy. Accepted quotes remain offchain until a canonical bind is linked.'}
           </Callout>
           <button className="proc-btn" disabled={busy} onClick={() => void run(load)}>
             {busy ? 'Loading…' : 'Refresh my policies'}
           </button>
           <p className="text-xs text-[var(--ink-muted)]">
-            Connect and sign in from the header. This list is owner-filtered by the authenticated
+            Connect and sign in from the header. This list is filtered to policies owned or paid for by the authenticated
             session.
           </p>
         </div>
@@ -184,7 +184,7 @@ export function PoliciesPanel({ id }: { id?: string }) {
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <StatusBadge label="SYNTHETIC COVER" tone="synthetic" />
+                <StatusBadge label={p.terms.synthetic ? 'SYNTHETIC COVER' : 'INDEPENDENT-EVIDENCE PILOT'} tone={p.terms.synthetic ? 'synthetic' : 'pending'} />
                 <h3 className="mt-2 break-all font-mono text-sm">
                   <Link className="underline" href={`/policies/${p.terms.policyId}`}>
                     {p.terms.policyId}
@@ -240,7 +240,7 @@ export function PoliciesPanel({ id }: { id?: string }) {
                   className="inline-block rounded-md bg-zinc-900 px-4 py-2 text-sm text-white"
                   href={`/claims/new?policyId=${p.terms.policyId}`}
                 >
-                  Submit a synthetic claim
+                  {p.terms.synthetic ? 'Submit a synthetic claim' : 'Open an independent claim'}
                 </Link>
               )}
             {id && lifecycle && (
@@ -279,7 +279,7 @@ export function PoliciesPanel({ id }: { id?: string }) {
             {id && (
               <>
                 <p className="break-all text-sm">Beneficiary: {p.terms.beneficiary}</p>
-                <p className="text-sm leading-6">{PRODUCT.limitations}</p>
+                <p className="text-sm leading-6">{PROCUREMENT_OFFERINGS.find((offering) => offering.code === p.terms.productCode)?.limitations}</p>
                 {live && (
                   <p className="text-sm">
                     {fixtureMode ? 'Synthetic snapshot check' : 'Live contract check'}:{' '}
@@ -290,6 +290,11 @@ export function PoliciesPanel({ id }: { id?: string }) {
                 )}
                 {!fixtureMode && p.state === 'prepared' && (
                   <div className="space-y-3">
+                    {p.payer === wallet.address?.toLowerCase() && now / 1000 < p.terms.quoteExpiresAt && (
+                      <Link className="text-sm underline" href={`/coverage?policyId=${p.terms.policyId}`}>
+                        Resume accepted purchase
+                      </Link>
+                    )}
                     <label>
                       Recover a submitted bind receipt
                       <input

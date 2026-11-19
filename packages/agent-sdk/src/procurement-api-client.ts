@@ -3,6 +3,9 @@ import type {
   ProcurementDelegation,
   ProcurementQuote,
   ProcurementPolicy,
+  ProcurementCatalog,
+  ProcurementCapacity,
+  PolicyLifecycle,
 } from '@arcuex/domain';
 import type { PreparedTx } from '@arcuex/onchain';
 type Input = Record<string, unknown>;
@@ -20,15 +23,17 @@ export class ProcurementApiClient {
   private readonly base: string;
   private readonly request: typeof fetch;
   constructor(config: { baseUrl: string; request?: typeof fetch }) {
-    this.base = config.baseUrl.replace(/\/$/, '') + '/api/procurement';
+    this.base = config.baseUrl.replace(/\/$/, '');
     this.request = config.request ?? fetch;
   }
-  private async call<T>(path: string, input?: unknown): Promise<T> {
-    const r = await this.request(`${this.base}/${path}`, {
+  private async call<T>(path: string, input?: unknown, agentId?: string): Promise<T> {
+    const route = path.startsWith('/') ? path : `/api/procurement/${path}`;
+    const r = await this.request(this.base + route, {
       credentials: 'include',
       method: input === undefined ? 'GET' : 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(agentId ? { 'x-arcuex-agent-id': agentId } : {}),
         ...(this.cookie ? { Cookie: this.cookie } : {}),
       },
       ...(input === undefined ? {} : { body: JSON.stringify(input) }),
@@ -48,10 +53,33 @@ export class ProcurementApiClient {
     return { address: s.address, expiresAt: s.expiresAt };
   }
   products() {
-    return this.call<{ products: unknown[]; chainId: 5042002; pool: string }>('products');
+    return this.call<ProcurementCatalog>('products');
+  }
+  capacity() {
+    return this.call<ProcurementCapacity>('capacity');
+  }
+  accept(input: { quoteId: string; acceptedDigest: string; delegationId?: string }) {
+    return this.call<{ policy: ProcurementPolicy; state: 'accepted_offchain' }>('accept', input);
+  }
+  payment(input: { policyId: string; acceptedDigest: string; stage: 'approve' | 'bind' }) {
+    return this.call<{
+      policy: ProcurementPolicy;
+      transaction: PreparedTx | null;
+      chainId: 5042002;
+    }>('payment', input);
+  }
+  lifecycle(id: string, agentId?: string) {
+    return this.call<PolicyLifecycle>(
+      `/api/policies/${encodeURIComponent(id)}/lifecycle`,
+      undefined,
+      agentId,
+    );
   }
   agents() {
     return this.call<ProcurementAgent[]>('agents');
+  }
+  delegations() {
+    return this.call<Array<ProcurementDelegation & { revoked: boolean }>>('delegations');
   }
   register(input: Input) {
     return this.call<ProcurementAgent>('agents', input);
