@@ -16,9 +16,9 @@ export default async function CoveragePage({
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Coverage"
+        eyebrow={from === 'build' ? 'Build' : 'Protect'}
         title="Obtain coverage"
-        description="Select a product and review the quote. Arc Testnet payment requires separate wallet approvals, a reconciled bind and the scheduled effective time."
+        description="Configure an insured exposure, compare product terms and review the quote before accepting."
       />
       <HumanProcurementPanel
         resumePolicyId={policyId}

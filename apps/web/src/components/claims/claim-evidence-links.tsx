@@ -5,6 +5,20 @@ import {
   type EvidenceTarget,
 } from '@/lib/claims/investigation-presentation';
 
+export function openClaimRecord(anchor: string) {
+  const target = document.getElementById(anchor);
+  if (!target) return;
+  for (
+    let parent = target.parentElement?.closest('details');
+    parent;
+    parent = parent.parentElement?.closest('details')
+  ) {
+    parent.open = true;
+  }
+  target.focus();
+  target.scrollIntoView({ block: 'nearest' });
+}
+
 export function ClaimEvidenceLinks({
   references,
   targets,
@@ -27,10 +41,8 @@ export function ClaimEvidenceLinks({
             {record ? (
               <a
                 href={`#${evidenceAnchor(record.kind, record.id)}`}
-                className="inline-flex min-h-11 items-center text-sky-800 underline"
-                onClick={() =>
-                  document.getElementById(evidenceAnchor(record.kind, record.id))?.focus()
-                }
+                className="inline-flex min-h-11 items-center text-[var(--accent)] underline"
+                onClick={() => openClaimRecord(evidenceAnchor(record.kind, record.id))}
               >
                 {record.label} · {record.id.slice(0, 12)}
                 {record.stale ? ' · Earlier evidence context' : ''}
@@ -60,7 +72,10 @@ export function ClaimEventMetadata({ actor, timestamp }: { actor?: string; times
       {timestamp ? (
         <>
           {' '}
-          · <time dateTime={timestamp}>{timestamp}</time>
+          ·{' '}
+          <time className="tabular-nums" dateTime={timestamp}>
+            {timestamp}
+          </time>
         </>
       ) : (
         ' · Time unavailable'

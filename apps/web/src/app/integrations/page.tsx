@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { Panel } from '@/components/panel';
 import { TestTransactionPanel } from '@/components/transactions/test-transaction';
 import { PageHeader } from '@/components/ui/page-header';
+import { Button, ButtonLink } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
+import { EmptyState } from '@/components/ui/empty-state';
 import { StatusBadge } from '@/components/status-badge';
 import { useFixtureMode } from '@/providers/source-mode';
 
@@ -13,62 +15,105 @@ type Check = { name: string; ok: boolean; detail: string; kind: string };
 
 export default function IntegrationsPage() {
   const fixtureMode = useFixtureMode();
-  const [checks, setChecks] = useState<Check[]>([]);
-  const [note, setNote] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ checks: Check[]; note?: string } | null>(null);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    setResult(null);
+    setError('');
+    try {
+      const res = await fetch('/api/integrations/health', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Health request failed (${res.status})`);
+      const payload = await res.json();
+      if (!Array.isArray(payload.checks)) throw new Error('Health response was unavailable.');
+      setResult(payload);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Health request failed.');
+    }
+  }, []);
 
   useEffect(() => {
-    fetch('/api/integrations/health')
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((json) => {
-        setChecks(json.checks ?? []);
-        setNote(json.note ?? '');
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed'));
-  }, []);
+    void load();
+  }, [load]);
 
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Build workspace"
+        eyebrow="Build"
         title="Integrations"
-        description="Live connectivity checks for Arc Testnet RPC and related services. Health rows are reported by this host — not fabricated."
+        description={
+          fixtureMode
+            ? 'Inspect the integrations available in this synthetic environment.'
+            : 'Check this host’s Arc Testnet and service connectivity.'
+        }
+        action={
+          <ButtonLink href="/agent" variant="secondary">
+            Manage agents
+          </ButtonLink>
+        }
       />
-      <Callout kind="live" title="Developer tools">
-        Test transactions still require explicit wallet approval. Streams webhooks are not payout
-        authority.
-      </Callout>
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel title="Integration health">
-          {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
-          {!error && checks.length === 0 ? (
-            <p className="text-sm text-[var(--ink-muted)]">Loading health checks…</p>
-          ) : null}
-          <ul className="space-y-3">
-            {checks.map((c) => (
-              <li
-                key={c.name}
-                className="rounded-[var(--radius)] border border-[var(--line)] p-3 text-sm"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{c.name}</span>
-                  <StatusBadge label={c.ok ? 'ok' : 'blocked'} tone={c.ok ? 'ok' : 'warn'} />
-                </div>
-                <p className="mt-1 font-mono text-[11px] text-[var(--ink-muted)]">{c.detail}</p>
-                <p className="text-[10px] text-[var(--ink-muted)]">{c.kind}</p>
-              </li>
-            ))}
-          </ul>
-          {note && <p className="mt-3 text-xs text-[var(--ink-muted)]">{note}</p>}
-          <p className="mt-2 text-xs text-[var(--ink-muted)]">
-            Streams webhook: <code>/api/webhooks/quicknode-streams</code>
-          </p>
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+        <Panel
+          title="Integration health"
+          action={
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!error && !result}
+              onClick={() => void load()}
+            >
+              {error ? 'Retry checks' : 'Refresh checks'}
+            </Button>
+          }
+        >
+          {error && (
+            <p role="alert" className="text-sm text-[var(--danger)]">
+              {error}
+            </p>
+          )}
+          {!error && !result && (
+            <p role="status" className="text-sm text-[var(--ink-muted)]">
+              Loading health checks…
+            </p>
+          )}
+          {result?.checks.length === 0 && (
+            <EmptyState
+              title="No checks reported"
+              description="Refresh to request health from this host."
+            />
+          )}
+          {!!result?.checks.length && (
+            <ul className="divide-y divide-[var(--line)]">
+              {result.checks.map((check) => (
+                <li key={check.name} className="space-y-1.5 py-3 first:pt-0">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{check.name}</span>
+                    <StatusBadge
+                      label={check.ok ? 'Available' : 'Unavailable'}
+                      tone={check.ok ? 'ok' : 'warn'}
+                    />
+                  </div>
+                  <p className="text-sm text-[var(--ink-muted)]">{check.detail}</p>
+                  <p className="text-xs text-[var(--ink-muted)]">{check.kind}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          {result?.note && <p className="mt-3 text-sm text-[var(--ink-muted)]">{result.note}</p>}
+          <details className="mt-3 border-t border-[var(--line)] pt-2 text-sm">
+            <summary className="py-3 font-medium">Webhook endpoint</summary>
+            <p>
+              <code>/api/webhooks/quicknode-streams</code>
+            </p>
+            <p className="mt-1 text-[var(--ink-muted)]">
+              Settlement requires a separate authority session and a matching receipt.
+            </p>
+          </details>
         </Panel>
         {fixtureMode ? (
-          <p>Synthetic fixture mode: live RPC and wallet transactions are disabled.</p>
+          <Callout kind="synthetic" title="Test transactions disabled">
+            This fixture environment has no live RPC or wallet transactions.
+          </Callout>
         ) : (
           <TestTransactionPanel />
         )}

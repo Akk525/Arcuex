@@ -12,12 +12,10 @@ export function PageHeader({
   eyebrow?: string;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 border-b border-[var(--line)] pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <header className="mb-6 flex min-w-0 flex-col gap-4 border-b border-[var(--line)] pb-5 sm:flex-row sm:items-end sm:justify-between sm:pb-6">
       <div className="min-w-0 space-y-1">
-        {eyebrow ? (
-          <p className="text-xs font-medium text-[var(--ink-muted)]">{eyebrow}</p>
-        ) : null}
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)] sm:text-[1.75rem]">
+        {eyebrow ? <p className="text-sm font-semibold text-[var(--accent)]">{eyebrow}</p> : null}
+        <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-[var(--ink)] sm:text-[2.125rem]">
           {title}
         </h1>
         {description ? (
@@ -25,6 +23,6 @@ export function PageHeader({
         ) : null}
       </div>
       {action ? <div className="flex flex-wrap items-center gap-2">{action}</div> : null}
-    </div>
+    </header>
   );
 }

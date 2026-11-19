@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { displayClaimStatus, settlementPresentation } from './settlement-presentation';
+import {
+  claimStatusLabel,
+  displayClaimStatus,
+  settlementPresentation,
+} from './settlement-presentation';
 
 const hash = `0x${'ab'.repeat(32)}`;
 const render = (status: string, blocked = false, confirmedReceipt?: string, canPrepare = false) =>
@@ -10,6 +14,8 @@ describe('claim financial presentation', () => {
     expect(render('APPROVED').label).toBe('Awaiting settlement authorization');
     expect(render('APPROVED', false, undefined, true).action).toContain('can request preparation');
     expect(render('SETTLEMENT_PENDING').label).toBe('Awaiting a verified settlement receipt');
+    expect(render('SETTLEMENT_PENDING').action).toContain('requires separate submission');
+    expect(claimStatusLabel('SETTLEMENT_PENDING')).toBe('Settlement prepared');
     expect(render('SETTLEMENT_FAILED').label).toBe('Settlement failed');
     expect(render('DENIED').label).toBe('No settlement');
   });
@@ -34,6 +40,9 @@ describe('claim financial presentation', () => {
   it('shows confirmed payment when the server provides a verified receipt', () => {
     expect(render('PAID', false, hash).label).toBe('Payment confirmed');
     expect(displayClaimStatus('PAID', hash)).toBe('PAID');
+    expect(claimStatusLabel('PAID', hash)).toBe('Payment confirmed');
+    expect(claimStatusLabel('PAID')).toBe('Payment unconfirmed');
+    expect(claimStatusLabel('APPROVED')).toBe('Approved');
     expect(render('SETTLEMENT_PENDING', false, hash).label).not.toBe('Payment confirmed');
   });
 });

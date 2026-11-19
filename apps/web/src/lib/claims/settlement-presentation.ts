@@ -46,7 +46,8 @@ export function settlementPresentation({
     case 'SETTLEMENT_PENDING':
       return {
         label: 'Awaiting a verified settlement receipt',
-        action: 'The settlement authority must reconcile a matching Arc Testnet receipt.',
+        action:
+          'Preparation is recorded. Payment requires separate submission and reconciliation of a matching Arc Testnet receipt.',
       };
     case 'SETTLEMENT_FAILED':
       return {
@@ -61,4 +62,23 @@ export function settlementPresentation({
         action: 'Complete evidence verification and human review.',
       };
   }
+}
+
+const claimStatusLabels: Record<string, string> = {
+  SUBMITTED: 'Submitted',
+  COLLECTING_EVIDENCE: 'Collecting evidence',
+  INVESTIGATING: 'Investigating',
+  REVIEW: 'Human review',
+  APPROVED: 'Approved',
+  DENIED: 'Denied',
+  SETTLEMENT_PENDING: 'Settlement prepared',
+  SETTLEMENT_FAILED: 'Settlement failed',
+  PAID: 'Payment confirmed',
+};
+
+export function claimStatusLabel(status: string, confirmedReceipt?: string | null) {
+  const verifiedStatus = displayClaimStatus(status, confirmedReceipt);
+  return Object.hasOwn(claimStatusLabels, verifiedStatus)
+    ? (claimStatusLabels[verifiedStatus] ?? verifiedStatus)
+    : verifiedStatus;
 }

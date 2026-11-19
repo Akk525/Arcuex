@@ -194,6 +194,9 @@ hosted deployment remains gated on actual platform/image isolation and separate 
 
 The existing claims UI and agent SDK now share append-only proof requests, submissions, examiner
 findings and human responses on one claim. Claim details connect open requests and source citations
-to the recorded timeline. The reviewer workbench groups cases by their next action. OpenAI analysis runs in a separate bounded worker and
-never authenticates evidence or authorizes a decision or payment. The OpenAI key belongs only in the
-separate worker environment. See [workflow, authority boundaries and acceptance](docs/claims-investigation.md).
+to the recorded timeline. Long timelines group events by UTC date and fold older activity.
+Citations open the corresponding evidence records. The reviewer workbench groups cases by their next
+action. A shared shell shows the current route and environment across Protect, Build, Claims and Ops.
+OpenAI analysis runs in a separate bounded worker and never authenticates evidence or authorizes a
+decision or payment. The OpenAI key belongs only in the separate worker environment. See
+[workflow, authority boundaries and acceptance](docs/claims-investigation.md).

@@ -553,7 +553,7 @@ try {
     'Human decision is APPROVED with pending authority, never reimbursed',
   );
   await review.getByRole('button', { name: 'Reload claim and findings', exact: true }).click();
-  await review.getByText('APPROVED', { exact: true }).waitFor();
+  await review.getByText('Approved', { exact: true }).waitFor();
   await review.screenshot({
     path: join(out, '04-human-approved-not-reimbursed.png'),
     fullPage: true,

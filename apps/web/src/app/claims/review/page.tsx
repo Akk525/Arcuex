@@ -3,26 +3,25 @@ import { ClaimsAuthPanel } from '@/components/claims/claims-auth-panel';
 import { AppShell } from '@/components/app-shell';
 import { ReviewerWorkbench } from '@/components/claims/reviewer-workbench';
 import { PageHeader } from '@/components/ui/page-header';
-import { Callout } from '@/components/ui/callout';
 
 export default function ClaimsReviewPage() {
   return (
     <AppShell>
       <div className="mb-3">
-        <Link href="/claims" className="text-xs text-[var(--accent)] underline">
+        <Link
+          href="/claims"
+          className="inline-flex min-h-11 items-center text-sm text-[var(--accent)] underline"
+        >
           ← My claims
         </Link>
       </div>
       <PageHeader
         eyebrow="Ops"
         title="Reviewer workbench"
-        description="Triage open claims, review linked evidence and track payment handoffs. Use a provisioned ops session to open the queue."
+        description="Triage open claims, follow evidence requests and track settlement handoffs."
       />
-      <Callout kind="warn" title="Role-gated">
-        Settlement preparation does not broadcast transfers. Server authorization decides access.
-      </Callout>
-      <div className="mt-6 space-y-4">
-        <ClaimsAuthPanel ops />
+      <div className="space-y-4">
+        <ClaimsAuthPanel />
         <ReviewerWorkbench />
       </div>
     </AppShell>

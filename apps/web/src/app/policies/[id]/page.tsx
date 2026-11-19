@@ -8,14 +8,17 @@ export default async function PolicyPage({ params }: { params: Promise<{ id: str
   return (
     <AppShell>
       <div className="mb-3">
-        <Link href="/policies" className="text-xs text-[var(--accent)] underline">
-          ← Policies
+        <Link
+          href="/policies"
+          className="inline-flex min-h-11 items-center text-sm text-[var(--accent)] underline"
+        >
+          ← Policy portfolio
         </Link>
       </div>
       <PageHeader
-        eyebrow="Policy detail"
-        title="Immutable terms & chain status"
-        description="Inspect the selected source and checkpoint. Synthetic fixture readiness is not a verified Arc receipt. Coverage timing follows the immutable terms."
+        eyebrow="Protect"
+        title="Policy details"
+        description="Review recorded terms, coverage dates, confirmation and claim eligibility."
       />
       <PoliciesPanel id={id} />
     </AppShell>

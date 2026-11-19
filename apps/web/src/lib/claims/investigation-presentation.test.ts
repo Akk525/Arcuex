@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   evidenceAnchor,
+  groupTimelineDays,
   examinerExecutionLabel,
   resolveEvidenceTargets,
 } from './investigation-presentation';
@@ -31,6 +32,20 @@ describe('claims investigation presentation', () => {
       ),
     ).toEqual([null, null, null, null]);
     expect(resolveEvidenceTargets(undefined, [current])).toEqual([]);
+  });
+
+  it('groups timeline instants by UTC without changing the persisted event order', () => {
+    const steps = [
+      { time: '2026-11-18T23:40:00-01:00', id: 'one' },
+      { time: '2026-11-19T00:40:00Z', id: 'two' },
+      { time: '2026-11-20T00:00:00Z', id: 'next' },
+      { time: 'unknown', id: 'unknown' },
+    ];
+    expect([...groupTimelineDays(steps)]).toEqual([
+      ['2026-11-19', steps.slice(0, 2)],
+      ['2026-11-20', steps.slice(2, 3)],
+      ['', steps.slice(3)],
+    ]);
   });
 
   it('labels live inference only using explicit recorded execution and provider', () => {

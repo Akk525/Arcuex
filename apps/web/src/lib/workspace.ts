@@ -64,3 +64,25 @@ export function defaultHrefForWorkspace(workspace: WorkspaceId): string {
       return '/claims/review';
   }
 }
+
+export function workspaceForPath(
+  pathname: string,
+  preferred: WorkspaceId | null,
+  mayUseOps: boolean,
+): WorkspaceId {
+  if (pathname === '/') return 'protect';
+  if (pathname === '/claims/review' || pathname === '/capital')
+    return mayUseOps ? 'ops' : 'protect';
+  if (preferred && (preferred !== 'ops' || mayUseOps) && activeWorkspaceLink(pathname, preferred))
+    return preferred;
+  if (activeWorkspaceLink(pathname, 'build') && !activeWorkspaceLink(pathname, 'protect'))
+    return 'build';
+  return 'protect';
+}
+
+export function activeWorkspaceLink(pathname: string, workspace: WorkspaceId): NavItem | undefined {
+  if (pathname === '/claims/review' && workspace !== 'ops') return undefined;
+  return WORKSPACE_NAV[workspace]
+    .filter(({ href }) => pathname === href || (href !== '/' && pathname.startsWith(`${href}/`)))
+    .sort((a, b) => b.href.length - a.href.length)[0];
+}

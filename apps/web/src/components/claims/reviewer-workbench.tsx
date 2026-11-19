@@ -58,7 +58,7 @@ export function ReviewerWorkbench() {
 
   return (
     <div className="min-w-0 space-y-4 [overflow-wrap:anywhere]">
-      <Panel title="Reviewer workbench">
+      <Panel title="Case queue">
         <p className="text-sm text-zinc-600">
           Open a case to see the permitted actions and current evidence.
         </p>

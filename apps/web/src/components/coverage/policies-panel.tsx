@@ -8,6 +8,8 @@ import {
   type ProcurementPolicy as Policy,
 } from '@arcuex/domain/procurement';
 import { useProcurement } from '@/hooks/use-procurement';
+import { ButtonLink } from '@/components/ui/button';
+import { AuthRequired } from '@/components/ui/auth-required';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Callout } from '@/components/ui/callout';
 import { StatusBadge } from '@/components/status-badge';
@@ -142,26 +144,18 @@ export function PoliciesPanel({ id }: { id?: string }) {
   }
   return (
     <div className="procurement space-y-6">
-      <div className="grid gap-6">
-        <div className="space-y-3">
-          <Callout
-            kind="synthetic"
-            title={
-              fixtureMode ? 'Synthetic rehearsal · no live chain state' : 'Arc Testnet procurement'
-            }
-          >
-            {fixtureMode
-              ? 'Policy, reservation and checkpoint are synthetic fixture data. No bind or settlement transactions are available. Restart never renews the checkpoint.'
-              : 'Product type and confirmation are shown for each policy. Accepted quotes remain offchain until a canonical bind is linked.'}
-          </Callout>
-          <button className="proc-btn" disabled={busy} onClick={() => void run(load)}>
-            {busy ? 'Loading…' : 'Refresh my policies'}
-          </button>
-          <p className="text-xs text-[var(--ink-muted)]">
-            Connect and sign in to see policies owned or paid for by this wallet.
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <button className="proc-btn-secondary" disabled={busy || wallet.uiStatus !== 'ready'} onClick={() => void run(load)}>
+          {busy ? 'Loading…' : 'Refresh my policies'}
+        </button>
+        {busy ? <p role="status" className="text-sm text-[var(--ink-muted)]">Checking policy records…</p> : null}
       </div>
+      {wallet.uiStatus !== 'ready' && (
+        <AuthRequired title="Connect on Arc Testnet" description="Use the wallet controls in the header, then load the policies this wallet owns or paid for." />
+      )}
+      {wallet.uiStatus === 'ready' && !busy && !error && policies === null && (
+        <p className="text-sm text-[var(--ink-muted)]">Load the policy records for this wallet.</p>
+      )}
       {chainError && (
         <Callout kind="warn" title="Chain reconciliation">
           <p role="status">{chainError}</p>
@@ -184,11 +178,9 @@ export function PoliciesPanel({ id }: { id?: string }) {
       {policies?.length === 0 && (
         <EmptyState
           title="No policies for this wallet"
-          description="Bind coverage first. Empty lists come from authenticated API results — not placeholders."
+          description={fixtureMode ? 'Use the wallet assigned to the seeded policy to continue the rehearsal.' : 'Configure coverage and track the purchase from this portfolio.'}
           action={
-            <Link className="text-sm font-medium text-[var(--accent)] underline" href="/coverage">
-              Obtain coverage
-            </Link>
+            <ButtonLink href="/coverage" variant="secondary">Explore coverage</ButtonLink>
           }
         />
       )}
@@ -219,10 +211,12 @@ export function PoliciesPanel({ id }: { id?: string }) {
                   label={p.terms.synthetic ? 'SYNTHETIC COVER' : 'INDEPENDENT-EVIDENCE PILOT'}
                   tone={p.terms.synthetic ? 'synthetic' : 'pending'}
                 />
-                <h3 className="mt-2 break-all font-mono text-sm">
-                  <Link className="underline" href={`/policies/${p.terms.policyId}`}>
-                    {offering?.name ?? p.terms.productCode}
-                  </Link>
+                <h3 className="mt-2 text-base font-semibold">
+                  {id ? (offering?.name ?? p.terms.productCode) : (
+                    <Link className="inline-flex min-h-11 items-center text-[var(--accent)] underline" href={`/policies/${p.terms.policyId}`}>
+                      {offering?.name ?? p.terms.productCode}
+                    </Link>
+                  )}
                 </h3>
               </div>
               <StatusBadge label={label} tone={statusTone(label)} />

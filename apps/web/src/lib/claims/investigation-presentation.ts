@@ -88,3 +88,15 @@ export function actorLabel(actor: string) {
   if (role === 'system') return 'System';
   return 'Recorded actor';
 }
+
+export function groupTimelineDays<T extends { time: string }>(steps: readonly T[]) {
+  const days = new Map<string, T[]>();
+  for (const step of steps) {
+    const instant = Date.parse(step.time);
+    const day = Number.isFinite(instant) ? new Date(instant).toISOString().slice(0, 10) : '';
+    const group = days.get(day);
+    if (group) group.push(step);
+    else days.set(day, [step]);
+  }
+  return days;
+}

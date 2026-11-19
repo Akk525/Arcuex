@@ -1,7 +1,7 @@
 import { AppShell } from '@/components/app-shell';
 import { DelegationsPanel } from '@/components/agent/delegations-panel';
 import { PageHeader } from '@/components/ui/page-header';
-import { Callout } from '@/components/ui/callout';
+import { ButtonLink } from '@/components/ui/button';
 
 export default async function AgentPage({
   searchParams,
@@ -12,17 +12,16 @@ export default async function AgentPage({
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Build workspace"
+        eyebrow="Build"
         title="Agent management"
-        description="Register agents, configure delegation scope, and procure coverage with the same authenticated identity used in Protect."
+        description="Register a signer, set delegated procurement scope and review who can pay."
+        action={
+          <ButtonLink href="/integrations" variant="secondary">
+            Integrations
+          </ButtonLink>
+        }
       />
-      <Callout kind="info" title="Shared insurance records">
-        Agents and humans share policy and claim records under wallet session auth. Privileged ops
-        remain separate.
-      </Callout>
-      <div className="mt-6">
-        <DelegationsPanel initialAgentId={agentId} />
-      </div>
+      <DelegationsPanel initialAgentId={agentId} />
     </AppShell>
   );
 }

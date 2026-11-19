@@ -36,7 +36,10 @@ Open evidence requests sit above the case timeline. **Respond to this request** 
 form with that request selected. The timeline keeps the authenticated actor, timestamp and record
 ID alongside each submission, verification and decision. Examiner citations, reviewer-adopted
 requests and decision citations lead to same-case records from the authorized read. Unavailable
-references display without links. Earlier verifier records retain their stale label.
+references display without links. Earlier verifier records retain their stale label. Long timelines
+group events by UTC date and fold earlier activity. Opening a citation expands its group and moves
+focus to the exact record. Outstanding requests and current blockers remain visible above the
+timeline.
 
 At `/claims/review`, a reviewer or authority session can open cases grouped by the next action.
 Open requests without a response wait for claimant proof. Linked responses wait for human

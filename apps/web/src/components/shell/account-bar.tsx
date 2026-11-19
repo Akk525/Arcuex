@@ -8,6 +8,7 @@ import { claimsLogout, claimsWalletLogin } from '@/lib/claims/claims-api';
 import { shortAddress } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/status-badge';
+import { useFixtureMode } from '@/providers/source-mode';
 import { ARC_TESTNET_FAUCET } from '@arcuex/chain';
 
 /**
@@ -15,10 +16,11 @@ import { ARC_TESTNET_FAUCET } from '@arcuex/chain';
  * Session identity comes from GET /api/session/me (server cookie).
  */
 export function AccountBar() {
+  const fixtureMode = useFixtureMode();
   const wallet = useWalletStatus();
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
-  const { session, loading, refresh } = useClaimsSession();
+  const { session, loading, refresh, error: sessionError } = useClaimsSession();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,8 +59,8 @@ export function AccountBar() {
   }
 
   return (
-    <div className="flex flex-col items-stretch gap-2 sm:items-end">
-      <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className="flex flex-col min-w-0 items-start gap-2 md:items-end">
+      <div className="flex flex-wrap items-center gap-2 md:justify-end">
         <StatusBadge
           label={walletStatusLabel(wallet.uiStatus)}
           tone={wallet.uiStatus === 'ready' ? 'ok' : 'neutral'}
@@ -69,17 +71,21 @@ export function AccountBar() {
           </span>
         ) : null}
         {loading ? (
-          <span className="text-xs text-[var(--ink-muted)]">Session…</span>
+          <span role="status" className="text-xs text-[var(--ink-muted)]">
+            Checking session…
+          </span>
         ) : session ? (
           <StatusBadge
             label={session.role === 'claimant' ? 'Signed in' : `Session · ${session.role}`}
             tone="live"
           />
+        ) : sessionError ? (
+          <StatusBadge label="Session unavailable" tone="warn" />
         ) : (
           <StatusBadge label="No session" tone="neutral" />
         )}
       </div>
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="flex flex-wrap gap-2 md:justify-end">
         {wallet.uiStatus === 'disconnected' ? (
           <Button size="sm" onClick={() => void wallet.connectInjected()} disabled={busy}>
             Connect wallet
@@ -110,18 +116,29 @@ export function AccountBar() {
             Disconnect
           </Button>
         ) : null}
-        <a
-          href={ARC_TESTNET_FAUCET}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center rounded-[var(--radius)] px-3 py-1.5 text-xs font-medium text-[var(--ink-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--ink)]"
-        >
-          Faucet
-        </a>
+        {sessionError && (
+          <Button size="sm" variant="secondary" onClick={() => void refresh()}>
+            Retry session
+          </Button>
+        )}
+        {!fixtureMode && (
+          <a
+            href={ARC_TESTNET_FAUCET}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-11 items-center rounded-[var(--radius)] px-3 py-1.5 text-xs font-medium text-[var(--ink-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--ink)]"
+          >
+            Faucet
+          </a>
+        )}
       </div>
-      {error ? <p className="text-right text-xs text-[var(--danger)]">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="text-xs text-[var(--danger)]">
+          {error}
+        </p>
+      ) : null}
       {wallet.connectError ? (
-        <p className="text-right text-xs text-[var(--danger)]">
+        <p role="alert" className="text-xs text-[var(--danger)]">
           {wallet.connectError instanceof Error
             ? wallet.connectError.message
             : String(wallet.connectError)}

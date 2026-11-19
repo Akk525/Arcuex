@@ -4,10 +4,11 @@ import type { getClaimsInvestigation } from '@arcuex/insurance';
 import { claimsFetch } from '@/lib/claims/claims-api';
 import { Panel } from '@/components/panel';
 import { ClaimAuditEvent, type ClaimAuditRecord } from './claim-audit-event';
-import { ClaimEventMetadata, ClaimEvidenceLinks } from './claim-evidence-links';
+import { ClaimEventMetadata, ClaimEvidenceLinks, openClaimRecord } from './claim-evidence-links';
 import { ClaimExaminerReport } from './claim-examiner-report';
 import {
   evidenceAnchor,
+  groupTimelineDays,
   reviewBlockerMessage,
   type EvidenceTarget,
 } from '@/lib/claims/investigation-presentation';
@@ -60,6 +61,7 @@ export function ClaimsInvestigation({
     [source, setSource] = useState('policyholder submission');
   const requestSelect = useRef<HTMLSelectElement>(null);
   const rationaleField = useRef<HTMLTextAreaElement>(null);
+  const hasOpenedInitialAnchor = useRef(false);
   const reviewer = role === 'reviewer' || role === 'authority';
   const open = ['COLLECTING_EVIDENCE', 'INVESTIGATING', 'REVIEW'].includes(status);
   const canParticipate = open && (reviewer || role === 'claimant');
@@ -150,6 +152,239 @@ export function ClaimsInvestigation({
     ),
     ...entries.map((entry) => ({ entry, time: entry.createdAt })),
   ].sort((a, b) => Date.parse(a.time) - Date.parse(b.time));
+
+  const latestAssessment = steps.reduce(
+    (index, step, i) => ('entry' in step && step.entry.kind === 'examiner_report' ? i : index),
+    -1,
+  );
+  // Keep the latest advisory visible while a claim is open, even in a busy timeline.
+  const earlierCount =
+    steps.length > 14
+      ? Math.min(steps.length - 10, open && latestAssessment >= 0 ? latestAssessment : steps.length)
+      : 0;
+
+  useEffect(() => {
+    if (!view || hasOpenedInitialAnchor.current) return;
+    hasOpenedInitialAnchor.current = true;
+    const anchor = window.location.hash.slice(1);
+    if (anchor.startsWith('claim-record-')) {
+      const frame = requestAnimationFrame(() => openClaimRecord(anchor));
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [view]);
+
+  function renderDays(records: typeof steps, label: string) {
+    if (!records.length) return null;
+    return (
+      <ol aria-label={label} className="space-y-4">
+        {[...groupTimelineDays(records)].map(([day, items]) => (
+          <li key={day} className="min-w-0">
+            <h4 className="mb-2 border-b border-[var(--line)] pb-2 text-xs font-semibold text-[var(--ink-muted)]">
+              {day ? (
+                <>
+                  <time dateTime={day}>{day}</time> · UTC
+                </>
+              ) : (
+                'Date unavailable'
+              )}
+            </h4>
+            <ol
+              className="space-y-2 border-l border-[var(--line-strong)] pl-3 sm:pl-4"
+              aria-label={day ? `Events on ${day} UTC` : 'Events without a date'}
+            >
+              {items.map(renderStep)}
+            </ol>
+          </li>
+        ))}
+      </ol>
+    );
+  }
+
+  function renderStep(step: (typeof steps)[number]) {
+    if ('event' in step)
+      return (
+        <ClaimAuditEvent
+          key={step.event.id}
+          event={step.event}
+          receipt={receipt}
+          targets={targets}
+        />
+      );
+    if ('verification' in step) {
+      const v = step.verification;
+      return (
+        <li key={v.id} className="rounded border border-zinc-200 bg-white p-3 text-sm">
+          <p className="font-semibold">Deterministic verification recorded</p>
+          <ClaimEventMetadata actor={v.actor} timestamp={v.createdAt} />
+          <p>
+            Execution {v.executionStatus} · Evidence {v.evidenceSufficiency}
+          </p>
+          <ClaimEvidenceLinks
+            references={[v.id]}
+            targets={targets}
+            kind="verification"
+            label="Verification record"
+          />
+        </li>
+      );
+    }
+    const e = step.entry;
+    const p = e.payload;
+    const isRequest = e.kind === 'proof_request';
+    const outstanding = openRequests.some((request) => request.id === e.id);
+    const proof = isRequest
+      ? entries.filter((r) => r.kind === 'proof_submission' && r.payload.requestId === e.id).at(-1)
+      : undefined;
+    return (
+      <li
+        key={e.id}
+        id={evidenceAnchor('record', e.id)}
+        tabIndex={-1}
+        className="scroll-mt-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-3 text-sm"
+        data-entry-kind={e.kind}
+      >
+        <p className="font-semibold">
+          {e.kind.replaceAll('_', ' ')}
+          {isRequest ? ` · ${outstanding ? 'Outstanding' : 'Resolved'}` : ''}
+        </p>
+        <ClaimEventMetadata actor={e.actor} timestamp={e.createdAt} />
+        {typeof p.text === 'string' && <p className="my-2 whitespace-pre-wrap">{p.text}</p>}
+        {isRequest && (
+          <>
+            <ClaimEvidenceLinks references={p.citations} targets={targets} />
+            {typeof p.reportId === 'string' && (
+              <ClaimEvidenceLinks
+                references={[p.reportId]}
+                targets={targets}
+                kind="record"
+                label="Adopted from examiner report"
+              />
+            )}
+            {proof && (
+              <ClaimEvidenceLinks
+                references={[proof.id]}
+                targets={targets}
+                kind="record"
+                label="Latest linked proof"
+              />
+            )}
+            {open && outstanding && reviewer && proof && (
+              <div className="mt-2 space-y-1">
+                {!text.trim() && (
+                  <p className="text-xs">Add reviewer rationale before resolving this request.</p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {!text.trim() && (
+                    <button
+                      type="button"
+                      className="rounded border px-3 text-xs"
+                      onClick={() => rationaleField.current?.focus()}
+                    >
+                      Add rationale
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="rounded border px-3 text-xs disabled:opacity-50"
+                    disabled={busy || !text.trim()}
+                    onClick={() =>
+                      void act({
+                        action: 'resolve_request',
+                        requestId: e.id,
+                        submissionId: proof.id,
+                        resolution: 'accepted',
+                        text,
+                      })
+                    }
+                  >
+                    Resolve request after human review
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+        {e.kind === 'request_resolution' && (
+          <>
+            <p>Human review outcome: {String(p.resolution ?? 'unavailable')}</p>
+            <ClaimEvidenceLinks
+              references={[p.requestId, p.submissionId]}
+              targets={targets}
+              kind="record"
+              label="Request and reviewed proof"
+            />
+          </>
+        )}
+        {e.kind === 'proof_submission' && (
+          <>
+            <p className="my-1 font-medium">{String(p.filename ?? 'Recorded proof')}</p>
+            <p>
+              Source classification:{' '}
+              {String(p.sourceClassification ?? 'unavailable').replaceAll('_', ' ')}.
+            </p>
+            <p>Declared source: {String(p.declaredSource ?? 'unavailable')}</p>
+            <p>
+              Submitted unverified ·{' '}
+              {e.proofVerificationStatus === 'fixture_consistency_only'
+                ? 'Current verifier confirms fixture consistency only'
+                : 'No current independent authentication'}
+            </p>
+            <p className="font-mono text-xs">
+              Content hash: {String(p.contentHash ?? 'unavailable')}
+            </p>
+            {p.requestId ? (
+              <ClaimEvidenceLinks
+                references={[p.requestId]}
+                targets={targets}
+                kind="record"
+                label="Linked request"
+              />
+            ) : (
+              <p>Additional proof without a request</p>
+            )}
+            <details>
+              <summary className="inline-flex min-h-11 cursor-pointer items-center text-xs underline">
+                Recorded proof bytes (text)
+              </summary>
+              <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-all text-xs">
+                {String(p.content ?? '')}
+              </pre>
+            </details>
+          </>
+        )}
+        {e.kind === 'examiner_report' && (
+          <ClaimExaminerReport
+            entry={e}
+            targets={targets}
+            mayAdopt={reviewer}
+            open={open}
+            busy={busy}
+            onAdopt={(index) =>
+              void act({
+                action: 'adopt_examiner_request',
+                reportId: e.id,
+                proposalIndex: index,
+              })
+            }
+          />
+        )}
+        {e.kind === 'examiner_failure' && (
+          <p className="mt-2">
+            No assessment was recorded. Human review can continue.
+            {typeof p.reason === 'string' ? ` ${p.reason.replaceAll('_', ' ')}.` : ''}
+          </p>
+        )}
+        <details className="mt-1 text-xs">
+          <summary className="inline-flex min-h-11 cursor-pointer items-center underline">
+            Record ID and hash
+          </summary>
+          <p className="font-mono">
+            {e.id} · {e.recordHash}
+          </p>
+        </details>
+      </li>
+    );
+  }
 
   function respondTo(id: string) {
     setRequestId(id);
@@ -274,10 +509,19 @@ export function ClaimsInvestigation({
                         : 'Awaiting linked proof'}
                     </p>
                     <ClaimEventMetadata actor={request.actor} timestamp={request.createdAt} />
+                    {proof && (
+                      <ClaimEvidenceLinks
+                        references={[proof.id]}
+                        targets={targets}
+                        kind="record"
+                        label="Review linked response"
+                      />
+                    )}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <a
                         href={`#${evidenceAnchor('record', request.id)}`}
-                        className="inline-flex min-h-11 items-center text-sky-800 underline"
+                        onClick={() => openClaimRecord(evidenceAnchor('record', request.id))}
+                        className="inline-flex min-h-11 items-center text-[var(--accent)] underline"
                       >
                         View request in timeline
                       </a>
@@ -308,7 +552,7 @@ export function ClaimsInvestigation({
             <div className="flex flex-wrap items-center gap-2">
               {canParticipate && (
                 <a
-                  className="inline-flex min-h-11 items-center text-xs text-sky-800 underline"
+                  className="inline-flex min-h-11 items-center text-xs text-[var(--accent)] underline"
                   href="#investigation-actions"
                 >
                   Go to investigation actions
@@ -326,199 +570,22 @@ export function ClaimsInvestigation({
           {!steps.length && (
             <p className="text-sm text-zinc-600">No investigation activity recorded yet.</p>
           )}
-          <ol className="space-y-3" aria-label="Investigation thread">
-            {steps.map((step) => {
-              if ('event' in step)
-                return (
-                  <ClaimAuditEvent
-                    key={step.event.id}
-                    event={step.event}
-                    receipt={receipt}
-                    targets={targets}
-                  />
-                );
-              if ('verification' in step) {
-                const v = step.verification;
-                return (
-                  <li key={v.id} className="rounded border border-zinc-200 bg-white p-3 text-sm">
-                    <p className="font-semibold">Deterministic verification recorded</p>
-                    <ClaimEventMetadata actor={v.actor} timestamp={v.createdAt} />
-                    <p>
-                      Execution {v.executionStatus} · Evidence {v.evidenceSufficiency}
-                    </p>
-                    <ClaimEvidenceLinks
-                      references={[v.id]}
-                      targets={targets}
-                      kind="verification"
-                      label="Verification record"
-                    />
-                  </li>
-                );
-              }
-              const e = step.entry;
-              const p = e.payload;
-              const isRequest = e.kind === 'proof_request';
-              const outstanding = view.outstandingRequests.includes(e.id);
-              const proof = isRequest
-                ? entries
-                    .filter((r) => r.kind === 'proof_submission' && r.payload.requestId === e.id)
-                    .at(-1)
-                : undefined;
-              return (
-                <li
-                  key={e.id}
-                  id={evidenceAnchor('record', e.id)}
-                  tabIndex={-1}
-                  className="scroll-mt-4 rounded border border-zinc-200 bg-white p-3 text-sm"
-                  data-entry-kind={e.kind}
-                >
-                  <p className="font-semibold">
-                    {e.kind.replaceAll('_', ' ')}
-                    {isRequest ? ` · ${outstanding ? 'Outstanding' : 'Resolved'}` : ''}
-                  </p>
-                  <ClaimEventMetadata actor={e.actor} timestamp={e.createdAt} />
-                  {typeof p.text === 'string' && (
-                    <p className="my-2 whitespace-pre-wrap">{p.text}</p>
-                  )}
-                  {isRequest && (
-                    <>
-                      <ClaimEvidenceLinks references={p.citations} targets={targets} />
-                      {typeof p.reportId === 'string' && (
-                        <ClaimEvidenceLinks
-                          references={[p.reportId]}
-                          targets={targets}
-                          kind="record"
-                          label="Adopted from examiner report"
-                        />
-                      )}
-                      {proof && (
-                        <ClaimEvidenceLinks
-                          references={[proof.id]}
-                          targets={targets}
-                          kind="record"
-                          label="Latest linked proof"
-                        />
-                      )}
-                      {open && outstanding && reviewer && proof && (
-                        <div className="mt-2 space-y-1">
-                          {!text.trim() && (
-                            <p className="text-xs">
-                              Add reviewer rationale before resolving this request.
-                            </p>
-                          )}
-                          <div className="flex flex-wrap gap-2">
-                            {!text.trim() && (
-                              <button
-                                type="button"
-                                className="rounded border px-3 text-xs"
-                                onClick={() => rationaleField.current?.focus()}
-                              >
-                                Add rationale
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              className="rounded border px-3 text-xs disabled:opacity-50"
-                              disabled={busy || !text.trim()}
-                              onClick={() =>
-                                void act({
-                                  action: 'resolve_request',
-                                  requestId: e.id,
-                                  submissionId: proof.id,
-                                  resolution: 'accepted',
-                                  text,
-                                })
-                              }
-                            >
-                              Resolve request after human review
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  {e.kind === 'request_resolution' && (
-                    <>
-                      <p>Human review outcome: {String(p.resolution ?? 'unavailable')}</p>
-                      <ClaimEvidenceLinks
-                        references={[p.requestId, p.submissionId]}
-                        targets={targets}
-                        kind="record"
-                        label="Request and reviewed proof"
-                      />
-                    </>
-                  )}
-                  {e.kind === 'proof_submission' && (
-                    <>
-                      <p className="my-1 font-medium">{String(p.filename ?? 'Recorded proof')}</p>
-                      <p>
-                        Source classification:{' '}
-                        {String(p.sourceClassification ?? 'unavailable').replaceAll('_', ' ')}.
-                      </p>
-                      <p>Declared source: {String(p.declaredSource ?? 'unavailable')}</p>
-                      <p>
-                        Submitted unverified ·{' '}
-                        {e.proofVerificationStatus === 'fixture_consistency_only'
-                          ? 'Current verifier confirms fixture consistency only'
-                          : 'No current independent authentication'}
-                      </p>
-                      <p className="font-mono text-xs">
-                        Content hash: {String(p.contentHash ?? 'unavailable')}
-                      </p>
-                      {p.requestId ? (
-                        <ClaimEvidenceLinks
-                          references={[p.requestId]}
-                          targets={targets}
-                          kind="record"
-                          label="Linked request"
-                        />
-                      ) : (
-                        <p>Additional proof without a request</p>
-                      )}
-                      <details>
-                        <summary className="inline-flex min-h-11 cursor-pointer items-center text-xs underline">
-                          Recorded proof bytes (text)
-                        </summary>
-                        <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-all text-xs">
-                          {String(p.content ?? '')}
-                        </pre>
-                      </details>
-                    </>
-                  )}
-                  {e.kind === 'examiner_report' && (
-                    <ClaimExaminerReport
-                      entry={e}
-                      targets={targets}
-                      mayAdopt={reviewer}
-                      open={open}
-                      busy={busy}
-                      onAdopt={(index) =>
-                        void act({
-                          action: 'adopt_examiner_request',
-                          reportId: e.id,
-                          proposalIndex: index,
-                        })
-                      }
-                    />
-                  )}
-                  {e.kind === 'examiner_failure' && (
-                    <p className="mt-2">
-                      No assessment was recorded. Human review can continue.
-                      {typeof p.reason === 'string' ? ` ${p.reason.replaceAll('_', ' ')}.` : ''}
-                    </p>
-                  )}
-                  <details className="mt-1 text-xs">
-                    <summary className="inline-flex min-h-11 cursor-pointer items-center underline">
-                      Record ID and hash
-                    </summary>
-                    <p className="font-mono">
-                      {e.id} · {e.recordHash}
-                    </p>
-                  </details>
-                </li>
-              );
-            })}
-          </ol>
+          <div aria-label="Investigation chronology" className="space-y-3">
+            {earlierCount > 0 && (
+              <details
+                className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface-inset)] px-3"
+                data-investigation-history
+              >
+                <summary className="min-h-11 py-3 text-sm font-medium">
+                  Earlier activity ({earlierCount} events)
+                </summary>
+                <div className="pb-3">
+                  {renderDays(steps.slice(0, earlierCount), 'Earlier investigation events')}
+                </div>
+              </details>
+            )}
+            {renderDays(steps.slice(earlierCount), 'Investigation thread')}
+          </div>
           {canParticipate ? (
             <div id="investigation-actions" className="mt-4 scroll-mt-4 space-y-3 border-t pt-3">
               <h3 className="text-sm font-semibold">Investigation actions</h3>

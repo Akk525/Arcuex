@@ -1,134 +1,75 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { PROCUREMENT_PRODUCT as PRODUCT } from '@arcuex/domain/procurement';
 import { useWorkspace } from '@/components/workspace-provider';
 import { Button } from '@/components/ui/button';
-import { Callout } from '@/components/ui/callout';
-import { StatusBadge } from '@/components/status-badge';
-
-const JOURNEY = [
-  {
-    title: 'Protect',
-    detail: 'Register a synthetic exposure, accept an immutable quote digest, approve USDC, bind on Arc Testnet.',
-  },
-  {
-    title: 'Confirm',
-    detail: 'Coverage is scheduled only after bind receipt verification — never from a prepared record alone.',
-  },
-  {
-    title: 'Claim',
-    detail: 'Open a ClaimsCase, attach labeled evidence, move through REVIEW without implying payment.',
-  },
-] as const;
+import { useFixtureMode } from '@/providers/source-mode';
 
 export function ProductLanding() {
   const router = useRouter();
   const { setWorkspace } = useWorkspace();
-
-  function enterProtect() {
-    setWorkspace('protect');
-    router.push('/coverage');
-  }
-
-  function enterBuild() {
-    setWorkspace('build');
-    router.push('/agent');
-  }
+  const fixture = useFixtureMode();
 
   return (
-    <div className="space-y-12">
-      <section className="relative overflow-hidden rounded-[calc(var(--radius)+4px)] border border-[var(--line)] bg-[var(--surface)]">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,var(--accent-soft)_0%,transparent_42%,#e8eef1_100%)]"
-        />
-        <div className="relative grid gap-10 px-6 py-10 sm:px-10 sm:py-14 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
-          <div className="space-y-6">
-            <div className="flex flex-wrap gap-2">
-              <StatusBadge label="Arc Testnet beta" tone="live" />
-              <StatusBadge label="Synthetic product labeled" tone="synthetic" />
-            </div>
-            <h1 className="max-w-xl text-[2.5rem] font-semibold leading-[1.08] tracking-tight text-[var(--ink)] sm:text-5xl">
-              Financial protection for agents that can actually bind on-chain.
-            </h1>
-            <p className="max-w-xl text-base leading-relaxed text-[var(--ink-muted)] sm:text-lg">
-              Arcuex helps humans and developers procure coverage, confirm Arc Testnet binds, and
-              investigate claims with evidence you can audit — without confusing demo fixtures for
-              live payouts.
-            </p>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button onClick={enterProtect} className="min-h-12 px-6 text-base">
-                Protect my agent
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={enterBuild}
-                className="min-h-12 px-6 text-base"
-              >
-                Build with Arcuex
-              </Button>
-            </div>
-            <p className="text-xs text-[var(--ink-muted)]">
-              Product: {PRODUCT.code}. Pricing note: {PRODUCT.pricing}
-            </p>
+    <section className="overflow-hidden rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)]">
+      <div className="grid gap-8 p-6 sm:p-10 lg:grid-cols-[1.35fr_1fr] lg:gap-12">
+        <div className="space-y-5 self-center">
+          <h1 className="max-w-xl text-[2.5rem] leading-[1.08] font-semibold tracking-tight sm:text-5xl">
+            Insurance workflows for autonomous agents
+          </h1>
+          <p className="max-w-lg text-base text-[var(--ink-muted)]">
+            {fixture
+              ? 'Rehearse quoting, agent delegation and claims review with synthetic policy records.'
+              : 'Configure coverage on Arc Testnet, delegate procurement to agent signers and follow each claim through human review.'}
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              onClick={() => {
+                setWorkspace('protect');
+                router.push('/coverage');
+              }}
+            >
+              Explore coverage
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setWorkspace('build');
+                router.push('/agent');
+              }}
+            >
+              Set up an agent
+            </Button>
           </div>
-
-          <aside
-            aria-label="Grounded demo workflow"
-            className="rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--paper)]/90 p-5 shadow-[0_1px_0_rgba(15,23,32,0.04)]"
-          >
-            <p className="text-xs font-medium text-[var(--accent)]">Demo workflow · not live activity</p>
-            <p className="mt-2 text-sm font-semibold text-[var(--ink)]">
-              {PRODUCT.name ?? 'Oracle adapter liquidation cover'}
-            </p>
-            <ol className="mt-5 space-y-4">
-              {JOURNEY.map((step, index) => (
-                <li key={step.title} className="flex gap-3">
-                  <span
-                    aria-hidden
-                    className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--ink)] text-[11px] font-medium text-white"
-                  >
-                    {index + 1}
-                  </span>
-                  <div>
-                    <p className="text-sm font-medium text-[var(--ink)]">{step.title}</p>
-                    <p className="mt-0.5 text-sm leading-relaxed text-[var(--ink-muted)]">
-                      {step.detail}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-            <div className="mt-5 border-t border-[var(--line)] pt-4 text-xs text-[var(--ink-muted)]">
-              Illustrative stages only. No fabricated balances, claim payouts, or verified incidents.
-            </div>
-          </aside>
         </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-8 md:grid-cols-2">
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-[var(--ink)]">Protect</h2>
-          <p className="text-sm leading-relaxed text-[var(--ink-muted)]">
-            For policyholders: obtain coverage, confirm the bind, manage policies, submit and track
-            claims. Policies are not active until confirmation succeeds.
-          </p>
+        <div className="rounded-[var(--radius)] bg-[var(--accent-soft)] p-5 sm:p-6">
+          <h2 className="text-base font-semibold">From coverage to a decision</h2>
+          <ol className="mt-3 divide-y divide-[var(--line)] text-sm">
+            <li className="space-y-1 py-3">
+              <p className="font-medium">Configure coverage</p>
+              <p className="text-[var(--ink-muted)]">
+                Choose a product, register the insured exposure and review a quote.
+              </p>
+            </li>
+            <li className="space-y-1 py-3">
+              <p className="font-medium">Review the policy</p>
+              <p className="text-[var(--ink-muted)]">
+                {fixture
+                  ? 'Open the seeded policy and inspect its coverage window and fixture checkpoint.'
+                  : 'Track wallet approval, binding receipt, reconciliation and coverage inception.'}
+              </p>
+            </li>
+            <li className="space-y-1 pt-3">
+              <p className="font-medium">Investigate a claim</p>
+              <p className="text-[var(--ink-muted)]">
+                {fixture
+                  ? 'Exchange evidence on the case and record a human decision. Fixture settlement is disabled.'
+                  : 'Exchange evidence and record a human decision. Payment requires a reconciled settlement receipt.'}
+              </p>
+            </li>
+          </ol>
         </div>
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-[var(--ink)]">Build</h2>
-          <p className="text-sm leading-relaxed text-[var(--ink-muted)]">
-            For developers: register agents, configure delegation, and integrate the same
-            authenticated policy records used in Protect.
-          </p>
-        </div>
-      </section>
-
-      <Callout kind="synthetic" title="Beta disclosures">
-        Live Arc Testnet reads and confirmed USDC transfers are labeled separately from synthetic
-        quote fixtures and claim evidence. Ops requires provisioned credentials; the UI never grants
-        privilege by itself.
-      </Callout>
-    </div>
+      </div>
+    </section>
   );
 }

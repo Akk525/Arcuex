@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Panel } from '@/components/panel';
@@ -13,6 +13,7 @@ import {
 } from '@/lib/claims/claims-client-response';
 import { AuthRequired } from '@/components/ui/auth-required';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Button, ButtonLink } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
 
 type PolicyOption = {
@@ -36,41 +37,59 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
   const [error, setError] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
   const [pending, startTransition] = useTransition();
+  const readVersion = useRef(0);
+
+  const loadPolicies = useCallback(async () => {
+    const version = ++readVersion.current;
+    setError(null);
+    setAuthRequired(false);
+    setPolicies(null);
+    try {
+      const res = await claimsFetch('claimant', '/api/claims/policies');
+      const result = await readClaimsClientResponse(res, (json) => {
+        const policies = parsePolicyOptionsPayload(json);
+        return policies ? (policies as PolicyOption[]) : null;
+      });
+      if (version !== readVersion.current) return;
+      if (!result.ok) {
+        setPolicies(null);
+        if (result.kind === 'unauthorized' || result.kind === 'forbidden') {
+          setAuthRequired(true);
+        }
+        setError(result.message);
+        return;
+      }
+      setPolicies(result.data);
+      const selected = initialPolicyId
+        ? result.data.find((p) => p.id === initialPolicyId)
+        : result.data[0];
+      setPolicyId(selected?.id ?? '');
+      setExposureId(selected?.exposures[0]?.id ?? '');
+    } catch (e) {
+      if (version !== readVersion.current) return;
+      setPolicies(null);
+      setError(claimsNetworkFailure(e).message);
+    }
+  }, [initialPolicyId]);
 
   useEffect(() => {
-    void (async () => {
-      try {
-        const res = await claimsFetch('claimant', '/api/claims/policies');
-        const result = await readClaimsClientResponse(res, (json) => {
-          const policies = parsePolicyOptionsPayload(json);
-          return policies ? (policies as PolicyOption[]) : null;
-        });
-        if (!result.ok) {
-          setPolicies(null);
-          if (result.kind === 'unauthorized' || result.kind === 'forbidden') {
-            setAuthRequired(true);
-          }
-          setError(result.message);
-          return;
-        }
-        setPolicies(result.data);
-        const selected = result.data.find((p) => p.id === initialPolicyId) ?? result.data[0];
-        if (selected) {
-          setPolicyId(selected.id);
-          setExposureId(selected.exposures[0]?.id ?? '');
-        }
-      } catch (e) {
-        setPolicies(null);
-        setError(claimsNetworkFailure(e).message);
-      }
-    })();
-  }, [initialPolicyId]);
+    void loadPolicies();
+    const sessionChanged = () => {
+      void loadPolicies();
+    };
+    window.addEventListener('arcuex-session-changed', sessionChanged);
+    return () => {
+      readVersion.current++;
+      window.removeEventListener('arcuex-session-changed', sessionChanged);
+    };
+  }, [loadPolicies]);
 
   const selected = (policies ?? []).find((p) => p.id === policyId);
   const independent = selected?.synthetic === false;
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!selected || !selected.exposures.some((exposure) => exposure.id === exposureId)) return;
     setError(null);
     const key = intakeKey || `case:${crypto.randomUUID()}`;
     setIntakeKey(key);
@@ -148,7 +167,7 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
 
   return (
     <Panel
-      title="Submit claim"
+      title="Incident details"
       action={
         selected ? (
           <StatusBadge
@@ -171,31 +190,52 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
           </Callout>
         ))}
       {error && !authRequired ? (
-        <p className="mb-3 mt-3 text-sm text-[var(--danger)]">{error}</p>
+        <p role="alert" className="my-3 text-sm text-[var(--danger)]">
+          {error}
+        </p>
       ) : null}
       {authRequired ? (
         <div className="mt-3">
-          <AuthRequired description="Sign in from the header with the claimant wallet session. Authorization failures are not treated as an empty policy list." />
+          <AuthRequired description="Connect the insured wallet and sign in from the header to see eligible policies." />
         </div>
       ) : null}
+      {!policies && error && !authRequired && (
+        <Button variant="secondary" onClick={() => void loadPolicies()}>
+          Retry policy list
+        </Button>
+      )}
       {!policies && !error ? (
-        <p className="mt-3 text-sm text-[var(--ink-muted)]">Loading insured policies…</p>
+        <p role="status" className="mt-3 text-sm text-[var(--ink-muted)]">
+          Loading insured policies…
+        </p>
       ) : null}
       {policies && policies.length === 0 ? (
         <div className="mt-3">
           <EmptyState
             title="No owned, confirmed policies"
-            description="Bind coverage with this wallet first, then refresh. Empty results are authenticated API responses."
+            description="Claim intake opens when a policy is eligible and its coverage is effective."
+            action={
+              <ButtonLink href="/policies" variant="secondary">
+                Open policies
+              </ButtonLink>
+            }
           />
         </div>
       ) : null}
       {policies && policies.length > 0 ? (
-        <form onSubmit={onSubmit} className="space-y-3 text-sm">
+        <form onSubmit={onSubmit} className="space-y-4 text-sm">
+          {initialPolicyId && !policies.some((p) => p.id === initialPolicyId) && (
+            <Callout kind="warn" title="Linked policy is unavailable">
+              Select another eligible policy or return to the policy portfolio.
+            </Callout>
+          )}
           <label className="block space-y-1">
             <span className="text-xs font-medium text-zinc-600">Insured policy</span>
             <select
               className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5"
+              aria-label="Insured policy"
               value={policyId}
+              required
               onChange={(e) => {
                 setIntakeKey('');
                 setPolicyId(e.target.value);
@@ -203,6 +243,9 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
                 setExposureId(p?.exposures[0]?.id ?? '');
               }}
             >
+              <option value="" disabled>
+                Select an eligible policy
+              </option>
               {policies.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.id.slice(0, 8)}… ({p.status})
@@ -214,6 +257,7 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
             <span className="text-xs font-medium text-zinc-600">Registered exposure</span>
             <select
               className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5"
+              aria-label="Registered exposure"
               value={exposureId}
               onChange={(e) => {
                 setExposureId(e.target.value);
@@ -237,6 +281,12 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
               required
               maxLength={240}
               className="w-full rounded-md border border-zinc-200 px-2 py-2"
+              aria-label={
+                independent
+                  ? 'Arc liquidation event reference'
+                  : 'Canonical synthetic incident reference'
+              }
+              aria-describedby="incident-reference-help"
               value={eventRef}
               onChange={(e) => {
                 setEventRef(e.target.value);
@@ -246,7 +296,7 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
                 independent ? 'evm:5042002:0x…:logIndex' : 'synthetic:oracle-adapter:event-001'
               }
             />
-            <span className="text-xs text-zinc-500">
+            <span id="incident-reference-help" className="text-xs text-zinc-500">
               Use the same reference for the same economic event. A retry must not invent a new
               incident.
             </span>
@@ -258,13 +308,15 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
               type="datetime-local"
               step={independent ? 1 : undefined}
               className="w-full rounded-md border border-zinc-200 px-2 py-2"
+              aria-label="Incident time"
+              aria-describedby="incident-time-help"
               value={observedAt}
               onChange={(e) => {
                 setObservedAt(e.target.value);
                 setIntakeKey('');
               }}
             />
-            <span className="text-xs text-zinc-500">
+            <span id="incident-time-help" className="text-xs text-zinc-500">
               Enter the incident time in your browser’s local time. The server saves it in UTC.
               {independent
                 ? ' Use the exact Arc block timestamp.'

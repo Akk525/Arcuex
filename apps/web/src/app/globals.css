@@ -34,9 +34,7 @@ body {
 
 body {
   margin: 0;
-  background:
-    linear-gradient(180deg, #e8eef1 0%, transparent 280px),
-    var(--paper);
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: 15px;
@@ -60,7 +58,77 @@ body {
   }
 }
 
-/* Procurement form controls — aligned to tokens */
+/* Shared application shell and controls. */
+.workspace-container {
+  width: 100%;
+  max-width: 76rem;
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 3vw, 2rem);
+}
+
+.workspace-content {
+  overflow-wrap: anywhere;
+}
+
+.workspace-content :where(input, select, textarea, button, fieldset, pre) {
+  max-inline-size: 100%;
+}
+
+.workspace-content
+  :where(button, input:not([type='checkbox']):not([type='radio']), select, summary) {
+  min-block-size: 2.75rem;
+}
+
+.workspace-content :where(summary) {
+  cursor: pointer;
+}
+
+.workspace-switch,
+.workspace-link {
+  display: inline-flex;
+  min-block-size: 2.75rem;
+  align-items: center;
+  border-radius: var(--radius);
+  padding-inline: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 550;
+  color: var(--ink-muted);
+}
+
+.workspace-switch:hover,
+.workspace-link:hover {
+  background: var(--surface-inset);
+  color: var(--ink);
+}
+
+.workspace-switch-active,
+.workspace-switch-active:hover {
+  background: var(--ink);
+  color: var(--surface);
+}
+
+.workspace-link[aria-current] {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  box-shadow: inset 0 -2px var(--accent);
+}
+
+.skip-link {
+  position: absolute;
+  z-index: 10;
+  inset: 0.75rem auto auto 0.75rem;
+  transform: translateY(-200%);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.75rem;
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/* Procurement form controls */
+
 .procurement label:not(.proc-check) {
   display: grid;
   gap: 0.5rem;

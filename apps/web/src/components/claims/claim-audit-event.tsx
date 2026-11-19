@@ -1,4 +1,4 @@
-import { displayClaimStatus } from '@/lib/claims/settlement-presentation';
+import { claimStatusLabel } from '@/lib/claims/settlement-presentation';
 import { evidenceAnchor, type EvidenceTarget } from '@/lib/claims/investigation-presentation';
 import { ClaimEventMetadata, ClaimEvidenceLinks } from './claim-evidence-links';
 
@@ -33,8 +33,7 @@ export function ClaimAuditEvent({
       className="scroll-mt-4 rounded border border-zinc-200 bg-white p-3 text-sm"
     >
       <p className="font-medium">
-        {displayClaimStatus(event.fromStatus, receipt)} →{' '}
-        {displayClaimStatus(event.toStatus, receipt)}
+        {claimStatusLabel(event.fromStatus, receipt)} → {claimStatusLabel(event.toStatus, receipt)}
       </p>
       <ClaimEventMetadata actor={event.actor} timestamp={event.createdAt} />
       <p className="text-xs text-zinc-600">{event.reasonCode}</p>

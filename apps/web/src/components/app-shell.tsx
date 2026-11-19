@@ -9,140 +9,114 @@ import { useClaimsSession } from '@/hooks/use-claims-session';
 import {
   WORKSPACE_LABEL,
   WORKSPACE_NAV,
+  activeWorkspaceLink,
   defaultHrefForWorkspace,
+  workspaceForPath,
   type WorkspaceId,
 } from '@/lib/workspace';
 import { StatusBadge } from '@/components/status-badge';
 import { useFixtureMode } from '@/providers/source-mode';
 
-function navActive(pathname: string, href: string): boolean {
-  if (href === '/') return pathname === '/';
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 export function AppShell({ children }: { children: ReactNode }) {
   const fixtureMode = useFixtureMode();
   const pathname = usePathname();
   const router = useRouter();
-  const { workspace, hydrated, setWorkspace } = useWorkspace();
+  const { workspace, setWorkspace } = useWorkspace();
   const { session } = useClaimsSession();
   const opsSession =
     session?.role === 'reviewer' || session?.role === 'authority' || session?.role === 'system';
   const switcherIds: WorkspaceId[] = opsSession
     ? ['protect', 'build', 'ops']
     : ['protect', 'build'];
-  const items = workspace ? WORKSPACE_NAV[workspace] : [];
+  const current = workspaceForPath(pathname, workspace, opsSession);
+  const active = activeWorkspaceLink(pathname, current);
 
   function switchWorkspace(next: WorkspaceId) {
     setWorkspace(next);
-    const stillValid = WORKSPACE_NAV[next].some(
-      (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
-    );
-    if (!stillValid) router.push(defaultHrefForWorkspace(next));
+    if (!activeWorkspaceLink(pathname, next)) router.push(defaultHrefForWorkspace(next));
   }
 
   return (
-    <div className="mx-auto flex min-h-[100dvh] w-full max-w-6xl flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
-      <header className="space-y-4 border-b border-[var(--line)] pb-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-1">
-            <Link href="/" className="inline-flex items-baseline gap-2">
-              <span className="text-xl font-semibold tracking-tight text-[var(--ink)]">Arcuex</span>
+    <div className="flex min-h-[100dvh] min-w-0 flex-col">
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
+      <header className="border-b border-[var(--line)] bg-[var(--surface)]">
+        <div className="workspace-container">
+          <div className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+              <Link
+                href="/"
+                className="inline-flex min-h-11 items-center text-2xl font-semibold tracking-tight"
+              >
+                Arcuex
+              </Link>
               <StatusBadge
                 label={fixtureMode ? 'SYNTHETIC FIXTURE' : 'Arc Testnet'}
                 tone={fixtureMode ? 'synthetic' : 'live'}
               />
-            </Link>
-            <p className="max-w-xl text-sm text-[var(--ink-muted)]">
-              Insurance-style protection for autonomous agents — bind coverage, manage policies,
-              investigate claims.
-            </p>
+            </div>
+            <AccountBar />
           </div>
-          <AccountBar />
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div
-            role="group"
-            aria-label="Workspace"
-            className="inline-flex rounded-[var(--radius)] border border-[var(--line-strong)] bg-[var(--surface)] p-0.5"
-          >
-            {switcherIds.map((id) => {
-              const selected = hydrated && workspace === id;
-              return (
+          <div className="flex flex-col gap-y-2 border-t border-[var(--line)] py-2 sm:flex-row sm:items-center sm:gap-x-5">
+            <div role="group" aria-label="Workspace" className="flex shrink-0 flex-wrap gap-1">
+              {switcherIds.map((id) => (
                 <button
                   key={id}
                   type="button"
                   onClick={() => switchWorkspace(id)}
-                  aria-pressed={selected}
-                  className={
-                    selected
-                      ? 'rounded-[calc(var(--radius)-2px)] bg-[var(--ink)] px-3 py-1.5 text-xs font-medium text-white'
-                      : 'rounded-[calc(var(--radius)-2px)] px-3 py-1.5 text-xs font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]'
-                  }
+                  aria-pressed={current === id}
+                  className={`workspace-switch ${current === id ? 'workspace-switch-active' : ''}`}
                 >
                   {WORKSPACE_LABEL[id]}
                 </button>
-              );
-            })}
-          </div>
-          {!opsSession ? (
-            <p className="text-xs text-[var(--ink-muted)]">
-              Ops tools appear after a provisioned reviewer/authority session. URLs are still
-              server-authorized.
-            </p>
-          ) : null}
-        </div>
-
-        {workspace ? (
-          <nav
-            aria-label={`${WORKSPACE_LABEL[workspace]} navigation`}
-            className="flex flex-wrap gap-1"
-          >
-            {items.map((item) => {
-              const active = navActive(pathname, item.href);
-              return (
+              ))}
+            </div>
+            <nav
+              aria-label={`${WORKSPACE_LABEL[current]} navigation`}
+              className="flex min-w-0 flex-wrap gap-x-1"
+            >
+              {WORKSPACE_NAV[current].map((item) => (
                 <Link
-                  key={`${workspace}:${item.href}:${item.label}`}
+                  key={item.href}
                   href={item.href}
-                  className={
-                    active
-                      ? 'rounded-[var(--radius)] bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-white'
-                      : 'rounded-[var(--radius)] px-3 py-1.5 text-sm font-medium text-[var(--ink-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--ink)]'
+                  aria-current={
+                    active?.href === item.href
+                      ? item.href === pathname
+                        ? 'page'
+                        : 'location'
+                      : undefined
                   }
+                  className="workspace-link"
                 >
                   {item.label}
                 </Link>
-              );
-            })}
-          </nav>
-        ) : (
-          <p className="text-xs text-[var(--ink-muted)]">
-            Choose Protect or Build to open a workspace. Privileges are never granted by the UI
-            alone.
-          </p>
-        )}
-
-        {workspace === 'ops' ? (
-          <p className="text-xs text-[var(--ink-muted)]">
-            Ops workspace frames privileged tools. Server authentication still decides what
-            succeeds.
-          </p>
-        ) : null}
+              ))}
+            </nav>
+          </div>
+        </div>
       </header>
 
-      {fixtureMode && (
-        <aside role="status" className="rounded-md border border-amber-500 p-4 text-sm">
-          Synthetic rehearsal only. Policy and reservation snapshots are fixtures, not live Arc
-          Testnet confirmations. Live RPC and financial transactions are disabled.
-        </aside>
-      )}
-      <div className="flex-1">{children}</div>
-
-      <footer className="border-t border-[var(--line)] pt-4 text-xs text-[var(--ink-muted)]">
-        Chain ID 5042002 · Never paste private keys · Synthetic demo steps are labeled · Streams
-        webhook ≠ payout authority
-      </footer>
+      <div className="workspace-container flex flex-1 flex-col gap-6 py-6 sm:gap-7 sm:py-8">
+        {fixtureMode && (
+          <aside
+            aria-label="Environment"
+            className="rounded-[var(--radius)] border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+          >
+            <strong className="font-semibold">Synthetic rehearsal.</strong> Policy and reservation
+            snapshots use fixture data. Live RPC and financial transactions are disabled.
+          </aside>
+        )}
+        <main id="main-content" tabIndex={-1} className="workspace-content min-w-0 flex-1">
+          {children}
+        </main>
+        <footer className="flex flex-wrap justify-between gap-x-4 gap-y-1 border-t border-[var(--line)] pt-4 text-xs text-[var(--ink-muted)]">
+          <span>Arcuex · Arc Testnet chain 5042002</span>
+          <Link href="/integrations" className="inline-flex min-h-11 items-center underline">
+            Integration health
+          </Link>
+        </footer>
+      </div>
     </div>
   );
 }
