@@ -67,7 +67,7 @@ try {
       url = new URL(req.url());
     const respond = (value) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(value) });
-    if (url.hostname !== '127.0.0.1') return route.abort();
+    if (url.hostname !== new URL(base).hostname) return route.abort();
     if (url.pathname === '/api/session/me')
       return respond({
         version: 1,

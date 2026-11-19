@@ -1,0 +1,32 @@
+PASS Real signed nonce authenticates policyholder via httpOnly cookie
+PASS Session cookie is HttpOnly and Secure
+PASS Real policy projection is confirmed and eligible against synthetic checkpoint
+PASS Browser submission persists real linked claim/incident state
+PASS Server persists fixture consistency and explicit absence of real-world authentication
+PASS Successful verification leaves investigation open without coverage/payment authority
+PASS Policyholder cannot adjudicate through real API
+PASS Claimant browser has no approval controls
+PASS Real ops token exchange establishes authorized reviewer cookie session
+PASS Reviewer approval disabled until explicit contractual confirmation and rationale
+PASS Fully specified fixture becomes APPROVED with 1 USDC proposed payable and separate authority gate
+PASS Persisted decision contains reviewer identity, contractual rationale and frozen economics
+PASS Real investigation history retains reviewer decision
+PASS Real authenticated intake creates missing case
+PASS Missing evidence remains REVIEW without payable
+PASS Real authenticated intake creates contradictory case
+PASS Real verifier executes 36c74c73-a8b9-40fb-a34f-8c922c30f946
+PASS Contradictory evidence cannot be bypassed by choosing prior successful verification
+PASS Real authenticated intake creates recoveries case
+PASS Real verifier executes 90619844-a33e-4cb9-864c-2e9395f59685
+PASS Unresolved recoveries prohibit approval and any payable amount
+PASS Real authenticated intake creates stale-evidence case
+PASS Real verifier executes 9af708b2-2735-46df-962c-211cb077305b
+PASS Reviewer action with stale evidence context cannot approve
+PASS Caller-selected reviewer fields do not escalate policyholder privileges
+PASS Already approved case rejects a repeated reviewer decision
+PASS Expired reviewer session is rejected by real authentication
+PASS Stale reconciliation hides claim next step
+PASS Authority endpoint requires a separately provisioned credential
+PASS Separate authority session established without any financial signing key
+PASS Synthetic settlement preparation remains blocked; no settlement or reimbursement recorded
+PASS Disposable database contains no paid or settlement-pending claims

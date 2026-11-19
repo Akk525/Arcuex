@@ -1,0 +1,44 @@
+PASS Real signed nonce authenticates policyholder via httpOnly cookie
+PASS Session cookie is HttpOnly and Secure
+PASS Real policy projection is confirmed and eligible against synthetic checkpoint
+PASS Browser submission persists real linked claim/incident state
+PASS Server persists fixture consistency and explicit absence of real-world authentication
+PASS Successful verification leaves investigation open without coverage/payment authority
+PASS Policyholder cannot adjudicate through real API
+PASS Claimant browser has no approval controls
+PASS Real ops token exchange establishes authorized reviewer cookie session
+PASS Reviewer approval disabled until explicit contractual confirmation and rationale
+PASS Fully specified fixture becomes APPROVED with 1 USDC proposed payable and separate authority gate
+PASS Persisted decision contains reviewer identity, contractual rationale and frozen economics
+PASS Real investigation history retains reviewer decision
+PASS Real authenticated intake creates missing case
+PASS Missing evidence remains REVIEW without payable
+PASS Real authenticated intake creates contradictory case
+PASS Real verifier executes dc14a43f-1ea2-4051-8af1-13bc929f13fc
+PASS Contradictory evidence cannot be bypassed by choosing prior successful verification
+PASS Real authenticated intake creates recoveries case
+PASS Real verifier executes 91217281-c4bb-4624-ace9-82bbb6e99ea0
+PASS Unresolved recoveries prohibit approval and any payable amount
+PASS Real authenticated intake creates stale-evidence case
+PASS Real verifier executes d3cc8873-e7d3-45da-bcc5-36927db40798
+PASS Reviewer action with stale evidence context cannot approve
+PASS Caller-selected reviewer fields do not escalate policyholder privileges
+PASS Already approved case rejects a repeated reviewer decision
+PASS Expired reviewer session is rejected by real authentication
+PASS Stale reconciliation hides claim next step
+PASS Authority endpoint requires a separately provisioned credential
+PASS Separate authority session established without any financial signing key
+PASS Synthetic settlement preparation remains blocked; no settlement or reimbursement recorded
+PASS Disposable database contains no paid or settlement-pending claims
+/Users/aditya/Projects/Arcuex/apps/web/scripts/sprint3-local-acceptance.mts:291
+      if (code !== 0) throw new Error(name + ' failed');
+                            ^
+
+Error: mocked-adjudication failed
+    at <anonymous> (/Users/aditya/Projects/Arcuex/apps/web/scripts/sprint3-local-acceptance.mts:291:29)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+Node.js v24.16.0
+undefined
+/Users/aditya/Projects/Arcuex/packages/insurance:
+[ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL] Command failed with exit code 1: tsx ../../apps/web/scripts/sprint3-local-acceptance.mts

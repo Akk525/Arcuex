@@ -1,0 +1,18 @@
+$ pnpm -r lint
+Scope: 8 of 9 workspace projects
+packages/chain lint$ eslint src --max-warnings=0
+packages/domain lint$ eslint src --max-warnings=0
+packages/chain lint: Done
+packages/domain lint: Done
+packages/onchain lint$ eslint src --max-warnings=0
+packages/persistence lint$ eslint src --max-warnings=0
+packages/quicknode lint$ eslint src --max-warnings=0
+packages/quicknode lint: Done
+packages/persistence lint: Done
+packages/onchain lint: Done
+packages/insurance lint$ eslint src --max-warnings=0
+packages/insurance lint: Done
+packages/agent-sdk lint$ eslint src --max-warnings=0
+packages/agent-sdk lint: Done
+apps/web lint$ eslint src --max-warnings=0
+apps/web lint: Done
