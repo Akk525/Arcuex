@@ -1,0 +1,51 @@
+PASS Real signed nonce authenticates policyholder via httpOnly cookie
+PASS Session cookie is HttpOnly and Secure
+PASS Real policy projection is eligible against the explicitly synthetic checkpoint
+PASS Fixture projection never claims live confirmation or links fake receipts
+PASS Browser labels fixture policy state honestly
+PASS Fixture page exposes no explorer receipt links
+PASS Process restart preserves checkpoint digest/deadline, policy state and authenticated session
+PASS Browser submission persists real linked claim/incident state
+PASS Server persists fixture consistency and explicit absence of real-world authentication
+PASS Successful verification leaves investigation open without coverage/payment authority
+PASS Policyholder cannot adjudicate through real API
+PASS Claimant browser has no approval controls
+PASS Real ops token exchange establishes authorized reviewer cookie session
+PASS Reviewer approval disabled until explicit contractual confirmation and rationale
+PASS Fully specified fixture becomes APPROVED with 1 USDC proposed payable and separate authority gate
+PASS Persisted decision contains reviewer identity, contractual rationale and frozen economics
+PASS Real investigation history retains reviewer decision
+PASS Real authenticated intake creates denied case
+PASS Real verifier executes 97a11f8f-e6ba-49af-a6fe-d6ef0ea298fc
+PASS Human denial persists a rejection and audit history without authorizing payment
+PASS Real authenticated intake creates missing case
+PASS Missing evidence remains REVIEW without payable
+PASS Real authenticated intake creates contradictory case
+PASS Real verifier executes f75c8ce6-bc24-4cec-b073-27e0a0f6d20a
+PASS Contradictory evidence cannot be bypassed by choosing prior successful verification
+PASS Real authenticated intake creates recoveries case
+PASS Real verifier executes 017da030-e6d5-4796-b1e6-e58c1ad42288
+PASS Unresolved recoveries prohibit approval and any payable amount
+PASS Real authenticated intake creates stale-evidence case
+PASS Real verifier executes b308d8cd-768e-4e3d-802b-677b444f796d
+PASS Reviewer action with stale evidence context cannot approve
+PASS Caller-selected reviewer fields do not escalate policyholder privileges
+PASS Already approved case rejects a repeated reviewer decision
+PASS Expired reviewer session is rejected by real authentication
+PASS Inconsistent fixture source fails closed with 503 and no live fallback
+PASS Stale reconciliation hides claim next step
+PASS Authority endpoint requires a separately provisioned credential
+PASS Separate authority session established without any financial signing key
+file:///Users/aditya/Projects/Arcuex/docs/working-notes/plan-b-sprint3/browser-acceptance.mjs:20
+    if (!ok) throw new Error(detail);
+                   ^
+
+Error: Synthetic settlement preparation remains blocked; no settlement or reimbursement recorded
+    at check (file:///Users/aditya/Projects/Arcuex/docs/working-notes/plan-b-sprint3/browser-acceptance.mjs:20:20)
+    at Module.run (file:///Users/aditya/Projects/Arcuex/docs/working-notes/plan-b-sprint3/browser-acceptance.mjs:447:5)
+    at async <anonymous> (/Users/aditya/Projects/Arcuex/apps/web/scripts/sprint41-local-acceptance.mts:96:3)
+
+Node.js v24.16.0
+undefined
+/Users/aditya/Projects/Arcuex/packages/onchain:
+[ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL] Command failed with exit code 1: tsx ../../apps/web/scripts/sprint41-local-acceptance.mts

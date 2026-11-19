@@ -1,5 +1,10 @@
 # Disposable Plan B hosted candidate prerequisites
 
+Sprint 4.1 adds the [explicit embedded fixture source and restart contract](plan-b-fixture-source.md).
+That runbook supersedes the original hosted fixture-source choice below and requires a separate
+project for fixture mode. The current user instruction requires a passed isolation gate and separate
+deployment authorization. No deployment or provisioning is authorized by these documents alone.
+
 Sprint 4 update: the user authorized disposable candidate deployment conditional on proven isolation.
 The source/checkpoint and fixture-labeling gates below remain unresolved, so no resources were
 provisioned or deployed. See the [dated decision and validation](../verification/plan-b-sprint4.md).

@@ -1,0 +1,40 @@
+PASS Real signed nonce authenticates policyholder via httpOnly cookie
+PASS Session cookie is HttpOnly and Secure
+PASS Real policy projection is eligible against the explicitly synthetic checkpoint
+PASS Fixture projection never claims live confirmation or links fake receipts
+PASS Browser labels fixture policy state honestly
+PASS Fixture page exposes no explorer receipt links
+PASS Process restart preserves checkpoint digest/deadline, policy state and authenticated session
+PASS Browser submission persists real linked claim/incident state
+PASS Server persists fixture consistency and explicit absence of real-world authentication
+PASS Successful verification leaves investigation open without coverage/payment authority
+PASS Policyholder cannot adjudicate through real API
+PASS Claimant browser has no approval controls
+PASS Real ops token exchange establishes authorized reviewer cookie session
+PASS Reviewer approval disabled until explicit contractual confirmation and rationale
+PASS Fully specified fixture becomes APPROVED with 1 USDC proposed payable and separate authority gate
+PASS Persisted decision contains reviewer identity, contractual rationale and frozen economics
+PASS Real investigation history retains reviewer decision
+PASS Real authenticated intake creates denied case
+PASS Real verifier executes 2e6eaf49-6b00-4323-bb4e-ac7838f056db
+PASS Human denial persists a rejection and audit history without authorizing payment
+PASS Real authenticated intake creates missing case
+PASS Missing evidence remains REVIEW without payable
+PASS Real authenticated intake creates contradictory case
+PASS Real verifier executes 8c495418-4c64-4534-9f09-a7d8abb0f343
+PASS Contradictory evidence cannot be bypassed by choosing prior successful verification
+PASS Real authenticated intake creates recoveries case
+PASS Real verifier executes ae66481f-c683-4629-ac7a-e195878b8c89
+PASS Unresolved recoveries prohibit approval and any payable amount
+PASS Real authenticated intake creates stale-evidence case
+PASS Real verifier executes 29efb509-da74-4445-9ae6-0b12aa7ad0d8
+PASS Reviewer action with stale evidence context cannot approve
+PASS Caller-selected reviewer fields do not escalate policyholder privileges
+PASS Already approved case rejects a repeated reviewer decision
+PASS Expired reviewer session is rejected by real authentication
+PASS Inconsistent fixture source fails closed with 503 and no live fallback
+PASS Stale reconciliation hides claim next step
+PASS Authority endpoint requires a separately provisioned credential
+PASS Separate authority session established without any financial signing key
+PASS Synthetic settlement preparation remains blocked; no settlement or reimbursement recorded
+PASS Disposable database contains no paid or settlement-pending claims

@@ -1,0 +1,6 @@
+PASS explicit initializer creates the candidate database, marker, digest and fixed checkpoint
+PASS reseed refuses to overwrite the initialized candidate; original database unchanged
+PASS live RPC configuration is rejected; original database unchanged
+PASS Plan A volume identity is rejected; original database unchanged
+PASS signing credentials are rejected; original database unchanged
+PASS foreign nonempty volume is rejected without marker overwrite

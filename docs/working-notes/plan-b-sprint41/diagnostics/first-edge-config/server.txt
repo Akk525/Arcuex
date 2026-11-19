@@ -1,0 +1,6 @@
+   ▲ Next.js 15.5.29
+   - Local:        http://localhost:3053
+   - Network:      http://localhost:3053
+
+ ✓ Starting...
+ ✓ Ready in 520ms

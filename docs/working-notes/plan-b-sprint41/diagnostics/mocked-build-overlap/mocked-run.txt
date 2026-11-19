@@ -1,0 +1,8 @@
+file:///Users/aditya/Projects/Arcuex/docs/working-notes/plan-b-sprint41/run-mocked-regressions.mjs:36
+    if (app.exitCode !== null) throw new Error('Mock UI app exited');
+                                     ^
+
+Error: Mock UI app exited
+    at file:///Users/aditya/Projects/Arcuex/docs/working-notes/plan-b-sprint41/run-mocked-regressions.mjs:36:38
+
+Node.js v24.16.0

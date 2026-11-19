@@ -1,0 +1,264 @@
+{
+  "completed": false,
+  "boundary": "Pinned embedded synthetic fixture; no fixture RPC and no live blockchain confirmation",
+  "source": {
+    "id": "candidate-935fa07c-0548-4aa3-b731-9ea064deb39c",
+    "digest": "91d67175ef510eef1035c27eaa61ca0cfa9320021de98ac345b9941070a4142c",
+    "checkpoint": {
+      "sequence": 1,
+      "createdAt": 1795054889,
+      "validUntil": 1795055189
+    }
+  },
+  "restarts": 1,
+  "migrations": [
+    {
+      "id": "001_init.sql"
+    },
+    {
+      "id": "002_onchain.sql"
+    },
+    {
+      "id": "003_streams_inbox.sql"
+    },
+    {
+      "id": "004_procurement.sql"
+    },
+    {
+      "id": "005_procurement_immutability.sql"
+    },
+    {
+      "id": "004_claims_cases.sql"
+    },
+    {
+      "id": "005_claims_case_binding.sql"
+    },
+    {
+      "id": "006_claims_auth_sessions.sql"
+    },
+    {
+      "id": "007_procurement_claims_integration.sql"
+    },
+    {
+      "id": "008_shared_wallet_session_scope.sql"
+    },
+    {
+      "id": "009_launch_security.sql"
+    },
+    {
+      "id": "010_policy_reconciliation.sql"
+    },
+    {
+      "id": "011_claim_verifications.sql"
+    }
+  ],
+  "state": {
+    "claims": [
+      {
+        "id": "030e8917-a0c6-49f7-9f07-3c1434fd45db",
+        "status": "APPROVED",
+        "settlement_authorization": "pending_authority",
+        "payable_micros": "1000000"
+      },
+      {
+        "id": "97a11f8f-e6ba-49af-a6fe-d6ef0ea298fc",
+        "status": "DENIED",
+        "settlement_authorization": "rejected",
+        "payable_micros": null
+      },
+      {
+        "id": "3acf98d9-c5db-430c-8975-02bb10168c18",
+        "status": "REVIEW",
+        "settlement_authorization": "none",
+        "payable_micros": null
+      },
+      {
+        "id": "f75c8ce6-bc24-4cec-b073-27e0a0f6d20a",
+        "status": "REVIEW",
+        "settlement_authorization": "none",
+        "payable_micros": null
+      },
+      {
+        "id": "017da030-e6d5-4796-b1e6-e58c1ad42288",
+        "status": "REVIEW",
+        "settlement_authorization": "none",
+        "payable_micros": null
+      },
+      {
+        "id": "b308d8cd-768e-4e3d-802b-677b444f796d",
+        "status": "REVIEW",
+        "settlement_authorization": "none",
+        "payable_micros": null
+      }
+    ],
+    "verifications": {
+      "count": 6
+    },
+    "integrity": [
+      {
+        "integrity_check": "ok"
+      }
+    ],
+    "foreignKeyCheck": []
+  },
+  "runtimeCredentialNames": [
+    "ARCUEX_RATE_LIMIT_SECRET",
+    "CLAIMS_REVIEWER_API_TOKEN",
+    "CLAIMS_AUTHORITY_API_TOKEN",
+    "ARCUEX_ACCEPTANCE_GATE_TOKEN"
+  ],
+  "results": [
+    {
+      "status": "PASS",
+      "detail": "Real signed nonce authenticates policyholder via httpOnly cookie"
+    },
+    {
+      "status": "PASS",
+      "detail": "Session cookie is HttpOnly and Secure"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real policy projection is eligible against the explicitly synthetic checkpoint"
+    },
+    {
+      "status": "PASS",
+      "detail": "Fixture projection never claims live confirmation or links fake receipts"
+    },
+    {
+      "status": "PASS",
+      "detail": "Browser labels fixture policy state honestly"
+    },
+    {
+      "status": "PASS",
+      "detail": "Fixture page exposes no explorer receipt links"
+    },
+    {
+      "status": "PASS",
+      "detail": "Process restart preserves checkpoint digest/deadline, policy state and authenticated session"
+    },
+    {
+      "status": "PASS",
+      "detail": "Browser submission persists real linked claim/incident state"
+    },
+    {
+      "status": "PASS",
+      "detail": "Server persists fixture consistency and explicit absence of real-world authentication"
+    },
+    {
+      "status": "PASS",
+      "detail": "Successful verification leaves investigation open without coverage/payment authority"
+    },
+    {
+      "status": "PASS",
+      "detail": "Policyholder cannot adjudicate through real API"
+    },
+    {
+      "status": "PASS",
+      "detail": "Claimant browser has no approval controls"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real ops token exchange establishes authorized reviewer cookie session"
+    },
+    {
+      "status": "PASS",
+      "detail": "Reviewer approval disabled until explicit contractual confirmation and rationale"
+    },
+    {
+      "status": "PASS",
+      "detail": "Fully specified fixture becomes APPROVED with 1 USDC proposed payable and separate authority gate"
+    },
+    {
+      "status": "PASS",
+      "detail": "Persisted decision contains reviewer identity, contractual rationale and frozen economics"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real investigation history retains reviewer decision"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real authenticated intake creates denied case"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real verifier executes 97a11f8f-e6ba-49af-a6fe-d6ef0ea298fc"
+    },
+    {
+      "status": "PASS",
+      "detail": "Human denial persists a rejection and audit history without authorizing payment"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real authenticated intake creates missing case"
+    },
+    {
+      "status": "PASS",
+      "detail": "Missing evidence remains REVIEW without payable"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real authenticated intake creates contradictory case"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real verifier executes f75c8ce6-bc24-4cec-b073-27e0a0f6d20a"
+    },
+    {
+      "status": "PASS",
+      "detail": "Contradictory evidence cannot be bypassed by choosing prior successful verification"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real authenticated intake creates recoveries case"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real verifier executes 017da030-e6d5-4796-b1e6-e58c1ad42288"
+    },
+    {
+      "status": "PASS",
+      "detail": "Unresolved recoveries prohibit approval and any payable amount"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real authenticated intake creates stale-evidence case"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real verifier executes b308d8cd-768e-4e3d-802b-677b444f796d"
+    },
+    {
+      "status": "PASS",
+      "detail": "Reviewer action with stale evidence context cannot approve"
+    },
+    {
+      "status": "PASS",
+      "detail": "Caller-selected reviewer fields do not escalate policyholder privileges"
+    },
+    {
+      "status": "PASS",
+      "detail": "Already approved case rejects a repeated reviewer decision"
+    },
+    {
+      "status": "PASS",
+      "detail": "Expired reviewer session is rejected by real authentication"
+    },
+    {
+      "status": "PASS",
+      "detail": "Inconsistent fixture source fails closed with 503 and no live fallback"
+    },
+    {
+      "status": "PASS",
+      "detail": "Stale reconciliation hides claim next step"
+    },
+    {
+      "status": "PASS",
+      "detail": "Authority endpoint requires a separately provisioned credential"
+    },
+    {
+      "status": "PASS",
+      "detail": "Separate authority session established without any financial signing key"
+    }
+  ]
+}

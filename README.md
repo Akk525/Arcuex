@@ -183,3 +183,9 @@ Plan B Sprint 4 integrates Sprint 3 into an isolated release-candidate branch an
 local journey, migration constraints and read-only Arc pool controls. The hosted gate remains closed
 on fixture provenance/checkpoint requirements; no Railway candidate was deployed. See the
 [Sprint 4 decision and evidence](docs/verification/plan-b-sprint4.md).
+
+Sprint 4.1 implements explicit embedded fixture source selection, pinned checkpoints that survive
+restart without renewal, and fixture-aware policy/claim labels. See the
+[implementation and validation](docs/verification/plan-b-sprint41.md) and
+[fixture operating boundary](docs/deployments/plan-b-fixture-source.md). Local acceptance passed;
+hosted deployment remains gated on actual platform/image isolation and separate authorization.

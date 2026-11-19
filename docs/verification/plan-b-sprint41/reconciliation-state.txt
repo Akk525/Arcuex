@@ -1,0 +1,15 @@
+✔ fixture bootstrap refuses an uninitialized volume without writing any files (11.346292ms)
+✔ wrong volume identity is rejected before backups, marker writes or application startup (16.205375ms)
+✔ fixture supervisor refuses a live worker before launching children (49.8845ms)
+✔ bounded confirmed backfill is contiguous across a crash/redelivery (1.78275ms)
+✔ finished history polls overlap with two descendant confirmations (0.19975ms)
+✔ cursor corruption, wrong pool/depth and regressed heads fail closed (0.492666ms)
+✔ cursor snapshot is durable, parseable and identity checked after reopening (11.379417ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 146.284125

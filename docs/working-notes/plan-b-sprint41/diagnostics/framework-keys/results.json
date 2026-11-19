@@ -1,0 +1,74 @@
+{
+  "completed": false,
+  "boundary": "Pinned embedded synthetic fixture; no fixture RPC and no live blockchain confirmation",
+  "source": {
+    "id": "candidate-a379f803-16b4-451b-88b3-3783592fb78c",
+    "digest": "3d4a885b0fe2bac9cbd5f187e545a7137ea47435d8e5d833547093440a59e4fb",
+    "checkpoint": {
+      "sequence": 1,
+      "createdAt": 1795054787,
+      "validUntil": 1795055087
+    }
+  },
+  "restarts": 0,
+  "migrations": [
+    {
+      "id": "001_init.sql"
+    },
+    {
+      "id": "002_onchain.sql"
+    },
+    {
+      "id": "003_streams_inbox.sql"
+    },
+    {
+      "id": "004_procurement.sql"
+    },
+    {
+      "id": "005_procurement_immutability.sql"
+    },
+    {
+      "id": "004_claims_cases.sql"
+    },
+    {
+      "id": "005_claims_case_binding.sql"
+    },
+    {
+      "id": "006_claims_auth_sessions.sql"
+    },
+    {
+      "id": "007_procurement_claims_integration.sql"
+    },
+    {
+      "id": "008_shared_wallet_session_scope.sql"
+    },
+    {
+      "id": "009_launch_security.sql"
+    },
+    {
+      "id": "010_policy_reconciliation.sql"
+    },
+    {
+      "id": "011_claim_verifications.sql"
+    }
+  ],
+  "state": {
+    "claims": [],
+    "verifications": {
+      "count": 0
+    },
+    "integrity": [
+      {
+        "integrity_check": "ok"
+      }
+    ],
+    "foreignKeyCheck": []
+  },
+  "runtimeCredentialNames": [
+    "ARCUEX_RATE_LIMIT_SECRET",
+    "CLAIMS_REVIEWER_API_TOKEN",
+    "CLAIMS_AUTHORITY_API_TOKEN",
+    "ARCUEX_ACCEPTANCE_GATE_TOKEN"
+  ],
+  "results": []
+}
