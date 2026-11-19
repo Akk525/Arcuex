@@ -1,3 +1,5 @@
+import { hasArcReceiptHash } from './settlement-presentation';
+
 /** Client-side claims API response discrimination (auth vs empty vs malformed). */
 
 export const CLAIMS_SIGN_IN_REQUIRED =
@@ -27,6 +29,7 @@ export type ClaimsCaseListRow = {
   id: string;
   status: string;
   policyId: string;
+  confirmedSettlementReceipt?: string;
   syntheticDemo: boolean;
   payable: { usdc: string | null };
   reviewReasonCode: string | null;
@@ -60,6 +63,9 @@ export function parseClaimsCaseListPayload(json: unknown): ClaimsCaseListRow[] |
     const synthetic = raw.labels.synthetic;
     if (!(synthetic === null || typeof synthetic === 'string')) return null;
     rows.push({
+      ...(hasArcReceiptHash(raw.confirmedSettlementReceipt) && !raw.syntheticDemo
+        ? { confirmedSettlementReceipt: raw.confirmedSettlementReceipt }
+        : {}),
       id: raw.id,
       status: raw.status,
       policyId: raw.policyId,
@@ -142,6 +148,7 @@ export function parseClaimCaseDetailPayload(json: unknown): {
   verifications: unknown[];
   case: Record<string, unknown>;
   timeline: unknown[];
+  confirmedSettlementReceipt?: string;
   evidenceManifests: unknown[];
 } | null {
   if (!isRecord(json) || !isRecord(json.case)) return null;
@@ -154,6 +161,9 @@ export function parseClaimCaseDetailPayload(json: unknown): {
     linkedIncident: isRecord(json.linkedIncident) ? json.linkedIncident : undefined,
     verifications: Array.isArray(json.verifications) ? json.verifications : [],
     case: json.case,
+    ...(hasArcReceiptHash(json.confirmedSettlementReceipt)
+      ? { confirmedSettlementReceipt: json.confirmedSettlementReceipt }
+      : {}),
     timeline: json.timeline,
     evidenceManifests: json.evidenceManifests,
   };

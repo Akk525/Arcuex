@@ -450,7 +450,7 @@ export function ClaimsInvestigation({
                   review may continue.
                 </p>
               ) : null}
-              <fieldset className="space-y-2 rounded border p-3">
+              <fieldset className="min-w-0 space-y-2 rounded border p-3">
                 <legend className="text-sm font-semibold">Submit additional proof</legend>
                 <label className="block text-sm">
                   Evidence request
@@ -458,7 +458,7 @@ export function ClaimsInvestigation({
                     aria-label="Evidence request"
                     value={requestId}
                     onChange={(e) => setRequestId(e.target.value)}
-                    className="ml-2 rounded border"
+                    className="mt-1 block w-full min-w-0 max-w-full rounded border p-2"
                   >
                     <option value="">Additional proof (no request)</option>
                     {view.entries
@@ -476,7 +476,7 @@ export function ClaimsInvestigation({
                     aria-label="Proof filename"
                     value={filename}
                     onChange={(e) => setFilename(e.target.value)}
-                    className="ml-2 rounded border"
+                    className="mt-1 block w-full min-w-0 max-w-full rounded border p-2"
                     maxLength={120}
                   />
                 </label>
@@ -486,7 +486,7 @@ export function ClaimsInvestigation({
                     aria-label="Declared proof source"
                     value={source}
                     onChange={(e) => setSource(e.target.value)}
-                    className="ml-2 rounded border"
+                    className="mt-1 block w-full min-w-0 max-w-full rounded border p-2"
                     maxLength={240}
                   />
                 </label>
@@ -504,6 +504,7 @@ export function ClaimsInvestigation({
                   Attach UTF-8 text or JSON (16 KB maximum)
                   <input
                     aria-label="Attach proof file"
+                    className="mt-1 block w-full min-w-0 max-w-full text-sm"
                     type="file"
                     accept="text/plain,application/json,.txt,.json"
                     onChange={async (e) => {

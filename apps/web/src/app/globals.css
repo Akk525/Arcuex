@@ -117,3 +117,22 @@ body {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* Keep case evidence and controls inside the viewport, including native file and select inputs. */
+.claim-case :where(section, article, fieldset, li, dd, details, pre) {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.claim-case :where(button, input:not([type='checkbox']), select, summary) {
+  min-block-size: 2.75rem;
+  max-inline-size: 100%;
+}
+
+.claim-case summary {
+  padding-block: 0.625rem;
+}
+
+.claim-case input[type='file']::file-selector-button {
+  min-block-size: 2.75rem;
+}

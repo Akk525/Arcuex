@@ -1,3 +1,5 @@
+import { confirmedClaimReceipt } from '@/lib/server/claims-settlement-projection';
+import { getRuntimeConfig } from '@/lib/server/runtime-config';
 import { withApiSecurity } from '@/lib/server/api-security';
 import {
   attachEvidenceManifest,
@@ -11,7 +13,7 @@ import { reconcile } from '@/lib/server/procurement-chain';
 import { sameIndependentLiquidationProfile } from '@arcuex/domain';
 import { configuredIndependentLiquidation } from '@/lib/server/independent-evidence';
 import { NextResponse } from 'next/server';
-import { getRepo } from '@/lib/server/db';
+import { getDb, getRepo } from '@/lib/server/db';
 import { authenticateClaimsRequest } from '@/lib/server/claims-auth';
 import { serializeClaimsCase } from '@/lib/claims/serialize-case';
 
@@ -26,10 +28,16 @@ async function GETHandler(request: Request) {
   const url = new URL(request.url);
   const status = url.searchParams.get('status') ?? undefined;
   const repo = getRepo();
+  const chainSource = getRuntimeConfig().chainSource;
+  const db = getDb();
   const cases = listClaimsCases(repo, { limit: 500, status })
     .filter((c) => canAccessClaimsPolicy(repo, auth.principal, c.policyId))
     .slice(0, 50)
-    .map(serializeClaimsCase);
+    .map((claim) => ({
+      ...serializeClaimsCase(claim),
+      confirmedSettlementReceipt: confirmedClaimReceipt(db, chainSource, claim),
+    }))
+    .filter((claim) => status !== 'PAID' || claim.confirmedSettlementReceipt);
   return NextResponse.json({
     dataClass: 'claims_case',
     notice:

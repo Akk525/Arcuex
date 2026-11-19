@@ -1,3 +1,4 @@
+import { confirmedClaimReceipt } from '@/lib/server/claims-settlement-projection';
 import { recheckIndependentEvidence } from '@/lib/server/independent-evidence';
 import { withApiSecurity } from '@/lib/server/api-security';
 import { prepareClaimsTransaction, verifyClaimsSettlement } from '@/lib/server/claims-chain';
@@ -41,16 +42,18 @@ async function GETHandler(request: Request, ctx: Ctx) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const timeline = listClaimsCaseTimeline(repo, id).map(serializeCaseEvent);
   const manifests = repo.listEvidenceManifests(id);
+  const chainSource = getRuntimeConfig().chainSource;
   return NextResponse.json({
     dataClass: 'claims_case',
     source:
-      getRuntimeConfig().chainSource === 'fixture'
+      chainSource === 'fixture'
         ? readFixture(getDb(), getRuntimeConfig()).source
         : { mode: 'arc-testnet' },
     ...(c.syntheticDemo ? { fixtureCatalog: CLAIM_FIXTURE } : {}),
     linkedIncident: c.incidentId ? repo.getIncident(c.incidentId) : null,
     principalRole: auth.principal.role,
     case: serializeClaimsCase(c),
+    confirmedSettlementReceipt: confirmedClaimReceipt(getDb(), chainSource, c),
     timeline,
     evidenceManifests: manifests,
     verifications: listClaimVerifications(repo, id, auth.principal),

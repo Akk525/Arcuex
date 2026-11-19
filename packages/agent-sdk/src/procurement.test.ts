@@ -298,3 +298,33 @@ it('evaluates delegated bind authority at the chain block, including revocation 
   expect(hasProcurementBindAuthority(service.store, policy, now - 1)).toBe(true);
   expect(hasProcurementBindAuthority(service.store, policy, now)).toBe(false);
 });
+
+it('projects active, expired, revoked and missing-scope grants from server records', () => {
+  const agent = register();
+  const grant = service.delegate(who, {
+    idempotencyKey: 'status-grant',
+    agentId: agent.id,
+    premiumCapMicros: '100000',
+    limitCapMicros: '10000000',
+    expiresAt: now + 60,
+  });
+  expect(service.list(who).delegations[0]).toMatchObject({ validity: 'active', checkedAt: now });
+  expect(service.list(agentWho).delegations[0]).toMatchObject({ validity: 'active' });
+  expect(service.list('other').delegations).toEqual([]);
+  expect(() => service.authority(who, 'missing')).toThrow('Delegation not found');
+  now += 60;
+  expect(service.list(who).delegations[0]).toMatchObject({ validity: 'expired' });
+  expect(() => quote(agent.id, 'expired-projection', agentWho, grant.id)).toThrow('expired');
+  service.revoke(who, grant.id);
+  expect(service.list(who).delegations[0]).toMatchObject({ validity: 'revoked', revokedAt: now });
+  service.store.insert('delegation', 'missing-scope', who, {
+    ...grant,
+    id: 'missing-scope',
+    agentId: 'missing',
+    expiresAt: now + 60,
+  });
+  expect(service.list(who).delegations.find((row) => row.id === 'missing-scope')).toMatchObject({
+    validity: 'unavailable',
+    limitation: 'missing_scope',
+  });
+});

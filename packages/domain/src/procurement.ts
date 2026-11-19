@@ -182,3 +182,12 @@ export type ProcurementPolicy = ProcurementQuote & {
   bindTx: string | null;
   confirmedAt: number | null;
 };
+
+export type ProcurementDelegationView = ProcurementDelegation & {
+  revoked: boolean;
+  validity: 'active' | 'expired' | 'revoked' | 'unavailable';
+  limitation: 'missing_scope' | 'scope_mismatch' | 'budget_exhausted' | null;
+  checkedAt: number;
+  revokedAt: number | null;
+  remainingPremiumMicros: string;
+};

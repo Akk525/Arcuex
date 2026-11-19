@@ -217,9 +217,9 @@ describe('shared read APIs', () => {
     expect((await (await read()).json()).settlements).toEqual([
       {
         caseId,
-        state: 'PAID',
-        receiptRef: transactionHash,
-        explorerUrl: `https://explorer.testnet.arc.io/tx/${transactionHash}`,
+        state: 'Payment unconfirmed',
+        receiptRef: null,
+        explorerUrl: null,
       },
     ]);
 

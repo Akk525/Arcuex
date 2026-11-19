@@ -10,6 +10,7 @@ import {
   type IndependentLiquidationProfile,
   type ProcurementAgent,
   type ProcurementDelegation,
+  type ProcurementDelegationView,
   type ProcurementPolicy,
   type ProcurementQuote,
 } from '@arcuex/domain';
@@ -541,6 +542,49 @@ export class ProcurementService {
     );
     return p;
   }
+  private delegationView(d: ProcurementDelegation, checkedAt: number): ProcurementDelegationView {
+    const agent = this.store.get<ProcurementAgent>('agent', d.agentId);
+    const revocation = this.store.get<{ at: number }>('revocation', d.id);
+    const reserved = this.store
+      .policies(d.owner)
+      .filter((p) => p.delegationId === d.id)
+      .reduce((sum, p) => sum + BigInt(p.terms.premiumMicros), 0n);
+    const remaining = BigInt(d.premiumCapMicros) - reserved;
+    const minimumLimit = BigInt(PROCUREMENT_OFFERINGS[0].limitsMicros[0]);
+    const scopeMatches =
+      agent?.owner === d.owner &&
+      agent.exposure.chainId === 5042002 &&
+      agent.exposure.protocol === PRODUCT.protocol &&
+      d.productCode === PRODUCT.code &&
+      d.position === agent.exposure.position &&
+      isAddress(d.beneficiary) &&
+      BigInt(d.limitCapMicros) >= minimumLimit &&
+      BigInt(agent.exposure.notionalMicros) >= minimumLimit;
+    const limitation = !agent
+      ? 'missing_scope'
+      : !scopeMatches
+        ? 'scope_mismatch'
+        : remaining < minimumLimit / 100n
+          ? 'budget_exhausted'
+          : null;
+    const validity = revocation
+      ? 'revoked'
+      : d.expiresAt <= checkedAt
+        ? 'expired'
+        : limitation === 'missing_scope' || limitation === 'scope_mismatch'
+          ? 'unavailable'
+          : 'active';
+    return {
+      ...d,
+      checkedAt,
+      validity,
+      limitation,
+      revoked: Boolean(revocation),
+      revokedAt: revocation?.at ?? null,
+      remainingPremiumMicros: remaining.toString(),
+    };
+  }
+
   authority(actor: string, id: unknown) {
     const d = this.store.get<ProcurementDelegation>('delegation', text(id, 'delegationId'));
     requireThat(d, 'NOT_FOUND', 'Delegation not found', 404);
@@ -551,16 +595,18 @@ export class ProcurementService {
       'Delegation is not yours',
       403,
     );
-    const reserved = this.store
-      .policies(d.owner)
-      .filter((p) => p.delegationId === d.id)
-      .reduce((sum, p) => sum + BigInt(p.terms.premiumMicros), 0n);
+    const view = this.delegationView(d, this.now());
     return {
       delegation: d,
-      reservedPremiumMicros: reserved.toString(),
-      remainingPremiumMicros: (BigInt(d.premiumCapMicros) - reserved).toString(),
-      revoked: Boolean(this.store.get('revocation', d.id)),
-      expired: d.expiresAt <= this.now(),
+      reservedPremiumMicros: (
+        BigInt(d.premiumCapMicros) - BigInt(view.remainingPremiumMicros)
+      ).toString(),
+      remainingPremiumMicros: view.remainingPremiumMicros,
+      revoked: view.revoked,
+      expired: d.expiresAt <= view.checkedAt,
+      validity: view.validity,
+      limitation: view.limitation,
+      checkedAt: view.checkedAt,
       enforcement: 'backend-only',
     };
   }
@@ -596,12 +642,10 @@ export class ProcurementService {
         "SELECT id FROM procurement_policies WHERE owner=? OR json_extract(payload, '$.payer')=?",
       )
       .all(actor, actor) as { id: string }[];
+    const checkedAt = this.now();
     return {
       agents,
-      delegations: delegations.map((d) => ({
-        ...d,
-        revoked: Boolean(this.store.get('revocation', d.id)),
-      })),
+      delegations: delegations.map((d) => this.delegationView(d, checkedAt)),
       policies: rows.map((r) => this.store.policy(r.id)!),
     };
   }

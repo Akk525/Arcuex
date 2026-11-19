@@ -6,6 +6,7 @@ import { Panel } from '@/components/panel';
 import { ClaimsInvestigation } from './claims-investigation';
 import { CaseStatusBadge } from '@/components/claims/case-status-badge';
 import { StatusBadge } from '@/components/status-badge';
+import { displayClaimStatus, settlementPresentation } from '@/lib/claims/settlement-presentation';
 import { claimsFetch } from '@/lib/claims/claims-api';
 import {
   CLAIMS_SIGN_IN_REQUIRED,
@@ -22,6 +23,7 @@ type DetailResponse = {
     checkpoint?: { sequence: number; createdAt: number; validUntil: number };
   };
   principalRole?: string;
+  confirmedSettlementReceipt?: string;
   fixtureCatalog?: { reference: string; digest: string; raw: string };
   linkedIncident?: { id: string; observedAt: string; observedEventRef?: string };
   verifications?: Array<{
@@ -242,24 +244,37 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   };
 
   const canReview = ['INVESTIGATING', 'REVIEW'].includes(c.status);
-  const receipt = data.timeline.find((e) => e.reasonCode === 'SETTLEMENT_RECONCILED')?.payload
-    ?.receiptRef;
-  const nextSteps: Record<string, string> = {
-    COLLECTING_EVIDENCE:
-      'Attach the supported fixture and run server verification. Missing evidence needs reviewer attention.',
-    INVESTIGATING:
-      'Verification does not decide coverage. A reviewer must check evidence, policy applicability, loss and recoveries.',
-    REVIEW:
-      'The case needs more information or reviewer investigation. No payment is authorized. Read the findings below before trying again.',
-    APPROVED:
-      'Human review is complete. The amount is proposed for settlement; it has not been reimbursed. Separate authority and a verified receipt are still required. Synthetic settlement restrictions remain in force.',
-    DENIED: 'The reviewer denied this claim. Inspect the reason and decision history.',
-    SETTLEMENT_PENDING:
-      'Settlement preparation is authorized. Payment is not confirmed; a matching verified receipt is required.',
-    SETTLEMENT_FAILED:
-      'Settlement did not complete. An authority must investigate; do not assume reimbursement.',
-    PAID: 'The recorded settlement was reconciled against a receipt. Inspect its reference and the policy history.',
-  };
+  const fixtureBlocked =
+    data.source?.mode === 'fixture' ||
+    c.syntheticDemo ||
+    c.evidenceAuthenticity === 'synthetic_fixture';
+  const receipt = fixtureBlocked ? null : data.confirmedSettlementReceipt;
+  const canPrepare =
+    data.principalRole === 'authority' &&
+    !fixtureBlocked &&
+    c.evidenceAuthenticity === 'verified_independent' &&
+    Boolean(independentRecord) &&
+    ['APPROVED', 'SETTLEMENT_FAILED'].includes(c.status) &&
+    Boolean(
+      c.payable.micros &&
+      c.payable.micros !== '0' &&
+      c.evidenceRoot &&
+      c.payoutTo &&
+      c.lossKey &&
+      c.adjudicationBindingJson,
+    );
+  const settlement = settlementPresentation({
+    status: c.status,
+    blocked: fixtureBlocked,
+    confirmedReceipt: receipt,
+    canPrepare,
+  });
+  const decision =
+    c.status === 'DENIED'
+      ? 'Coverage denied'
+      : ['APPROVED', 'SETTLEMENT_PENDING', 'SETTLEMENT_FAILED', 'PAID'].includes(c.status)
+        ? 'Coverage approved by a human reviewer'
+        : 'Human review pending';
   const reviewHelp: Record<string, string> = {
     INCOMPLETE_EVIDENCE:
       'Required evidence is missing. Add supported evidence and request human review.',
@@ -278,20 +293,62 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   };
 
   return (
-    <div className="space-y-4">
-      <nav className="flex gap-4 text-sm">
-        <Link className="underline" href="/claims">
+    <div className="claim-case min-w-0 space-y-4 [overflow-wrap:anywhere]">
+      <nav aria-label="Claim navigation" className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <Link className="inline-flex min-h-11 items-center underline" href="/claims">
           All claims
         </Link>
-        <Link className="underline" href={`/policies/${c.policyId}`}>
+        <Link
+          className="inline-flex min-h-11 items-center underline"
+          href={`/policies/${c.policyId}`}
+        >
           Linked policy
         </Link>
         {['reviewer', 'authority'].includes(data.principalRole ?? '') && (
-          <Link className="underline" href="/claims/review">
+          <Link className="inline-flex min-h-11 items-center underline" href="/claims/review">
             Review queue
           </Link>
         )}
       </nav>
+      <Panel title="Decision and payment">
+        <div role="status" className="space-y-1 text-sm">
+          <p className="font-semibold">{decision}</p>
+          <p className="font-semibold">{settlement.label}</p>
+          <p>{settlement.action}</p>
+          {fixtureBlocked && c.status === 'DENIED' && (
+            <p>Synthetic fixture financial restrictions apply.</p>
+          )}
+          {receipt && (
+            <a
+              className="inline-flex min-h-11 items-center underline"
+              href={`https://explorer.testnet.arc.io/tx/${receipt}`}
+            >
+              View verified settlement receipt
+            </a>
+          )}
+        </div>
+        {c.status === 'REVIEW' && c.reviewReasonCode && reviewHelp[c.reviewReasonCode] && (
+          <p className="mt-2 text-sm">{reviewHelp[c.reviewReasonCode]}</p>
+        )}
+        {notice && (
+          <p role="status" className="mt-2 text-sm">
+            {notice}
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="mt-2 text-rose-700">
+            {error}
+          </p>
+        )}
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => void refresh()}
+          className="mt-2 rounded-md border px-3 py-1.5 text-xs"
+        >
+          Reload claim and findings
+        </button>
+      </Panel>
       {c.syntheticDemo ? (
         <ClaimsInvestigation
           caseId={caseId}
@@ -314,42 +371,11 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
           </p>
         </Panel>
       )}
-      <Panel title="Next step">
-        <p role="status" className="text-sm">
-          {nextSteps[c.status] ?? 'Continue the claim investigation.'}
-        </p>
-        {c.status === 'REVIEW' && c.reviewReasonCode && reviewHelp[c.reviewReasonCode] && (
-          <p className="mt-2 text-sm">{reviewHelp[c.reviewReasonCode]}</p>
-        )}
-        <p className="mt-2 text-xs">
-          {receipt
-            ? `Verified settlement receipt: ${receipt}`
-            : 'No verified settlement receipt. Approval is not reimbursement.'}
-        </p>
-        {notice && (
-          <p role="status" className="mt-2 text-sm">
-            {notice}
-          </p>
-        )}
-        {error && (
-          <p role="alert" className="mt-2 text-rose-700">
-            {error}
-          </p>
-        )}
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => void refresh()}
-          className="mt-2 rounded-md border px-3 py-1.5 text-xs"
-        >
-          Reload claim and findings
-        </button>
-      </Panel>
       <Panel
         title={`Case ${c.id.slice(0, 8)}…`}
         action={
           <div className="flex flex-wrap gap-2">
-            <CaseStatusBadge status={c.status} />
+            <CaseStatusBadge status={c.status} confirmedReceipt={receipt} />
             {c.syntheticDemo ? <StatusBadge label="SYNTHETIC" tone="warn" /> : null}
           </div>
         }
@@ -403,14 +429,24 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
               Coverage determination: <strong>{c.coverageDetermination}</strong>
             </li>
             <li>
-              Settlement authorization: <strong>{c.settlementAuthorization}</strong>
+              Settlement status: <strong>{settlement.label}</strong>
             </li>
-            <li>Assessed gross loss (synthetic): {c.verifiedLoss.usdc ?? '—'} USDC</li>
+            <li>
+              Assessed gross loss{c.syntheticDemo ? ' (synthetic)' : ''}:{' '}
+              {c.verifiedLoss.usdc ?? '—'} USDC
+            </li>
             <li>Policy deductible: {c.deductible?.usdc ?? '—'} USDC</li>
             <li>Prior compensation: {c.priorCompensation?.usdc ?? '—'} USDC</li>
             <li>Coverage limit: {c.lossCap?.usdc ?? '—'} USDC</li>
             <li>Recoveries: {c.recoveries.usdc ?? 'unknown / REVIEW'}</li>
-            <li>Proposed settlement amount: {c.payable.usdc ?? '—'} USDC</li>
+            <li>
+              {fixtureBlocked
+                ? 'Illustrative amount'
+                : receipt
+                  ? 'Reimbursed amount'
+                  : 'Proposed settlement amount'}
+              : {c.payable.usdc ?? '—'} USDC
+            </li>
             {c.status === 'REVIEW' && c.reviewReasonCode ? (
               <li>Review reason: {c.reviewReasonCode}</li>
             ) : null}
@@ -491,7 +527,8 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
           {data.timeline.map((e) => (
             <li key={e.id} className="border-l-2 border-zinc-200 pl-3">
               <div className="font-medium">
-                {e.fromStatus} → {e.toStatus}
+                {displayClaimStatus(e.fromStatus, receipt)} →{' '}
+                {displayClaimStatus(e.toStatus, receipt)}
               </div>
               <div className="text-xs text-zinc-500">
                 {e.reasonCode} · {e.actor} · {new Date(e.createdAt).toLocaleString()}
@@ -524,12 +561,13 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
                 ? `Verified gross loss ${asUsdc(independentLoss.grossLossMicros)} USDC, recoveries ${asUsdc(independentLoss.recoveriesMicros)} USDC, prior compensation ${asUsdc(independentLoss.priorCompensationMicros)} USDC. Policy limits and deductible apply.`
                 : 'A current independent verification is required for approval.'}
           </p>
-          <label className="mb-2 block text-sm">
+          <label className="mb-2 flex min-h-11 items-start gap-2 text-sm">
             <input
+              className="mt-1 shrink-0"
               type="checkbox"
               checked={reviewConfirmed}
               onChange={(e) => setReviewConfirmed(e.target.checked)}
-            />{' '}
+            />
             {c.syntheticDemo
               ? 'I reviewed event applicability and resolved all policy exclusions for this synthetic scenario.'
               : 'I reviewed event applicability and resolved all policy exclusions for the verified incident.'}
@@ -652,15 +690,7 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
           {data.principalRole === 'authority' && (
             <button
               type="button"
-              disabled={
-                pending ||
-                c.syntheticDemo ||
-                !['APPROVED', 'SETTLEMENT_FAILED'].includes(c.status) ||
-                !c.payable.usdc ||
-                !c.evidenceRoot ||
-                !c.payoutTo ||
-                !c.lossKey
-              }
+              disabled={pending || !canPrepare}
               className="rounded-md bg-sky-800 px-3 py-1.5 text-xs text-white disabled:opacity-50"
               onClick={() =>
                 run('authority', {
@@ -674,11 +704,6 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
             >
               Prepare settlement (authority session, no broadcast)
             </button>
-          )}
-          {c.syntheticDemo && (
-            <p className="mt-2 text-xs">
-              Synthetic fixture claims cannot prepare settlement under production restrictions.
-            </p>
           )}
         </Panel>
       )}

@@ -87,16 +87,14 @@ export function ClaimsCaseList() {
                 : 'bg-white text-zinc-700 ring-zinc-200'
             }`}
           >
-            {f}
+            {f === 'PAID' ? 'Payment confirmed' : f}
           </button>
         ))}
       </div>
 
       {error && !authRequired ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
       {authRequired ? (
-        <AuthRequired
-          description="Sign in with your wallet session to load claims cases. Unauthorized responses are not shown as an empty list."
-        />
+        <AuthRequired description="Sign in with your wallet session to load claims cases. Unauthorized responses are not shown as an empty list." />
       ) : null}
       {pending && !cases && !error ? (
         <p className="text-sm text-[var(--ink-muted)]">Loading cases…</p>
@@ -116,7 +114,10 @@ export function ClaimsCaseList() {
                 {c.id.slice(0, 8)}…
               </Link>
               <div className="flex flex-wrap items-center gap-2">
-                <CaseStatusBadge status={c.status} />
+                <CaseStatusBadge
+                  status={c.status}
+                  confirmedReceipt={c.confirmedSettlementReceipt}
+                />
                 {c.syntheticDemo ? <StatusBadge label="SYNTHETIC" tone="warn" /> : null}
               </div>
               {c.labels.synthetic ? (

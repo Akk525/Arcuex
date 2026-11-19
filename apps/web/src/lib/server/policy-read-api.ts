@@ -1,3 +1,4 @@
+import { confirmedClaimReceipt } from './claims-settlement-projection';
 import { NextResponse } from 'next/server';
 import { explorerTxUrl } from '@arcuex/chain';
 import { sameIndependentLiquidationProfile, type PolicyLifecycle } from '@arcuex/domain';
@@ -83,9 +84,15 @@ export function readPolicies(request: Request, policyId?: string) {
   const evidence = row ? (JSON.parse(row.payload) as BindEvidence) : null;
   const settlements = db
     .prepare(
-      `SELECT c.id,c.status,(SELECT json_extract(e.payload_json, '$.receiptRef') FROM claims_case_events e WHERE e.case_id=c.id AND e.reason_code='SETTLEMENT_RECONCILED' ORDER BY e.created_at DESC,e.rowid DESC LIMIT 1) AS settlement_receipt_ref FROM claims_cases c WHERE c.procurement_policy_id=? ORDER BY c.created_at,c.id`,
+      `SELECT id,status,synthetic_demo,evidence_authenticity FROM claims_cases
+       WHERE procurement_policy_id=? ORDER BY created_at,id`,
     )
-    .all(policyId) as Array<{ id: string; status: string; settlement_receipt_ref: string | null }>;
+    .all(policyId) as Array<{
+    id: string;
+    status: string;
+    synthetic_demo: number;
+    evidence_authenticity: Parameters<typeof confirmedClaimReceipt>[2]['evidenceAuthenticity'];
+  }>;
   const body: PolicyLifecycle = {
     version: 1,
     source,
@@ -128,15 +135,20 @@ export function readPolicies(request: Request, policyId?: string) {
             logIndex: evidence.logIndex,
           }
         : null,
-    settlements: settlements.map((s) => ({
-      caseId: s.id,
-      state: s.status,
-      receiptRef: s.settlement_receipt_ref,
-      explorerUrl:
-        !fixture && s.settlement_receipt_ref && /^0x[0-9a-f]{64}$/i.test(s.settlement_receipt_ref)
-          ? explorerTxUrl(s.settlement_receipt_ref as `0x${string}`)
-          : null,
-    })),
+    settlements: settlements.map((s) => {
+      const receiptRef = confirmedClaimReceipt(db, config.chainSource, {
+        id: s.id,
+        status: s.status as Parameters<typeof confirmedClaimReceipt>[2]['status'],
+        syntheticDemo: s.synthetic_demo === 1,
+        evidenceAuthenticity: s.evidence_authenticity,
+      });
+      return {
+        caseId: s.id,
+        state: s.status === 'PAID' && !receiptRef ? 'Payment unconfirmed' : s.status,
+        receiptRef,
+        explorerUrl: receiptRef ? explorerTxUrl(receiptRef as `0x${string}`) : null,
+      };
+    }),
     notice: fixture
       ? 'SYNTHETIC FIXTURE: policy, reservation and checkpoint are rehearsal data, not Arc confirmations. No live financial operations.'
       : policy.terms.synthetic

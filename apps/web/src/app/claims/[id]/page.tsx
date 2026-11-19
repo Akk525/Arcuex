@@ -4,16 +4,15 @@ import { ClaimCaseDetail } from '@/components/claims/claim-case-detail';
 import { PageHeader } from '@/components/ui/page-header';
 import { Callout } from '@/components/ui/callout';
 
-export default async function ClaimCasePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function ClaimCasePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   return (
     <AppShell>
       <div className="mb-3">
-        <Link href="/claims" className="text-xs text-[var(--accent)] underline">
+        <Link
+          href="/claims"
+          className="inline-flex min-h-11 items-center text-xs text-[var(--accent)] underline"
+        >
           ← Claims
         </Link>
       </div>
