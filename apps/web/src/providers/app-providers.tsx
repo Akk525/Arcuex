@@ -5,13 +5,16 @@ import { useState, type ReactNode } from 'react';
 import { WagmiProvider, type State } from 'wagmi';
 import { createWagmiConfig } from '@/lib/wagmi';
 import { WorkspaceProvider } from '@/components/workspace-provider';
+import { FixtureModeContext } from './source-mode';
 
 export function AppProviders({
   children,
   initialState,
+  fixtureMode = false,
 }: {
   children: ReactNode;
   initialState?: State;
+  fixtureMode?: boolean;
 }) {
   const [queryClient] = useState(
     () =>
@@ -24,12 +27,14 @@ export function AppProviders({
         },
       }),
   );
-  const [config] = useState(() => createWagmiConfig());
+  const [config] = useState(() => createWagmiConfig(fixtureMode));
 
   return (
     <WagmiProvider config={config} initialState={initialState}>
       <QueryClientProvider client={queryClient}>
-        <WorkspaceProvider>{children}</WorkspaceProvider>
+        <FixtureModeContext.Provider value={fixtureMode}>
+          <WorkspaceProvider>{children}</WorkspaceProvider>
+        </FixtureModeContext.Provider>
       </QueryClientProvider>
     </WagmiProvider>
   );

@@ -14,6 +14,12 @@ import {
 } from '@/lib/claims/claims-client-response';
 
 type DetailResponse = {
+  source?: {
+    mode: string;
+    id?: string;
+    digest?: string;
+    checkpoint?: { sequence: number; createdAt: number; validUntil: number };
+  };
   principalRole?: string;
   fixtureCatalog?: { reference: string; digest: string; raw: string };
   linkedIncident?: { id: string; observedAt: string; observedEventRef?: string };
@@ -260,6 +266,19 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
           </Link>
         )}
       </nav>
+      {data.source?.mode === 'fixture' && (
+        <Panel title="Synthetic chain-state source">
+          <p className="break-all text-sm">
+            {data.source.id} · {data.source.digest}
+          </p>
+          <p className="text-sm">
+            Checkpoint {data.source.checkpoint?.sequence} · expires{' '}
+            {data.source.checkpoint &&
+              new Date(data.source.checkpoint.validUntil * 1000).toISOString()}
+            . Policy and reservation are fixture data, not Arc confirmations.
+          </p>
+        </Panel>
+      )}
       <Panel title="Next step">
         <p role="status" className="text-sm">
           {nextSteps[c.status] ?? 'Continue the claim investigation.'}

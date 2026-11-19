@@ -1,6 +1,9 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '../..');
+if (process.env.ARCUEX_CHAIN_SOURCE === 'fixture' && process.env.ARCUEX_RECONCILIATION_ENABLED === '1') {
+  throw new Error('Live reconciliation worker forbidden in fixture mode');
+}
 let exiting = false;
 const children = [];
 function terminate(code) {

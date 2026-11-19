@@ -10,12 +10,14 @@ import {
 import type { ClaimsCase } from '@arcuex/insurance';
 import { procurementClient, procurementPool } from './procurement-chain';
 import { check } from './procurement';
+import { getRuntimeConfig } from './runtime-config';
 
 /** Adapter to the existing settlement transaction builder. Never signs or broadcasts. */
 export async function prepareClaimsTransaction(
   c: ClaimsCase,
   client: PublicClient = procurementClient(),
 ) {
+  check(getRuntimeConfig().chainSource !== 'fixture', 'Fixture source cannot authorize settlement');
   check((await client.getChainId()) === 5042002, 'RPC is not Arc Testnet');
   check(
     c.payableMicros && c.lossKey && c.lossCapMicros && c.payoutTo,
@@ -79,6 +81,10 @@ export async function verifyClaimsSettlement(
   hash: Hash,
   client: PublicClient = procurementClient(),
 ) {
+  check(
+    getRuntimeConfig().chainSource !== 'fixture',
+    'Fixture source cannot confirm reimbursement',
+  );
   check((await client.getChainId()) === 5042002, 'RPC is not Arc Testnet');
   const receipt = await client.getTransactionReceipt({ hash });
   check(

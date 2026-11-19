@@ -9,6 +9,7 @@ import { ProcurementStore, type SqliteDb } from '@arcuex/persistence';
 import { procurementDigest } from '@arcuex/agent-sdk';
 import { decodePoolLog, insurancePoolAbi, toPolicyIdBytes32 } from '@arcuex/onchain';
 import { procurementClient, procurementPool, verifyBindEvent } from './procurement-chain';
+import { getRuntimeConfig } from './runtime-config';
 
 export const reconciliationScope = `5042002:${procurementPool.toLowerCase()}`;
 export type BindEvidence = {
@@ -39,9 +40,12 @@ export type ReconciliationRow = {
   payload: string;
 };
 export function reconciliationRows(db: SqliteDb): ReconciliationRow[] {
+  const c = getRuntimeConfig();
   return db
     .prepare('SELECT * FROM policy_bind_events WHERE scope=? ORDER BY block_number,event_key')
-    .all(reconciliationScope) as ReconciliationRow[];
+    .all(
+      c.chainSource === 'fixture' ? `fixture:${c.fixtureId}` : reconciliationScope,
+    ) as ReconciliationRow[];
 }
 
 /** Backend attestations are authenticated by immutable quote/acceptance/agent records and the committed digest.
@@ -146,6 +150,8 @@ export async function reconcilePolicyBinds(
   client = procurementClient(),
   confirmations = 2n,
 ) {
+  if (getRuntimeConfig().chainSource === 'fixture')
+    throw new Error('Live indexer disabled for fixture source');
   if (fromBlock < 0n || toBlock < fromBlock || toBlock - fromBlock > 2000n || confirmations < 1n)
     throw new Error('Invalid reconciliation range');
   const store = new ProcurementStore(db);

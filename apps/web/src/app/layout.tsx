@@ -7,14 +7,14 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Arcuex — Arc Testnet',
-  description:
-    'Programmable financial protection for humans and autonomous agents on Arc Testnet.',
+  description: 'Programmable financial protection for humans and autonomous agents on Arc Testnet.',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const headerStore = await headers();
   const cookie = headerStore.get('cookie') ?? undefined;
-  const initialState = cookieToInitialState(createWagmiConfig(), cookie);
+  const fixtureMode = process.env.ARCUEX_CHAIN_SOURCE === 'fixture';
+  const initialState = cookieToInitialState(createWagmiConfig(fixtureMode), cookie);
 
   return (
     <html lang="en">
@@ -27,7 +27,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
-        <AppProviders initialState={initialState}>{children}</AppProviders>
+        <AppProviders initialState={initialState} fixtureMode={fixtureMode}>
+          {children}
+        </AppProviders>
       </body>
     </html>
   );

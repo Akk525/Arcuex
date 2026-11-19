@@ -15,7 +15,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ id: str
       <PageHeader
         eyebrow="Policy detail"
         title="Immutable terms & chain status"
-        description="Prepared is not active. Confirmed means bind receipt verified — coverage still follows the scheduled effective window."
+        description="Inspect the selected source and checkpoint. Synthetic fixture readiness is not a verified Arc receipt. Coverage timing follows the immutable terms."
       />
       <PoliciesPanel id={id} />
     </AppShell>

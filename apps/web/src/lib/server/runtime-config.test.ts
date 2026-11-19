@@ -15,6 +15,7 @@ function basePublicBeta(
 ): Record<string, string | undefined> {
   return {
     NODE_ENV: 'production',
+    ARCUEX_CHAIN_SOURCE: 'arc-testnet',
     ARCUEX_DEPLOYMENT_MODE: 'public-beta',
     ARCUEX_PUBLIC_ORIGIN: 'https://beta.example.com',
     ARCUEX_PUBLIC_HOST: 'beta.example.com',
@@ -50,16 +51,14 @@ describe('validateRuntimeEnvironment', () => {
   });
 
   it('rejects ARCUEX_PROXY_TOKEN in production', () => {
-    expect(() =>
-      validateRuntimeEnvironment(basePublicBeta({ ARCUEX_PROXY_TOKEN: hex64 })),
-    ).toThrow(ConfigurationError);
+    expect(() => validateRuntimeEnvironment(basePublicBeta({ ARCUEX_PROXY_TOKEN: hex64 }))).toThrow(
+      ConfigurationError,
+    );
   });
 
   it('rejects synthetic settlement prep in production', () => {
     expect(() =>
-      validateRuntimeEnvironment(
-        basePublicBeta({ CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP: '1' }),
-      ),
+      validateRuntimeEnvironment(basePublicBeta({ CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP: '1' })),
     ).toThrow(/CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP/);
   });
 
@@ -79,9 +78,7 @@ describe('validateRuntimeEnvironment', () => {
       ),
     ).not.toThrow();
     expect(() =>
-      validateRuntimeEnvironment(
-        basePublicBeta({ NEXT_PUBLIC_CLAIMS_AUTHORITY_API_TOKEN: hex64 }),
-      ),
+      validateRuntimeEnvironment(basePublicBeta({ NEXT_PUBLIC_CLAIMS_AUTHORITY_API_TOKEN: hex64 })),
     ).toThrow(/NEXT_PUBLIC_CLAIMS_AUTHORITY_API_TOKEN/);
   });
 

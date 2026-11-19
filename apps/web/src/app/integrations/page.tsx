@@ -7,10 +7,12 @@ import { TestTransactionPanel } from '@/components/transactions/test-transaction
 import { PageHeader } from '@/components/ui/page-header';
 import { Callout } from '@/components/ui/callout';
 import { StatusBadge } from '@/components/status-badge';
+import { useFixtureMode } from '@/providers/source-mode';
 
 type Check = { name: string; ok: boolean; detail: string; kind: string };
 
 export default function IntegrationsPage() {
+  const fixtureMode = useFixtureMode();
   const [checks, setChecks] = useState<Check[]>([]);
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +67,11 @@ export default function IntegrationsPage() {
             Streams webhook: <code>/api/webhooks/quicknode-streams</code>
           </p>
         </Panel>
-        <TestTransactionPanel />
+        {fixtureMode ? (
+          <p>Synthetic fixture mode: live RPC and wallet transactions are disabled.</p>
+        ) : (
+          <TestTransactionPanel />
+        )}
       </div>
     </AppShell>
   );

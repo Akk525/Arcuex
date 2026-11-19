@@ -4,7 +4,8 @@ import { ARC_USDC_ERC20_ADDRESS } from '@arcuex/chain';
 import { withApiSecurity } from '@/lib/server/api-security';
 import { getDb } from '@/lib/server/db';
 import { procurementClient, procurementPool } from '@/lib/server/procurement-chain';
-import { LAUNCH_CHAIN_ID } from '@/lib/server/runtime-config';
+import { LAUNCH_CHAIN_ID, getRuntimeConfig } from '@/lib/server/runtime-config';
+import { readFixture } from '@/lib/server/fixture-source';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,24 @@ export const GET = withApiSecurity(async () => {
       .prepare("SELECT value FROM launch_runtime_state WHERE key = 'recovery_hold'")
       .get() as { value: string } | undefined;
 
+    const config = getRuntimeConfig();
+    if (config.chainSource === 'fixture') {
+      const fixture = readFixture(db, config);
+      const ok = integrity && foreignKeys && recovery?.value !== '1';
+      return NextResponse.json(
+        {
+          ok,
+          source: fixture.source,
+          notice: 'Synthetic snapshot readiness only; no live chain or solvency assertion',
+          checks: {
+            database: integrity && foreignKeys,
+            fixtureCheckpoint: true,
+            recoveryHold: recovery?.value === '1',
+          },
+        },
+        { status: ok ? 200 : 503 },
+      );
+    }
     const c = procurementClient();
     const [chain, code, token, assets, reserved, balance] = await Promise.all([
       c.getChainId(),
@@ -70,7 +89,8 @@ export const GET = withApiSecurity(async () => {
           database: integrity && foreignKeys,
           recoveryHold: recovery?.value === '1',
           chain: chain === LAUNCH_CHAIN_ID,
-          deployment: !!code && code !== '0x' && token.toLowerCase() === ARC_USDC_ERC20_ADDRESS.toLowerCase(),
+          deployment:
+            !!code && code !== '0x' && token.toLowerCase() === ARC_USDC_ERC20_ADDRESS.toLowerCase(),
           solvency: assets >= reserved && balance >= assets,
         },
         chainId: LAUNCH_CHAIN_ID,

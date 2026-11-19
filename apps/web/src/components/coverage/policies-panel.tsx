@@ -11,6 +11,7 @@ import { useProcurement } from '@/hooks/use-procurement';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Callout } from '@/components/ui/callout';
 import { StatusBadge } from '@/components/status-badge';
+import { useFixtureMode } from '@/providers/source-mode';
 function statusTone(label: string): 'neutral' | 'ok' | 'warn' | 'error' | 'pending' | 'synthetic' {
   if (label.startsWith('Confirmed')) return 'ok';
   if (label.includes('Prepared')) return 'pending';
@@ -28,6 +29,7 @@ type Reconciliation = {
   checkedAt: string;
 };
 export function PoliciesPanel({ id }: { id?: string }) {
+  const fixtureMode = useFixtureMode();
   const { api, run, busy, error, wallet } = useProcurement();
   const identityRevision = useRef(0);
   const [lifecycles, setLifecycles] = useState<Record<string, PolicyLifecycle>>({});
@@ -102,6 +104,11 @@ export function PoliciesPanel({ id }: { id?: string }) {
   function status(p: Policy) {
     const lifecycle = lifecycles[p.terms.policyId];
     if (!lifecycle) return 'Verification unavailable — no coverage confirmed';
+    if (fixtureMode || lifecycle.source?.mode === 'fixture') {
+      return lifecycle.state === 'fixture_ready' && lifecycle.source?.checkpoint &&
+        now / 1000 < lifecycle.source.checkpoint.validUntil
+        ? 'Synthetic fixture ready · no chain confirmation' : 'Fixture unavailable · claims disabled';
+    }
     if (
       lifecycle.state === 'confirmed' &&
       (lifecycle.completeness !== 'VERIFIED_LINKED' ||
@@ -125,9 +132,8 @@ export function PoliciesPanel({ id }: { id?: string }) {
     <div className="procurement space-y-6">
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-3">
-          <Callout kind="synthetic" title="Synthetic product terms · live bind receipts">
-            Immutable demo cover wording with real Arc Testnet transaction references when bound.
-            Prepared records provide no coverage and are never labeled active.
+          <Callout kind="synthetic" title={fixtureMode ? 'Synthetic rehearsal · no live chain state' : 'Synthetic product terms · live bind receipts'}>
+            {fixtureMode ? 'Policy, reservation and checkpoint are synthetic fixture data. No bind or settlement transactions are available. Restart never renews the checkpoint.' : 'Immutable demo cover wording with real Arc Testnet transaction references when bound. Prepared records provide no coverage and are never labeled active.'}
           </Callout>
           <button className="proc-btn" disabled={busy} onClick={() => void run(load)}>
             {busy ? 'Loading…' : 'Refresh my policies'}
@@ -215,7 +221,7 @@ export function PoliciesPanel({ id }: { id?: string }) {
                   Premium approval receipt: {a.hash}
                 </a>
               ))}
-            {p.bindTx && (
+            {!fixtureMode && lifecycle?.source?.mode !== 'fixture' && p.bindTx && (
               <a
                 className="block break-all text-sm underline"
                 target="_blank"
@@ -240,10 +246,11 @@ export function PoliciesPanel({ id }: { id?: string }) {
             {id && lifecycle && (
               <div className="space-y-2 text-sm">
                 <p>{lifecycle.notice}</p>
-                {lifecycle.confirmation && (
+                {lifecycle.source && <p className="break-all">Source: {lifecycle.source.mode} · {lifecycle.source.id} · {lifecycle.source.digest ?? 'live RPC'} {lifecycle.source.checkpoint && `· checkpoint ${lifecycle.source.checkpoint.sequence} · created ${new Date(lifecycle.source.checkpoint.createdAt * 1000).toISOString()} · expires ${new Date(lifecycle.source.checkpoint.validUntil * 1000).toISOString()}`}</p>}
+                {lifecycle.confirmation?.explorerUrl && (
                   <a
                     className="underline"
-                    href={lifecycle.confirmation!.explorerUrl}
+                    href={lifecycle.confirmation.explorerUrl}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -275,13 +282,13 @@ export function PoliciesPanel({ id }: { id?: string }) {
                 <p className="text-sm leading-6">{PRODUCT.limitations}</p>
                 {live && (
                   <p className="text-sm">
-                    Live contract check:{' '}
+                    {fixtureMode ? 'Synthetic snapshot check' : 'Live contract check'}:{' '}
                     {live.matches ? 'terms match' : live.bound ? 'mismatch' : 'not bound'} ·
                     reserved {formatUnits(BigInt(live.reservedMicros), 6)} USDC · paid{' '}
                     {formatUnits(BigInt(live.paidOutMicros), 6)} USDC · {live.checkedAt}
                   </p>
                 )}
-                {p.state === 'prepared' && (
+                {!fixtureMode && p.state === 'prepared' && (
                   <div className="space-y-3">
                     <label>
                       Recover a submitted bind receipt

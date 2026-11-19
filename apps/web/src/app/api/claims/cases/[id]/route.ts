@@ -17,9 +17,11 @@ import {
   reopenInvestigation,
 } from '@arcuex/insurance';
 import { NextResponse } from 'next/server';
-import { getRepo } from '@/lib/server/db';
+import { getRepo, getDb } from '@/lib/server/db';
 import { authenticateClaimsRequest } from '@/lib/server/claims-auth';
 import { serializeCaseEvent, serializeClaimsCase } from '@/lib/claims/serialize-case';
+import { getRuntimeConfig } from '@/lib/server/runtime-config';
+import { readFixture } from '@/lib/server/fixture-source';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,6 +42,10 @@ async function GETHandler(request: Request, ctx: Ctx) {
   const manifests = repo.listEvidenceManifests(id);
   return NextResponse.json({
     dataClass: 'claims_case',
+    source:
+      getRuntimeConfig().chainSource === 'fixture'
+        ? readFixture(getDb(), getRuntimeConfig()).source
+        : { mode: 'arc-testnet' },
     fixtureCatalog: CLAIM_FIXTURE,
     linkedIncident: c.incidentId ? repo.getIncident(c.incidentId) : null,
     principalRole: auth.principal.role,
@@ -138,6 +144,14 @@ async function POSTHandler(request: Request, ctx: Ctx) {
       if (!auth.ok) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
       }
+      if (getRuntimeConfig().chainSource === 'fixture')
+        return NextResponse.json(
+          {
+            error:
+              'Synthetic/fixture evidence cannot authorize settlement preparation (fixture source)',
+          },
+          { status: 400 },
+        );
       if (
         !body.confirmedRecipient ||
         !body.confirmedAmountUsdc ||
@@ -196,6 +210,11 @@ async function POSTHandler(request: Request, ctx: Ctx) {
       if (!auth.ok) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
       }
+      if (getRuntimeConfig().chainSource === 'fixture')
+        return NextResponse.json(
+          { error: 'Synthetic fixture source cannot confirm reimbursement' },
+          { status: 400 },
+        );
       if (!body.receiptRef) {
         return NextResponse.json({ error: 'receiptRef required' }, { status: 400 });
       }

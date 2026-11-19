@@ -2,6 +2,12 @@
 .github
 .worktrees
 .recovery
+.aws
+.ssh
+.codex
+.agents
+**/*.pem
+**/*.key
 docs/private-reference
 .playwright-mcp
 .pnpm-store

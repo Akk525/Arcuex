@@ -11,6 +11,10 @@ import type { ProcurementPolicy } from '@arcuex/domain';
 import { getArcRpcUrl } from './env-rpc';
 import { check } from './procurement';
 import manifest from '../../../../../docs/deployments/arc-testnet-insurance-pool.json';
+import { getRuntimeConfig } from './runtime-config';
+import { getDb } from './db';
+import { readFixture } from './fixture-source';
+import { procurementDigest } from '@arcuex/agent-sdk';
 
 export const procurementPool = manifest.insurancePool as Address;
 export const procurementClient = () =>
@@ -19,6 +23,10 @@ export const procurementClient = () =>
     transport: http(getArcRpcUrl(), { retryCount: 1, timeout: 12000 }),
   });
 export function transactions(policy: ProcurementPolicy) {
+  check(
+    getRuntimeConfig().chainSource !== 'fixture',
+    'Financial preparation disabled in fixture mode',
+  );
   const t = policy.terms,
     account = policy.payer as Address;
   return [
@@ -42,6 +50,10 @@ export function transactions(policy: ProcurementPolicy) {
   ];
 }
 export async function preflight(policy: ProcurementPolicy) {
+  check(
+    getRuntimeConfig().chainSource !== 'fixture',
+    'Financial preflight disabled in fixture mode',
+  );
   const client = procurementClient();
   check((await client.getChainId()) === 5042002, 'RPC is not Arc Testnet', 'CHAIN_MISMATCH');
   const [code, usdc, capital] = await Promise.all([
@@ -97,6 +109,10 @@ export function verifyBindEvent(
   );
 }
 export async function verifyReceipt(policy: ProcurementPolicy, hash: Hash) {
+  check(
+    getRuntimeConfig().chainSource !== 'fixture',
+    'Live receipt confirmation disabled in fixture mode',
+  );
   const client = procurementClient();
   check((await client.getChainId()) === 5042002, 'RPC is not Arc Testnet', 'CHAIN_MISMATCH');
   const receipt = await client.getTransactionReceipt({ hash });
@@ -126,6 +142,24 @@ export async function verifyReceipt(policy: ProcurementPolicy, hash: Hash) {
   return Number(block.timestamp);
 }
 export async function reconcile(policy: ProcurementPolicy) {
+  const config = getRuntimeConfig();
+  if (config.chainSource === 'fixture') {
+    const fixture = readFixture(getDb(), config);
+    check(
+      fixture.policy.terms.policyId === policy.terms.policyId &&
+        procurementDigest(fixture.policy) === procurementDigest(policy),
+      'Policy is not in configured fixture source',
+    );
+    return {
+      bound: true,
+      cancelled: false,
+      matches: true,
+      paidOutMicros: '0',
+      reservedMicros: fixture.policy.terms.limitMicros,
+      checkedAt: new Date(fixture.checkpoint.createdAt * 1000).toISOString(),
+      source: fixture.source,
+    };
+  }
   const client = procurementClient();
   check((await client.getChainId()) === 5042002, 'RPC chain mismatch', 'CHAIN_MISMATCH');
   const p = await readOnchainPolicy(
@@ -166,6 +200,10 @@ export async function verifyApproval(
   hash: Hash,
   client = procurementClient(),
 ) {
+  check(
+    getRuntimeConfig().chainSource !== 'fixture',
+    'Live approval confirmation disabled in fixture mode',
+  );
   check((await client.getChainId()) === 5042002, 'RPC is not Arc Testnet', 'CHAIN_MISMATCH');
   const [receipt, tx] = await Promise.all([
     client.getTransactionReceipt({ hash }),

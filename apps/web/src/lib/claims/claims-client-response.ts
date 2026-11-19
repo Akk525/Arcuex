@@ -135,6 +135,7 @@ export function parsePolicyOptionsPayload(json: unknown): unknown[] | null {
 }
 
 export function parseClaimCaseDetailPayload(json: unknown): {
+  source?: Record<string, unknown>;
   principalRole?: string;
   fixtureCatalog?: Record<string, unknown>;
   linkedIncident?: Record<string, unknown>;
@@ -147,6 +148,7 @@ export function parseClaimCaseDetailPayload(json: unknown): {
   if (!Array.isArray(json.timeline) || !Array.isArray(json.evidenceManifests)) return null;
   if (typeof json.case.id !== 'string' || typeof json.case.status !== 'string') return null;
   return {
+    source: isRecord(json.source) ? json.source : undefined,
     principalRole: typeof json.principalRole === 'string' ? json.principalRole : undefined,
     fixtureCatalog: isRecord(json.fixtureCatalog) ? json.fixtureCatalog : undefined,
     linkedIncident: isRecord(json.linkedIncident) ? json.linkedIncident : undefined,

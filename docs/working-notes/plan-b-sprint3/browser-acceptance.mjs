@@ -13,6 +13,8 @@ export async function run({
   db,
   checkpoint,
   results,
+  fixtureSource = false,
+  restart,
 }) {
   const check = (ok, detail) => {
     if (!ok) throw new Error(detail);
@@ -85,8 +87,40 @@ export async function run({
           await context.request.get(base + `/api/policies/${policy.terms.policyId}/lifecycle`)
         ).json()
       ).claimsEligible === true,
-      'Real policy projection is confirmed and eligible against synthetic checkpoint',
+      'Real policy projection is eligible against the explicitly synthetic checkpoint',
     );
+    if (fixtureSource) {
+      const projection = await (
+        await context.request.get(base + `/api/policies/${policy.terms.policyId}/lifecycle`)
+      ).json();
+      check(
+        projection.state === 'fixture_ready' &&
+          projection.source.mode === 'fixture' &&
+          projection.confirmation === null,
+        'Fixture projection never claims live confirmation or links fake receipts',
+      );
+      check(
+        (await page
+          .getByText('Synthetic fixture ready · no chain confirmation', { exact: true })
+          .count()) === 1,
+        'Browser labels fixture policy state honestly',
+      );
+      check(
+        (await page.locator('a[href*="explorer.testnet.arc.io/tx/"]').count()) === 0,
+        'Fixture page exposes no explorer receipt links',
+      );
+      const original = projection.source;
+      if (restart) {
+        await restart();
+        const restored = await (
+          await context.request.get(base + `/api/policies/${policy.terms.policyId}/lifecycle`)
+        ).json();
+        check(
+          JSON.stringify(restored.source) === JSON.stringify(original) && restored.claimsEligible,
+          'Process restart preserves checkpoint digest/deadline, policy state and authenticated session',
+        );
+      }
+    }
     await shot(page, '02-policy-eligible');
     await page.getByRole('link', { name: 'Submit a synthetic claim', exact: true }).click();
     await page
@@ -255,6 +289,26 @@ export async function run({
       recoveriesUsdc: '0',
       requestedUsdc: '1',
     });
+    if (fixtureSource) {
+      const denied = await newCase('denied');
+      await verified(denied);
+      await review.goto(base + '/claims/' + denied.id);
+      await review.getByRole('button', { name: 'Deny (not covered)', exact: true }).click();
+      await review
+        .getByText('The reviewer denied this claim. Inspect the reason and decision history.', {
+          exact: true,
+        })
+        .waitFor();
+      const deniedState = await (
+        await ops.request.get(base + '/api/claims/cases/' + denied.id)
+      ).json();
+      check(
+        deniedState.case.status === 'DENIED' &&
+          deniedState.timeline.some((e) => e.toStatus === 'DENIED'),
+        'Human denial persists a rejection and audit history without authorizing payment',
+      );
+      await shot(review, '13-human-denial');
+    }
     const missing = await newCase('missing');
     await post('/api/claims/cases', {
       action: 'complete_evidence',
@@ -350,9 +404,18 @@ export async function run({
     checkpoint(false);
     await page.goto(base + '/policies/' + policy.terms.policyId);
     await page.getByRole('button', { name: 'Refresh my policies', exact: true }).click();
-    await page
-      .getByText('Reconciliation pending — no coverage confirmed', { exact: true })
-      .waitFor();
+    if (fixtureSource) {
+      await page.getByText('Unable to load policies', { exact: true }).waitFor();
+      check(
+        (
+          await context.request.get(base + `/api/policies/${policy.terms.policyId}/lifecycle`)
+        ).status() === 503,
+        'Inconsistent fixture source fails closed with 503 and no live fallback',
+      );
+    } else
+      await page
+        .getByText('Reconciliation pending — no coverage confirmed', { exact: true })
+        .waitFor();
     check(
       (await page.getByRole('link', { name: 'Submit a synthetic claim', exact: true }).count()) ===
         0,

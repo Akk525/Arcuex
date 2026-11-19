@@ -44,6 +44,8 @@ export function assertStorageReady(c: RuntimeConfig): void {
     if (!(actual === root || actual.startsWith(`${root}/`))) {
       throw new Error('Database symlink escapes volume');
     }
+    if (c.chainSource === 'fixture' && statSync(c.databasePath).nlink !== 1)
+      throw new Error('Fixture database must not share hard links');
   } catch (error) {
     if ((error as { code?: string }).code !== 'ENOENT') throw error;
   }

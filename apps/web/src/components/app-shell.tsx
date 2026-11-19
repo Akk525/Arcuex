@@ -13,6 +13,7 @@ import {
   type WorkspaceId,
 } from '@/lib/workspace';
 import { StatusBadge } from '@/components/status-badge';
+import { useFixtureMode } from '@/providers/source-mode';
 
 function navActive(pathname: string, href: string): boolean {
   if (href === '/') return pathname === '/';
@@ -20,14 +21,13 @@ function navActive(pathname: string, href: string): boolean {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const fixtureMode = useFixtureMode();
   const pathname = usePathname();
   const router = useRouter();
   const { workspace, hydrated, setWorkspace } = useWorkspace();
   const { session } = useClaimsSession();
   const opsSession =
-    session?.role === 'reviewer' ||
-    session?.role === 'authority' ||
-    session?.role === 'system';
+    session?.role === 'reviewer' || session?.role === 'authority' || session?.role === 'system';
   const switcherIds: WorkspaceId[] = opsSession
     ? ['protect', 'build', 'ops']
     : ['protect', 'build'];
@@ -48,7 +48,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="space-y-1">
             <Link href="/" className="inline-flex items-baseline gap-2">
               <span className="text-xl font-semibold tracking-tight text-[var(--ink)]">Arcuex</span>
-              <StatusBadge label="Arc Testnet" tone="live" />
+              <StatusBadge
+                label={fixtureMode ? 'SYNTHETIC FIXTURE' : 'Arc Testnet'}
+                tone={fixtureMode ? 'synthetic' : 'live'}
+              />
             </Link>
             <p className="max-w-xl text-sm text-[var(--ink-muted)]">
               Insurance-style protection for autonomous agents — bind coverage, manage policies,
@@ -92,7 +95,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         {workspace ? (
-          <nav aria-label={`${WORKSPACE_LABEL[workspace]} navigation`} className="flex flex-wrap gap-1">
+          <nav
+            aria-label={`${WORKSPACE_LABEL[workspace]} navigation`}
+            className="flex flex-wrap gap-1"
+          >
             {items.map((item) => {
               const active = navActive(pathname, item.href);
               return (
@@ -119,11 +125,18 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {workspace === 'ops' ? (
           <p className="text-xs text-[var(--ink-muted)]">
-            Ops workspace frames privileged tools. Server authentication still decides what succeeds.
+            Ops workspace frames privileged tools. Server authentication still decides what
+            succeeds.
           </p>
         ) : null}
       </header>
 
+      {fixtureMode && (
+        <aside role="status" className="rounded-md border border-amber-500 p-4 text-sm">
+          Synthetic rehearsal only. Policy and reservation snapshots are fixtures, not live Arc
+          Testnet confirmations. Live RPC and financial transactions are disabled.
+        </aside>
+      )}
       <div className="flex-1">{children}</div>
 
       <footer className="border-t border-[var(--line)] pt-4 text-xs text-[var(--ink-muted)]">

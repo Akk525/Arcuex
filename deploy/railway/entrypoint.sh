@@ -8,6 +8,20 @@ ID_FILE="$DATA_DIR/.arcuex-volume-id"
 BACKUP_DIR="$DATA_DIR/backups"
 
 if [[ "${NODE_ENV:-}" == "production" ]]; then
+  case "${ARCUEX_CHAIN_SOURCE:-}" in
+    arc-testnet) ;;
+    fixture)
+      if [[ ! "${ARCUEX_FIXTURE_ID:-}" =~ ^candidate-[0-9a-f-]{36}$ ]] ||
+         [[ "${ARCUEX_STORAGE_ID:-}" != "$ARCUEX_FIXTURE_ID" ]] ||
+         [[ "$DB_PATH" != "$DATA_DIR/$ARCUEX_FIXTURE_ID.sqlite" ]] ||
+         [[ ! -f "$ID_FILE" ]] || [[ ! -f "$DB_PATH" ]] ||
+         [[ "${ARCUEX_RECONCILIATION_ENABLED:-}" == "1" ]]; then
+        echo "entrypoint: fixture requires separately initialized candidate storage; refusing bootstrap" >&2
+        exit 1
+      fi
+      ;;
+    *) echo "entrypoint: explicit ARCUEX_CHAIN_SOURCE required" >&2; exit 1 ;;
+  esac
   if [[ -z "${ARCUEX_STORAGE_ID:-}" ]]; then
     echo "entrypoint: ARCUEX_STORAGE_ID is required in production" >&2
     exit 1
@@ -16,8 +30,6 @@ if [[ "${NODE_ENV:-}" == "production" ]]; then
     echo "entrypoint: data directory missing — mount a Railway volume at $DATA_DIR" >&2
     exit 1
   fi
-  mkdir -p "$DATA_DIR" "$BACKUP_DIR" "$(dirname "$DB_PATH")"
-
   if [[ -f "$ID_FILE" ]]; then
     existing="$(tr -d '[:space:]' < "$ID_FILE")"
     if [[ "$existing" != "$ARCUEX_STORAGE_ID" ]]; then
@@ -28,6 +40,7 @@ if [[ "${NODE_ENV:-}" == "production" ]]; then
     printf '%s\n' "$ARCUEX_STORAGE_ID" > "$ID_FILE"
     echo "entrypoint: wrote volume identity marker"
   fi
+  mkdir -p "$DATA_DIR" "$BACKUP_DIR" "$(dirname "$DB_PATH")"
 
   # Safe redeploy: snapshot existing DB before the new process opens it (WAL checkpoint).
   if [[ -f "$DB_PATH" ]]; then

@@ -13,6 +13,7 @@ import {
 } from './claims-session';
 import { getRepo, getDb } from '@/lib/server/db';
 import { ProcurementService, ProcurementError, check, text } from '@/lib/server/procurement';
+import { readFixture } from './fixture-source';
 import {
   preflight,
   transactions,
@@ -102,11 +103,18 @@ export async function handle(request: Request, path: string) {
             policy,
             reconciliation: null,
             reconciliationError:
-              'Arc RPC unavailable. The immutable record is available; current chain state is unverified.',
+              runtime.chainSource === 'fixture'
+                ? 'Configured fixture unavailable or inconsistent; no fallback or live confirmation.'
+                : 'Arc RPC unavailable. The immutable record is available; current chain state is unverified.',
           };
         }
       } else throw new ProcurementError('NOT_FOUND', 'Unknown endpoint', 404);
     } else if (request.method === 'POST') {
+      check(
+        runtime.chainSource !== 'fixture' || !['procure', 'approvals', 'confirm'].includes(path),
+        'Financial preparation and receipt confirmation disabled in fixture mode',
+        'FIXTURE_FINANCIAL_DISABLED',
+      );
       if (path === 'list') result = svc.list(principal);
       else if (path === 'agents') result = svc.register(principal, b);
       else if (path === 'delegations') result = svc.delegate(principal, b);
@@ -160,6 +168,11 @@ export async function handle(request: Request, path: string) {
         result = svc.store.policy(policy.terms.policyId);
       } else throw new ProcurementError('NOT_FOUND', 'Unknown endpoint', 404);
     } else throw new ProcurementError('METHOD_NOT_ALLOWED', 'Unsupported method', 405);
+    if (runtime.chainSource === 'fixture') {
+      const { source } = readFixture(getDb(), runtime);
+      if (Array.isArray(result)) result = result.map((row) => ({ ...row, source }));
+      else if (result && typeof result === 'object') result = { ...result, source };
+    }
     return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof ProcurementError)

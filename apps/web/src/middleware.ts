@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requestBoundaryError, securityHeaders } from './lib/server/request-boundary';
-import { getRuntimeConfig } from './lib/server/runtime-config';
+import { getRuntimeConfig, ConfigurationError } from './lib/server/runtime-config';
 
 export function middleware(request: NextRequest) {
   // Liveness must not depend on env validation so Railway can detect a crashed boot.
@@ -26,9 +26,15 @@ export function middleware(request: NextRequest) {
       response.headers.set('Cache-Control', 'no-store');
     }
     return response;
-  } catch {
+  } catch (error) {
     return NextResponse.json(
-      { error: 'Service configuration invalid' },
+      {
+        error: 'Service configuration invalid',
+        ...(process.env.ARCUEX_DEPLOYMENT_MODE === 'local-test' &&
+        error instanceof ConfigurationError
+          ? { fields: error.fields }
+          : {}),
+      },
       { status: 503, headers: { 'Cache-Control': 'no-store' } },
     );
   }

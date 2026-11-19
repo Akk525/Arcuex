@@ -17,7 +17,20 @@ export type PolicyLifecycle = {
   version: 1;
   policyId: string;
   onchainPolicyId: string;
-  state: 'prepared' | 'submitted' | 'confirmed' | 'expired' | 'failed' | 'reconciliation_pending';
+  state:
+    | 'prepared'
+    | 'submitted'
+    | 'confirmed'
+    | 'expired'
+    | 'failed'
+    | 'reconciliation_pending'
+    | 'fixture_ready';
+  source?: {
+    mode: 'arc-testnet' | 'fixture';
+    id: string;
+    digest?: string;
+    checkpoint?: { sequence: number; createdAt: number; validUntil: number };
+  };
   completeness: 'VERIFIED_LINKED' | 'ONCHAIN_UNLINKED' | 'INCOMPLETE' | 'ORPHANED' | null;
   chainId: 5042002;
   pool: string;
@@ -25,7 +38,7 @@ export type PolicyLifecycle = {
   checkedAt: number | null;
   confirmation: {
     transactionHash: string;
-    explorerUrl: string;
+    explorerUrl: string | null;
     blockNumber: string;
     blockHash: string;
     logIndex: number;

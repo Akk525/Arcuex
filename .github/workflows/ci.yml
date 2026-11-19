@@ -48,7 +48,7 @@ jobs:
         run: pnpm test:contracts
 
       - name: Test reconciliation supervisor state
-        run: node --test deploy/railway/reconciliation-state.test.cjs
+        run: node --test deploy/railway/reconciliation-state.test.cjs deploy/railway/candidate-isolation.test.cjs
 
       - name: Build
         run: pnpm build

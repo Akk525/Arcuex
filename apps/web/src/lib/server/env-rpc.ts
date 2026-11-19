@@ -1,9 +1,13 @@
 import { getRuntimeConfig } from './runtime-config';
 
 export function getArcRpcUrl(): string {
-  return getRuntimeConfig().rpcUrl;
+  const c = getRuntimeConfig();
+  if (c.chainSource === 'fixture') throw new Error('Live RPC disabled in fixture mode');
+  return c.rpcUrl;
 }
 
 export function getQuickNodeRpcUrl(): string {
-  return getRuntimeConfig().quicknodeRpcUrl;
+  const c = getRuntimeConfig();
+  if (c.chainSource === 'fixture') throw new Error('Live RPC disabled in fixture mode');
+  return c.quicknodeRpcUrl;
 }

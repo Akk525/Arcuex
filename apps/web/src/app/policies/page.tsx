@@ -8,7 +8,7 @@ export default function PoliciesPage() {
       <PageHeader
         eyebrow="Policies"
         title="Policy portfolio"
-        description="Prepared records are not coverage. Only confirmed on-chain binds enter an effective window. Limits and payouts shown here reflect host records and live reconciliation when available."
+        description="Policy source and checkpoint are shown with each record. Synthetic fixture readiness is not live chain confirmation. Prepared records provide no coverage."
       />
       <PoliciesPanel />
     </AppShell>

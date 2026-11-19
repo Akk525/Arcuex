@@ -11,6 +11,8 @@ import {
   type BindEvidence,
 } from './policy-reconciliation';
 import { procurementPool } from './procurement-chain';
+import { getRuntimeConfig } from './runtime-config';
+import { readFixture } from './fixture-source';
 const headers = { 'Cache-Control': 'no-store', Vary: 'Cookie, Authorization' };
 export function readPolicies(request: Request, policyId?: string) {
   const auth = authenticateClaimsRequest(request, ['claimant', 'reviewer', 'authority', 'system']);
@@ -19,6 +21,12 @@ export function readPolicies(request: Request, policyId?: string) {
     store = new ProcurementStore(db),
     p = auth.principal;
   const rows = reconciliationRows(db);
+  const config = getRuntimeConfig();
+  const fixture = config.chainSource === 'fixture' ? readFixture(db, config) : null;
+  const source = fixture?.source ?? {
+    mode: 'arc-testnet' as const,
+    id: `arc-testnet:5042002:${procurementPool}`,
+  };
   if (policyId === undefined) {
     // Wallet users see only their established roles; beneficiary/payer is never inferred to be owner.
     const visible = rows.filter((r) => {
@@ -35,6 +43,7 @@ export function readPolicies(request: Request, policyId?: string) {
     return NextResponse.json(
       {
         version: 1,
+        source,
         records: visible
           .filter((r) => r.status !== 'VERIFIED_LINKED')
           .map((r) => ({
@@ -63,7 +72,8 @@ export function readPolicies(request: Request, policyId?: string) {
   const row = linked.find((r) => r.canonical === 1) ?? linked.at(-1);
   const scope = db
     .prepare('SELECT healthy,checked_at FROM policy_reconciliation_scopes WHERE scope=?')
-    .get(reconciliationScope) as { healthy: number; checked_at: number } | undefined;
+    .get(fixture ? `fixture:${fixture.id}` : reconciliationScope) as
+    { healthy: number; checked_at: number } | undefined;
   const now = Math.floor(Date.now() / 1000);
   const verified =
     row?.status === 'VERIFIED_LINKED' &&
@@ -78,12 +88,15 @@ export function readPolicies(request: Request, policyId?: string) {
     .all(policyId) as Array<{ id: string; status: string; settlement_receipt_ref: string | null }>;
   const body: PolicyLifecycle = {
     version: 1,
+    source,
     policyId,
     onchainPolicyId: toPolicyIdBytes32(policyId),
     state: verified
       ? now > policy.terms.expiresAt
         ? 'expired'
-        : 'confirmed'
+        : fixture
+          ? 'fixture_ready'
+          : 'confirmed'
       : row || policy.bindTx
         ? 'reconciliation_pending'
         : now >= policy.terms?.quoteExpiresAt
@@ -94,26 +107,28 @@ export function readPolicies(request: Request, policyId?: string) {
     pool: procurementPool,
     claimsEligible: Boolean(verified && p.walletAddress === policy.terms?.owner),
     checkedAt: scope?.checked_at ?? null,
-    confirmation: evidence
-      ? {
-          transactionHash: evidence.transactionHash,
-          explorerUrl: explorerTxUrl(evidence.transactionHash),
-          blockNumber: evidence.blockNumber,
-          blockHash: evidence.blockHash,
-          logIndex: evidence.logIndex,
-        }
-      : null,
+    confirmation:
+      evidence && !fixture
+        ? {
+            transactionHash: evidence.transactionHash,
+            explorerUrl: fixture ? null : explorerTxUrl(evidence.transactionHash),
+            blockNumber: evidence.blockNumber,
+            blockHash: evidence.blockHash,
+            logIndex: evidence.logIndex,
+          }
+        : null,
     settlements: settlements.map((s) => ({
       caseId: s.id,
       state: s.status,
       receiptRef: s.settlement_receipt_ref,
       explorerUrl:
-        s.settlement_receipt_ref && /^0x[0-9a-f]{64}$/i.test(s.settlement_receipt_ref)
+        !fixture && s.settlement_receipt_ref && /^0x[0-9a-f]{64}$/i.test(s.settlement_receipt_ref)
           ? explorerTxUrl(s.settlement_receipt_ref as `0x${string}`)
           : null,
     })),
-    notice:
-      'Arc Testnet synthetic demo. Preparation is offchain. A record alone does not guarantee coverage. Settlement references require independent chain verification.',
+    notice: fixture
+      ? 'SYNTHETIC FIXTURE: policy, reservation and checkpoint are rehearsal data, not Arc confirmations. No live financial operations.'
+      : 'Arc Testnet synthetic demo. Preparation is offchain. A record alone does not guarantee coverage. Settlement references require independent chain verification.',
   };
   return NextResponse.json(body, { headers });
 }

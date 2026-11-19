@@ -17,6 +17,7 @@ import { Callout } from '@/components/ui/callout';
 import { Stepper, type StepItem } from '@/components/ui/stepper';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { useFixtureMode } from '@/providers/source-mode';
 
 const usdc = (value: string) => `${formatUnits(BigInt(value), 6)} USDC`;
 
@@ -34,6 +35,7 @@ type WizardStage = 1 | 2 | 3 | 4;
  * Business/API behavior unchanged from prior panel.
  */
 export function HumanProcurementPanel() {
+  const fixtureMode = useFixtureMode();
   const { wallet, api, run, busy, error } = useProcurement();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
@@ -147,6 +149,7 @@ export function HumanProcurementPanel() {
   }
 
   async function payment(kind: 'approve' | 'bind') {
+    if (fixtureMode) throw new Error('Wallet transactions disabled in synthetic fixture mode');
     if (!prep || !quote || !publicClient || !walletClient) throw new Error('Wallet not ready');
     if (wallet.uiStatus !== 'ready' || wallet.address?.toLowerCase() !== prep.policy.payer)
       throw new Error('Wrong account or network; reconnect the policy payer.');
