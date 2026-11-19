@@ -1,3 +1,4 @@
+import { projectClaimTriage, workbenchStatuses } from '@/lib/server/claims-review-projection';
 import { confirmedClaimReceipt } from '@/lib/server/claims-settlement-projection';
 import { getRuntimeConfig } from '@/lib/server/runtime-config';
 import { withApiSecurity } from '@/lib/server/api-security';
@@ -21,20 +22,30 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 async function GETHandler(request: Request) {
-  const auth = authenticateClaimsRequest(request, ['claimant', 'reviewer', 'authority', 'system']);
+  const url = new URL(request.url);
+  const workbench = url.searchParams.get('view') === 'workbench';
+  const auth = authenticateClaimsRequest(
+    request,
+    workbench ? ['reviewer', 'authority'] : ['claimant', 'reviewer', 'authority', 'system'],
+  );
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const url = new URL(request.url);
   const status = url.searchParams.get('status') ?? undefined;
   const repo = getRepo();
   const chainSource = getRuntimeConfig().chainSource;
   const db = getDb();
   const cases = listClaimsCases(repo, { limit: 500, status })
     .filter((c) => canAccessClaimsPolicy(repo, auth.principal, c.policyId))
+    .filter((claim) => !workbench || workbenchStatuses.has(claim.status))
     .slice(0, 50)
     .map((claim) => ({
       ...serializeClaimsCase(claim),
+      ...(workbench
+        ? {
+            triage: projectClaimTriage(repo, claim, auth.principal.role, chainSource === 'fixture'),
+          }
+        : {}),
       confirmedSettlementReceipt: confirmedClaimReceipt(db, chainSource, claim),
     }))
     .filter((claim) => status !== 'PAID' || claim.confirmedSettlementReceipt);

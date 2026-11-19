@@ -18,3 +18,5 @@ export * from './claim-verification';
 export * from './claims-investigation';
 
 export * from './independent-liquidation';
+
+export { checkClaimAdjudication } from './claim-adjudication-checks';

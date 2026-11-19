@@ -1,3 +1,10 @@
+import {
+  queueSections,
+  type CaseTriage,
+  type QueueSection,
+  type ReviewReadiness,
+  type VerificationState,
+} from './investigation-presentation';
 import { hasArcReceiptHash } from './settlement-presentation';
 
 /** Client-side claims API response discrimination (auth vs empty vs malformed). */
@@ -34,6 +41,7 @@ export type ClaimsCaseListRow = {
   payable: { usdc: string | null };
   reviewReasonCode: string | null;
   updatedAt: string;
+  triage?: CaseTriage;
   labels: { synthetic: string | null };
 };
 
@@ -65,6 +73,12 @@ export function parseClaimsCaseListPayload(json: unknown): ClaimsCaseListRow[] |
     rows.push({
       ...(hasArcReceiptHash(raw.confirmedSettlementReceipt) && !raw.syntheticDemo
         ? { confirmedSettlementReceipt: raw.confirmedSettlementReceipt }
+        : {}),
+      ...(isRecord(raw.triage) &&
+      typeof raw.triage.section === 'string' &&
+      Object.hasOwn(queueSections, raw.triage.section) &&
+      typeof raw.triage.reason === 'string'
+        ? { triage: { section: raw.triage.section as QueueSection, reason: raw.triage.reason } }
         : {}),
       id: raw.id,
       status: raw.status,
@@ -146,6 +160,9 @@ export function parseClaimCaseDetailPayload(json: unknown): {
   fixtureCatalog?: Record<string, unknown>;
   linkedIncident?: Record<string, unknown>;
   verifications: unknown[];
+  reviewReadiness?: ReviewReadiness;
+  verificationStates: Record<string, VerificationState>;
+  settlementVerificationBlocker?: string | null;
   case: Record<string, unknown>;
   timeline: unknown[];
   confirmedSettlementReceipt?: string;
@@ -160,6 +177,27 @@ export function parseClaimCaseDetailPayload(json: unknown): {
     fixtureCatalog: isRecord(json.fixtureCatalog) ? json.fixtureCatalog : undefined,
     linkedIncident: isRecord(json.linkedIncident) ? json.linkedIncident : undefined,
     verifications: Array.isArray(json.verifications) ? json.verifications : [],
+    verificationStates: Object.fromEntries(
+      Object.entries(isRecord(json.verificationStates) ? json.verificationStates : {}).filter(
+        (entry): entry is [string, VerificationState] =>
+          entry[1] === 'current' || entry[1] === 'stale' || entry[1] === 'failed',
+      ),
+    ),
+    ...(isRecord(json.reviewReadiness) &&
+    (json.reviewReadiness.verificationId === null ||
+      typeof json.reviewReadiness.verificationId === 'string') &&
+    (json.reviewReadiness.blocker === null || typeof json.reviewReadiness.blocker === 'string')
+      ? {
+          reviewReadiness: {
+            verificationId: json.reviewReadiness.verificationId,
+            blocker: json.reviewReadiness.blocker,
+          },
+        }
+      : {}),
+    ...(typeof json.settlementVerificationBlocker === 'string' ||
+    json.settlementVerificationBlocker === null
+      ? { settlementVerificationBlocker: json.settlementVerificationBlocker }
+      : {}),
     case: json.case,
     ...(hasArcReceiptHash(json.confirmedSettlementReceipt)
       ? { confirmedSettlementReceipt: json.confirmedSettlementReceipt }

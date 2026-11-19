@@ -16,7 +16,7 @@ export default function ClaimsReviewPage() {
       <PageHeader
         eyebrow="Ops"
         title="Reviewer workbench"
-        description="Privileged REVIEW queue. Exchange a provisioned ops session below — wallet Sign in alone never grants reviewer rights."
+        description="Triage open claims, review linked evidence and track payment handoffs. Use a provisioned ops session to open the queue."
       />
       <Callout kind="warn" title="Role-gated">
         Settlement preparation does not broadcast transfers. Server authorization decides access.

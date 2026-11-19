@@ -30,6 +30,21 @@ fixture restrictions. Denial and approval remain human actions; AI is never a de
 confirm payment, bind policies, start reconciliation or make live RPC calls. Synthetic fixture evidence
 never becomes independently authenticated chain/event/loss proof.
 
+## Claim timeline and reviewer queue
+
+Open evidence requests sit above the case timeline. **Respond to this request** opens the proof
+form with that request selected. The timeline keeps the authenticated actor, timestamp and record
+ID alongside each submission, verification and decision. Examiner citations, reviewer-adopted
+requests and decision citations lead to same-case records from the authorized read. Unavailable
+references display without links. Earlier verifier records retain their stale label.
+
+At `/claims/review`, a reviewer or authority session can open cases grouped by the next action.
+Open requests without a response wait for claimant proof. Linked responses wait for human
+review. Stale or failed verification requires attention. Current supported findings hand off to
+contractual review. Approved cases show the payment handoff or the fixture restriction.
+The queue and disabled controls reflect checks on the saved records. Mutation endpoints still
+enforce role, current evidence and chain checks when an action is requested.
+
 ## Evidence and journal
 
 Migration **012** adds only `claim_investigation_entries` after unchanged migration 011. It preserves

@@ -1,3 +1,7 @@
+import {
+  projectReviewReadiness,
+  settlementVerificationBlocker,
+} from '@/lib/server/claims-review-projection';
 import { confirmedClaimReceipt } from '@/lib/server/claims-settlement-projection';
 import { recheckIndependentEvidence } from '@/lib/server/independent-evidence';
 import { withApiSecurity } from '@/lib/server/api-security';
@@ -42,6 +46,7 @@ async function GETHandler(request: Request, ctx: Ctx) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const timeline = listClaimsCaseTimeline(repo, id).map(serializeCaseEvent);
   const manifests = repo.listEvidenceManifests(id);
+  const verifications = listClaimVerifications(repo, id, auth.principal);
   const chainSource = getRuntimeConfig().chainSource;
   return NextResponse.json({
     dataClass: 'claims_case',
@@ -56,7 +61,15 @@ async function GETHandler(request: Request, ctx: Ctx) {
     confirmedSettlementReceipt: confirmedClaimReceipt(getDb(), chainSource, c),
     timeline,
     evidenceManifests: manifests,
-    verifications: listClaimVerifications(repo, id, auth.principal),
+    verifications,
+    ...projectReviewReadiness(repo, c, verifications),
+    ...(auth.principal.role === 'authority' &&
+    chainSource === 'arc-testnet' &&
+    !c.syntheticDemo &&
+    c.evidenceAuthenticity === 'verified_independent' &&
+    ['APPROVED', 'SETTLEMENT_FAILED'].includes(c.status)
+      ? { settlementVerificationBlocker: settlementVerificationBlocker(repo, c) }
+      : {}),
   });
 }
 
