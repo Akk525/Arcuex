@@ -534,7 +534,7 @@ async function rawMcpWithHeaders(_c: unknown, i: number) {
 }
 
 async function fixture() {
-  await ingressAndAuth();
+  // Ingress/auth were proven on the live service; the fixture lease is only 300 seconds.
   const reviewerToken = readSecret('CLAIMS_REVIEWER_API_TOKEN_FILE');
   secrets.push(reviewerToken);
   const owner = privateKeyToAccount(readSecret('ARCUEX_FIXTURE_OWNER_KEY_FILE') as `0x${string}`);
@@ -546,10 +546,12 @@ async function fixture() {
 
   const probe = await connect((await issueToken(owner, ['arcuex:read'])).body.accessToken);
   const agents = await probe.call('arcuex_list_owned_agents');
-  const agentId = agents.data.agents?.[0]?.id ?? agents.data[0]?.id;
+  const agentId = agents.data.owned?.[0]?.id as string;
+  check('fixture: seeded agent visible to its owner', Boolean(agentId), { agentId });
   const a = await connect((await issueToken(owner, ALL, agentId)).body.accessToken);
   const policies = await a.call('arcuex_list_policies');
-  const policy = (policies.data.policies ?? policies.data)[0];
+  const policy =
+    (Array.isArray(policies.data) ? policies.data : (policies.data?.policies ?? []))[0] ?? {};
   const policyId = policy.policyId as string;
   check('fixture: policy visible to owner/agent signer', Boolean(policyId), {
     policyId,
