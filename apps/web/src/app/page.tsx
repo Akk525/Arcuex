@@ -1,10 +1,5 @@
-import Link from 'next/link';
+import { HomePage } from '@/components/marketing/home-page';
 
-export default function HomePage() {
-  return (
-    <main className="workspace-container py-16">
-      <p className="text-sm text-[var(--ink-muted)]">Marketing homepage landing in Phase 3.</p>
-      <Link href="/dashboard">Open dashboard</Link>
-    </main>
-  );
+export default function Page() {
+  return <HomePage />;
 }
