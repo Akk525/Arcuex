@@ -1,26 +1,22 @@
 import Link from 'next/link';
+import { CaretLeft } from '@phosphor-icons/react/ssr';
 import { AppShell } from '@/components/app-shell';
-import { PoliciesPanel } from '@/components/coverage/policies-panel';
-import { PageHeader } from '@/components/ui/page-header';
+import { PolicyRecord } from '@/components/coverage/policy-record';
 
 export default async function PolicyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   return (
     <AppShell>
-      <div className="mb-3">
+      <nav aria-label="Breadcrumb" className="mb-2">
         <Link
           href="/policies"
-          className="inline-flex min-h-11 items-center text-sm text-[var(--accent)] underline"
+          className="inline-flex min-h-9 items-center gap-1 text-[0.8125rem] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]"
         >
-          ← Policy portfolio
+          <CaretLeft size={13} weight="bold" aria-hidden="true" />
+          Policies
         </Link>
-      </div>
-      <PageHeader
-        eyebrow="Protect"
-        title="Policy details"
-        description="Review recorded terms, coverage dates, confirmation and claim eligibility."
-      />
-      <PoliciesPanel id={id} />
+      </nav>
+      <PolicyRecord id={id} />
     </AppShell>
   );
 }
