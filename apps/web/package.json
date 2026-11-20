@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "mcp:stdio": "tsx --tsconfig tsconfig.json scripts/mcp-stdio.mts"
   },
   "dependencies": {
     "@arcuex/agent-sdk": "workspace:*",
@@ -18,6 +19,7 @@
     "@arcuex/onchain": "workspace:*",
     "@arcuex/persistence": "workspace:*",
     "@arcuex/quicknode": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@phosphor-icons/react": "^2.1.10",
     "@tanstack/react-query": "^5.69.0",
     "better-sqlite3": "^11.10.0",
@@ -25,13 +27,15 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "viem": "^2.23.15",
-    "wagmi": "^2.14.15"
+    "wagmi": "^2.14.15",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.14",
     "@types/react": "^19.0.11",
     "@types/react-dom": "^19.0.4",
     "tailwindcss": "^4.0.14",
+    "tsx": "^4.23.15",
     "typescript": "^5.8.2",
     "vitest": "^3.0.9"
   }
