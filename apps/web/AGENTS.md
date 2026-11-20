@@ -7,6 +7,8 @@ balances, one user-approved test transaction, QuickNode RPC status, and
 **synthetic** Coverage / Claims / Capital panels backed by SQLite API routes.
 
 Preserve the existing Protect/Build landing and authenticated procurement/claims routes.
+The MCP server (`src/lib/mcp`, `/api/mcp`) must reach business logic only through those route
+handlers; never add MCP-only insurance rules, signers, or reviewer/authority tools.
 No private-key collection. No real insurance issuance UI. Workspace selection grants no role.
 
 ## UI rules

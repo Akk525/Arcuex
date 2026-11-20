@@ -1,0 +1,105 @@
+[
+  {
+    "step": "auth-negative",
+    "missing": 401,
+    "malformed": 401,
+    "unknown": 401,
+    "revoked": 401
+  },
+  {
+    "step": "1-discovery",
+    "toolCount": 53
+  },
+  {
+    "step": "2-registration-request",
+    "status": "ACTION_REQUIRED",
+    "requestId": "0xdf61d067316ab23d375023f220fce73a0795e7cf9b22588c2bcd09d33601317d"
+  },
+  {
+    "step": "3-unauthorized-registration",
+    "scopeDenied": "INSUFFICIENT_SCOPE",
+    "foreignOwner": "OWNER_MISMATCH"
+  },
+  {
+    "step": "4-owner-approval",
+    "agentId": "2aef0dae-a0cd-4797-a251-f1011ed1b4d8",
+    "owner": "0xfce2cf516c232674009db5b4d6fb46300003004d"
+  },
+  {
+    "step": "5-products",
+    "codes": [
+      "ARC_ORACLE_LIQUIDATION_DEMO_V1"
+    ]
+  },
+  {
+    "step": "8-human-approval",
+    "withoutDelegation": "DELEGATION_REQUIRED",
+    "delegationId": "dd6c2880-554c-44b3-881a-db9b63a263e1"
+  },
+  {
+    "step": "9-quote",
+    "quoteId": "c54dee0a-e945-4c53-a7f7-bfd05f88656d",
+    "digest": "0xcb08d6ea6e33c6ce8b8c92b10cb892b36eaacd36bc082ceda72a8c8222ecae27",
+    "premiumMicros": "10000"
+  },
+  {
+    "step": "10-purchase-prepared",
+    "stage": "approve",
+    "to": "0x3600000000000000000000000000000000000000"
+  },
+  {
+    "step": "12-canonical-binding",
+    "receipt": "RECEIPT_VERIFIED_AWAITING_CANONICAL_LINK",
+    "after": "canonical_verified_linked",
+    "coverage": "SCHEDULED"
+  },
+  {
+    "step": "13-policy",
+    "coverageStatus": "active",
+    "claimsEligible": true
+  },
+  {
+    "step": "14-claim-filed",
+    "claimId": "254a27c6-f2ac-4641-8601-4372e10666b8",
+    "duplicateSameCase": true,
+    "sessionResumed": true
+  },
+  {
+    "step": "15-initial-proof",
+    "submissionId": "035c7833-30cf-4e48-a240-ff2d38f6f618",
+    "verification": "VERIFICATION_CURRENT"
+  },
+  {
+    "step": "16-evidence-request",
+    "requestId": "e89bff4d-aaf9-47d5-9732-a2f728eb4c96"
+  },
+  {
+    "step": "17-evidence-response",
+    "submissionId": "2822aef2-76b6-4128-bd88-320448c3738e"
+  },
+  {
+    "step": "18-verification-freshness",
+    "afterResponse": "stale",
+    "afterRerun": "current",
+    "verificationId": "ce40f6dd-d63a-41da-8a75-b4f2e0145d0e"
+  },
+  {
+    "step": "19-human-decision",
+    "status": "APPROVED",
+    "payable": {
+      "micros": "1000000",
+      "usdc": "1.000000"
+    }
+  },
+  {
+    "step": "20-approved-unpaid",
+    "stage": "AWAITING_FINANCIAL_AUTHORITY",
+    "gate": "SYNTHETIC_SETTLEMENT_PROHIBITED",
+    "receipt": null
+  },
+  {
+    "step": "delegation-negative",
+    "expired": "DELEGATION_EXPIRED",
+    "revoked": "DELEGATION_REVOKED"
+  }
+]
