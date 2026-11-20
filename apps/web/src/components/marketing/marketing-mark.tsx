@@ -1,0 +1,11 @@
+export function MarketingMark({ className = 'h-6 w-6' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
+      <path d="M3.5 25.2 13.6 6.4c.42-.74 1.48-.74 1.9 0l2.15 3.78-5.35 15.02H3.5Z" fill="#1aa8b1" />
+      <path
+        d="M15.4 25.2 21.15 8.15c.32-.7 1.28-.7 1.6 0L29.6 25.2h-4.55l-2.55-6.55-2.05 6.55H15.4Z"
+        fill="#0c4f58"
+      />
+    </svg>
+  );
+}
