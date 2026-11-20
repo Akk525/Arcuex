@@ -1,3 +1,7 @@
+import {
+  isIndependentLiquidationProfile,
+  type IndependentLiquidationProfile,
+} from '@arcuex/domain/procurement';
 import manifest from '../../../../../docs/deployments/arc-testnet-insurance-pool.json';
 
 export const LAUNCH_CHAIN_ID = 5042002;
@@ -168,6 +172,27 @@ export function validateRuntimeEnvironment(env: Record<string, string | undefine
 
   const chainSource = value('ARCUEX_CHAIN_SOURCE', enforced ? '' : 'arc-testnet');
   fail('ARCUEX_CHAIN_SOURCE', ['arc-testnet', 'fixture'].includes(chainSource));
+  const independentProfileRaw = value('ARCUEX_INDEPENDENT_LIQUIDATION_PROFILE');
+  let independentLiquidationProfile: IndependentLiquidationProfile | undefined;
+  if (independentProfileRaw && chainSource === 'arc-testnet') {
+    try {
+      const parsed: unknown = JSON.parse(independentProfileRaw);
+      if (isIndependentLiquidationProfile(parsed)) {
+        const { verifier, emitter, runtimeCodeHash, replayPublicKey, recoveryPublicKey } = parsed;
+        independentLiquidationProfile = {
+          verifier,
+          emitter,
+          runtimeCodeHash,
+          replayPublicKey,
+          recoveryPublicKey,
+        };
+      }
+    } catch {
+      // Report the variable name without returning configuration contents.
+    }
+  }
+  if (enforced && independentProfileRaw)
+    fail('ARCUEX_INDEPENDENT_LIQUIDATION_PROFILE', independentLiquidationProfile);
   const fixtureId = value('ARCUEX_FIXTURE_ID');
   const fixtureDigest = value('ARCUEX_FIXTURE_DIGEST');
   if (chainSource === 'fixture') {
@@ -279,6 +304,7 @@ export function validateRuntimeEnvironment(env: Record<string, string | undefine
     sessionEpoch,
     storageId,
     chainSource: chainSource as 'arc-testnet' | 'fixture',
+    independentLiquidationProfile,
     fixtureId,
     fixtureDigest,
     sessionTtlSeconds,

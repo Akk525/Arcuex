@@ -243,7 +243,16 @@ export function transitionClaimsCase(
   current: ClaimsCase,
   input: TransitionClaimsCaseInput,
 ): ClaimsCase {
-  assertClaimsCaseTransition(current.status, input.to);
+  const orphaned =
+    current.status === 'PAID' &&
+    input.to === 'SETTLEMENT_PENDING' &&
+    input.actor === 'system:arc-reconciliation' &&
+    input.reasonCode === 'SETTLEMENT_ORPHANED';
+  const recoveredPayment =
+    current.status === 'SETTLEMENT_FAILED' &&
+    input.to === 'PAID' &&
+    input.reasonCode === 'SETTLEMENT_RECONCILED';
+  if (!orphaned && !recoveredPayment) assertClaimsCaseTransition(current.status, input.to);
   if (!input.actor.trim()) {
     throw new ValidationError('actor required for ClaimsCase transition');
   }

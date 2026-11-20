@@ -1101,7 +1101,7 @@ export class InsuranceRepository {
   sumCommittedForPolicy(policyId: string, excludeCaseId: string): bigint {
     const rows = this.db
       .prepare(
-        "SELECT payable_micros FROM claims_cases WHERE policy_id=? AND id<>? AND status IN ('SETTLEMENT_PENDING','PAID')",
+        "SELECT payable_micros FROM claims_cases WHERE policy_id=? AND id<>? AND (status IN ('SETTLEMENT_PENDING','PAID') OR (status='SETTLEMENT_FAILED' AND evidence_authenticity='verified_independent'))",
       )
       .all(policyId, excludeCaseId) as { payable_micros: string | null }[];
     return rows.reduce((sum, r) => sum + BigInt(r.payable_micros ?? '0'), 0n);
@@ -1115,7 +1115,7 @@ export class InsuranceRepository {
              FROM claims_cases
              WHERE loss_key = ?
                AND id != ?
-               AND status IN ('PAID', 'SETTLEMENT_PENDING')
+               AND (status IN ('PAID', 'SETTLEMENT_PENDING') OR (status='SETTLEMENT_FAILED' AND evidence_authenticity='verified_independent'))
                AND payable_micros IS NOT NULL`,
           )
           .get(lossKey, excludeCaseId) as { total: number | string } | undefined)
@@ -1124,7 +1124,7 @@ export class InsuranceRepository {
             `SELECT COALESCE(SUM(CAST(payable_micros AS INTEGER)), 0) AS total
              FROM claims_cases
              WHERE loss_key = ?
-               AND status IN ('PAID', 'SETTLEMENT_PENDING')
+               AND (status IN ('PAID', 'SETTLEMENT_PENDING') OR (status='SETTLEMENT_FAILED' AND evidence_authenticity='verified_independent'))
                AND payable_micros IS NOT NULL`,
           )
           .get(lossKey) as { total: number | string } | undefined);

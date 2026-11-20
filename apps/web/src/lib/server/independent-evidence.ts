@@ -1,30 +1,15 @@
 import type { InsuranceRepository } from '@arcuex/persistence';
 import type { ClaimsCase, IndependentLiquidationVerification } from '@arcuex/insurance';
+import { ARC_CONFIRMATION_DEPTH } from './arc-confirmation';
 import { procurementClient } from './procurement-chain';
 import {
   INDEPENDENT_LIQUIDATION_VERIFIER,
-  isIndependentLiquidationProfile,
   sameIndependentLiquidationProfile,
 } from '@arcuex/domain';
 import { getRuntimeConfig } from './runtime-config';
 
 export function configuredIndependentLiquidation() {
-  if (getRuntimeConfig().chainSource !== 'arc-testnet') return undefined;
-  const raw = process.env.ARCUEX_INDEPENDENT_LIQUIDATION_PROFILE;
-  if (!raw) return undefined;
-  try {
-    const p: unknown = JSON.parse(raw);
-    if (!isIndependentLiquidationProfile(p)) return undefined;
-    return {
-      verifier: p.verifier,
-      emitter: p.emitter,
-      runtimeCodeHash: p.runtimeCodeHash,
-      replayPublicKey: p.replayPublicKey,
-      recoveryPublicKey: p.recoveryPublicKey,
-    };
-  } catch {
-    return undefined;
-  }
+  return getRuntimeConfig().independentLiquidationProfile;
 }
 
 // Read-only canonicality check immediately before human approval or settlement preparation.
@@ -33,6 +18,7 @@ export async function recheckIndependentEvidence(
   claim: ClaimsCase,
   verificationId: string | undefined,
   client = procurementClient(),
+  atMs = Date.now(),
 ) {
   const profile = configuredIndependentLiquidation();
   const stored = repo
@@ -43,8 +29,9 @@ export async function recheckIndependentEvidence(
     !profile ||
     !stored ||
     !stored.anchor ||
+    Date.parse(stored.createdAt) > atMs ||
     !stored.validUntilMs ||
-    stored.validUntilMs <= Date.now() ||
+    stored.validUntilMs <= atMs ||
     stored.verifierVersion !== INDEPENDENT_LIQUIDATION_VERIFIER ||
     stored.authenticity !== 'verified_independent' ||
     stored.evidenceSufficiency !== 'sufficient' ||
@@ -58,9 +45,14 @@ export async function recheckIndependentEvidence(
   const blockNumber = BigInt(stored.anchor.number);
   const [chainId, head, block] = await Promise.all([
     client.getChainId(),
-    client.getBlockNumber(),
+    client.getBlockNumber({ cacheTime: 0 }),
     client.getBlock({ blockNumber }),
   ]);
-  if (chainId !== 5042002 || head < blockNumber + 2n || block.hash !== stored.anchor.hash)
+  if (
+    chainId !== 5042002 ||
+    head < blockNumber + ARC_CONFIRMATION_DEPTH ||
+    block.hash !== stored.anchor.hash
+  )
     throw new Error('Independent evidence is no longer canonical');
+  return stored;
 }

@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { generateKeyPairSync, randomUUID, sign, type KeyObject } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -35,6 +38,7 @@ import {
   configuredIndependentLiquidation,
   recheckIndependentEvidence,
 } from './independent-evidence';
+import { reconcileSettlementAnchors } from './settlement-reconciliation';
 import { prepareClaimsTransaction } from './claims-chain';
 import { POST as verifyHttp } from '@/app/api/claims/cases/[id]/verification/route';
 import { POST as mutateHttp } from '@/app/api/claims/cases/[id]/route';
@@ -68,14 +72,16 @@ const tokenAbi = parseAbi([
 ]);
 const publicHex = (key: KeyObject) =>
   key.export({ format: 'der', type: 'spki' }).subarray(-32).toString('hex');
+const directories: string[] = [];
 const databases: ReturnType<typeof openDatabase>[] = [];
 afterEach(() => {
   databases.splice(0).forEach((db) => db.close());
+  directories.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true }));
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
-async function setup() {
+async function setup(path = ':memory:') {
   const replay = generateKeyPairSync('ed25519');
   const recovery = generateKeyPairSync('ed25519');
   const profile: IndependentLiquidationProfile = {
@@ -86,7 +92,7 @@ async function setup() {
     recoveryPublicKey: publicHex(recovery.publicKey),
   };
   vi.stubEnv('ARCUEX_INDEPENDENT_LIQUIDATION_PROFILE', JSON.stringify(profile));
-  const db = openDatabase();
+  const db = openDatabase(path);
   databases.push(db);
   const repo = new InsuranceRepository(db);
   const store = new ProcurementStore(db);
@@ -208,8 +214,9 @@ async function setup() {
         ? { hash: bindHash, timestamp: BigInt(at - 3500) }
         : blockNumber === 20n
           ? { hash, timestamp: occurred }
-          : { hash, timestamp: BigInt(at) },
+          : { number: blockNumber, hash, timestamp: BigInt(at) },
     ),
+    call: vi.fn(async () => ({})),
     getCode: vi.fn(async () => code),
     getLogs: vi.fn(async () => [bindLog]),
     getTransactionReceipt: vi.fn(async () => ({
@@ -222,6 +229,7 @@ async function setup() {
     })),
     readContract: vi.fn(async ({ functionName }: { functionName: string }) => {
       if (functionName === 'policies') return policyRow;
+      if (functionName === 'settledClaims') return false;
       if (functionName === 'claimsAuthority') return authority;
       if (functionName === 'losses') return [hash, 0n, 0n, false];
       throw new Error('Unexpected contract read');
@@ -574,4 +582,186 @@ describe('independent liquidation pilot with no live chain writes', () => {
     ).toThrow();
     expect(f.repo.getClaimsCase(approved.id)?.status).toBe('APPROVED');
   });
+});
+
+it('reconciles exact payments across a SQLite restart and reopens an orphan without releasing its commitment', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'arcuex-payment-'));
+  directories.push(dir);
+  const path = join(dir, 'payment.sqlite');
+  const f = await setup(path);
+  const v = await f.verify();
+  f.complete();
+  const approved = f.approve(v.id);
+  const unsigned = await prepareClaimsTransaction(approved, f.client);
+  const policy = f.repo.getProcurementPolicy(approved.policyId)!;
+  const token = 'bc'.repeat(32);
+  vi.stubEnv('CLAIMS_AUTHORITY_API_TOKEN', token);
+  const globals = globalThis as typeof globalThis & {
+    __arcuexDb?: typeof f.db;
+    __arcuexRepo?: InsuranceRepository;
+  };
+  const { __arcuexDb: priorDb, __arcuexRepo: priorRepo } = globals;
+  globals.__arcuexDb = f.db;
+  globals.__arcuexRepo = f.repo;
+  const post = async (body: object) =>
+    mutateHttp(
+      new Request(`http://localhost:3000/api/claims/cases/${approved.id}`, {
+        method: 'POST',
+        headers: { origin: 'http://localhost:3000', authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      }),
+      { params: Promise.resolve({ id: approved.id }) },
+    );
+  try {
+    const authorization = {
+      action: 'prepare_settlement',
+      confirmedRecipient: owner,
+      confirmedAmountUsdc: '1',
+      confirmedLossKey: approved.lossKey,
+      confirmedEvidenceRoot: approved.evidenceRoot,
+    };
+    const prepared = await post(authorization);
+    const pending = await prepared.json();
+    expect(prepared.status, JSON.stringify(pending)).toBe(200);
+    expect(pending.case.status).toBe('SETTLEMENT_PENDING');
+    expect((await (await post(authorization)).json()).case.settlementPrepId).toBe(
+      pending.case.settlementPrepId,
+    );
+    expect((await post({ action: 'mark_failed' })).status).toBe(409);
+
+    // The worker and the HTTP process recover using only persisted state and a fresh RPC client.
+    f.db.close();
+    databases.splice(databases.indexOf(f.db), 1);
+    const db = openDatabase(path);
+    databases.push(db);
+    const repo = new InsuranceRepository(db);
+    globals.__arcuexDb = db;
+    globals.__arcuexRepo = repo;
+
+    const paymentHash = `0x${'ce'.repeat(32)}` as const;
+    const revertedHash = `0x${'cf'.repeat(32)}` as const;
+    const paymentBlock = `0x${'2a'.repeat(32)}` as const;
+    const policyId = toPolicyIdBytes32(approved.policyId);
+    const claimId = toClaimIdBytes32(approved.id);
+    const amount = approved.payableMicros!;
+    const lossCap = approved.lossCapMicros!;
+    const validTimestamp = BigInt(Math.floor(Date.now() / 1000) + 5);
+    let timestamp = validTimestamp;
+    let canonicalHash = paymentBlock;
+    let head = 31n;
+    let includeTransfer = true;
+    let settled = false;
+    const metadata = {
+      transactionHash: paymentHash,
+      blockHash: paymentBlock,
+      blockNumber: 30n,
+      removed: false,
+    };
+    const event = {
+      ...metadata,
+      address: procurementPool,
+      topics: encodeEventTopics({
+        abi: insurancePoolAbi,
+        eventName: 'ClaimSettled',
+        args: { policyId, claimId, lossKey: approved.lossKey as `0x${string}` },
+      }),
+      data: encodeAbiParameters(
+        [{ type: 'address' }, { type: 'uint256' }, { type: 'uint256' }, { type: 'uint256' }],
+        [owner, amount, amount, lossCap],
+      ),
+    };
+    const transfer = {
+      ...metadata,
+      address: ARC_USDC_ERC20_ADDRESS,
+      topics: encodeEventTopics({
+        abi: tokenAbi,
+        eventName: 'Transfer',
+        args: { from: procurementPool, to: owner },
+      }),
+      data: encodeAbiParameters([{ type: 'uint256' }], [amount]),
+    };
+    const client = {
+      ...f.reads,
+      getBlockNumber: async () => head,
+      getBlock: async (input?: { blockNumber?: bigint }) =>
+        input?.blockNumber === 30n
+          ? { hash: canonicalHash, number: 30n, timestamp }
+          : f.reads.getBlock(input),
+      getTransactionReceipt: async ({ hash }: { hash: string }) => ({
+        ...metadata,
+        transactionHash: hash,
+        from: authority,
+        to: procurementPool,
+        status: hash === revertedHash ? 'reverted' : 'success',
+        logs: hash === revertedHash ? [] : includeTransfer ? [event, transfer] : [event],
+      }),
+      getTransaction: async ({ hash }: { hash: string }) => ({
+        hash,
+        blockHash: paymentBlock,
+        blockNumber: 30n,
+        from: authority,
+        to: procurementPool,
+        input: unsigned.data,
+        value: 0n,
+      }),
+      readContract: async ({ functionName }: { functionName: string }) => {
+        if (functionName === 'settledClaims') return settled;
+        if (functionName === 'losses') return [policyId, lossCap, amount, true];
+        if (functionName === 'policies') {
+          const p = policy.terms;
+          return [
+            policy.digest,
+            owner,
+            owner,
+            BigInt(p.limitMicros),
+            BigInt(p.premiumMicros),
+            BigInt(p.effectiveAt),
+            BigInt(p.expiresAt),
+            0n,
+            amount,
+            true,
+            false,
+          ];
+        }
+        return f.reads.readContract({ functionName });
+      },
+    } as unknown as PublicClient;
+    testClient.mockReturnValue(client);
+    const markPaid = { action: 'mark_paid', receiptRef: paymentHash };
+    expect((await post(markPaid)).status).toBe(409);
+    head = 32n;
+    expect((await post({ action: 'mark_paid', receiptRef: revertedHash })).status).toBe(409);
+    expect((await post({ action: 'mark_failed', receiptRef: revertedHash })).status).toBe(200);
+    expect((await post({ action: 'mark_failed', receiptRef: revertedHash })).status).toBe(200);
+    expect(
+      repo
+        .listClaimsCaseEvents(approved.id)
+        .filter((event) => event.reasonCode === 'SETTLEMENT_REVERTED'),
+    ).toHaveLength(1);
+    expect(repo.sumCommittedForPolicy(approved.policyId, 'another-case')).toBe(amount);
+    settled = true;
+    includeTransfer = false;
+    expect((await post(markPaid)).status).toBe(409);
+    includeTransfer = true;
+    timestamp = BigInt(Math.ceil(v.validUntilMs! / 1000));
+    expect((await post(markPaid)).status).toBe(409);
+    timestamp = validTimestamp;
+    expect((await post(markPaid)).status).toBe(200);
+    expect((await post(markPaid)).status).toBe(200);
+    expect(
+      repo
+        .listClaimsCaseEvents(approved.id)
+        .filter((event) => event.reasonCode === 'SETTLEMENT_RECONCILED'),
+    ).toHaveLength(1);
+    expect(await reconcileSettlementAnchors(db, client)).toBe(0);
+    canonicalHash = bindHash;
+    expect(await reconcileSettlementAnchors(db, client)).toBe(1);
+    expect(await reconcileSettlementAnchors(db, client)).toBe(0);
+    expect(repo.getClaimsCase(approved.id)?.status).toBe('SETTLEMENT_PENDING');
+    expect(repo.sumCommittedForPolicy(approved.policyId, 'another-case')).toBe(amount);
+    expect((await post(markPaid)).status).toBe(409);
+  } finally {
+    globals.__arcuexDb = priorDb;
+    globals.__arcuexRepo = priorRepo;
+  }
 });

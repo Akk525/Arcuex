@@ -792,6 +792,7 @@ export function authorizeSettlementPreparation(
     confirmedLossKey: string;
     confirmedEvidenceRoot: string;
     settlementPrepId: string;
+    expectedVersion?: number;
   },
   principal: ClaimsPrincipal,
 ): ClaimsCase {
@@ -803,7 +804,16 @@ export function authorizeSettlementPreparation(
     const current = getClaimsCase(repo, input.caseId);
     if (!current) throw new ValidationError('Unknown ClaimsCase');
     assertClaimsCaseAccess(repo, principal, current);
-    if (current.status !== 'APPROVED' && current.status !== 'SETTLEMENT_FAILED') {
+    if (input.expectedVersion !== undefined && current.rowVersion !== input.expectedVersion)
+      throw new ValidationError('Claim changed during settlement preparation');
+    const retryingPending =
+      current.status === 'SETTLEMENT_PENDING' &&
+      current.evidenceAuthenticity === 'verified_independent';
+    if (
+      current.status !== 'APPROVED' &&
+      current.status !== 'SETTLEMENT_FAILED' &&
+      !retryingPending
+    ) {
       throw new ValidationError(
         `Settlement prep requires APPROVED or SETTLEMENT_FAILED (was ${current.status})`,
       );
@@ -897,6 +907,8 @@ export function authorizeSettlementPreparation(
       throw new ValidationError('Same-loss committed payouts would exceed loss cap');
     }
 
+    if (retryingPending) return current;
+
     const next = transitionClaimsCase(current, {
       to: 'SETTLEMENT_PENDING',
       actor,
@@ -919,7 +931,12 @@ export function authorizeSettlementPreparation(
 
 export function markClaimsCasePaid(
   repo: InsuranceRepository,
-  input: { caseId: string; receiptRef: string },
+  input: {
+    caseId: string;
+    receiptRef: string;
+    expectedVersion?: number;
+    anchor?: { blockNumber: string; blockHash: string };
+  },
   principal: ClaimsPrincipal,
 ): ClaimsCase {
   assertClaimsRole(principal, ['authority']);
@@ -928,6 +945,10 @@ export function markClaimsCasePaid(
     const current = getClaimsCase(repo, input.caseId);
     if (!current) throw new ValidationError('Unknown ClaimsCase');
     assertClaimsCaseAccess(repo, principal, current);
+    if (input.expectedVersion !== undefined && input.expectedVersion !== current.rowVersion)
+      throw new ValidationError('Settlement changed during receipt verification');
+    if (current.evidenceAuthenticity === 'verified_independent' && !input.anchor)
+      throw new ValidationError('Canonical Arc receipt proof required');
     if (current.settlementAuthorization !== 'authorized') {
       throw new ValidationError('PAID requires prior authorized settlement preparation');
     }
@@ -938,13 +959,20 @@ export function markClaimsCasePaid(
     });
     return persistTransition(repo, current, next, actor, 'SETTLEMENT_RECONCILED', {
       receiptRef: input.receiptRef,
+      anchor: input.anchor,
     }).case;
   });
 }
 
 export function markClaimsCaseSettlementFailed(
   repo: InsuranceRepository,
-  input: { caseId: string; reasonCode: string; detail?: string },
+  input: {
+    caseId: string;
+    reasonCode: string;
+    detail?: string;
+    receiptRef?: string;
+    expectedVersion?: number;
+  },
   principal: ClaimsPrincipal,
 ): ClaimsCase {
   assertClaimsRole(principal, ['authority']);
@@ -953,6 +981,10 @@ export function markClaimsCaseSettlementFailed(
     const current = getClaimsCase(repo, input.caseId);
     if (!current) throw new ValidationError('Unknown ClaimsCase');
     assertClaimsCaseAccess(repo, principal, current);
+    if (input.expectedVersion !== undefined && current.rowVersion !== input.expectedVersion)
+      throw new ValidationError('Settlement changed during receipt verification');
+    if (current.evidenceAuthenticity === 'verified_independent' && !input.receiptRef)
+      throw new ValidationError('Canonical reverted receipt required');
     const next = transitionClaimsCase(current, {
       to: 'SETTLEMENT_FAILED',
       actor,
@@ -960,7 +992,27 @@ export function markClaimsCaseSettlementFailed(
     });
     return persistTransition(repo, current, next, actor, input.reasonCode, {
       detail: input.detail ?? null,
+      receiptRef: input.receiptRef,
     }).case;
+  });
+}
+
+/** Restore the existing commitment after its recorded payment block leaves the canonical chain. */
+export function reopenOrphanedSettlement(
+  repo: InsuranceRepository,
+  input: { caseId: string; expectedVersion: number; orphanedBlockHash: string },
+) {
+  return repo.runInTransaction(() => {
+    const current = getClaimsCase(repo, input.caseId);
+    if (!current || current.status !== 'PAID' || current.rowVersion !== input.expectedVersion)
+      return false;
+    const actor = 'system:arc-reconciliation';
+    const reasonCode = 'SETTLEMENT_ORPHANED';
+    const next = transitionClaimsCase(current, { to: 'SETTLEMENT_PENDING', actor, reasonCode });
+    persistTransition(repo, current, next, actor, reasonCode, {
+      blockHash: input.orphanedBlockHash,
+    });
+    return true;
   });
 }
 

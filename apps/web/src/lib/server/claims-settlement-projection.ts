@@ -1,6 +1,6 @@
 import type { ClaimsCase } from '@arcuex/insurance';
 import type { SqliteDb } from '@arcuex/persistence';
-import { hasArcReceiptHash } from '@/lib/claims/settlement-presentation';
+import { hasArcReceiptHash } from '../claims/settlement-presentation';
 
 export function isFixtureSettlementBlocked(
   chainSource: string,
@@ -25,14 +25,25 @@ export function confirmedClaimReceipt(
     isFixtureSettlementBlocked(chainSource, claim)
   )
     return null;
+  const proof = recordedSettlement(db, claim.id);
+  return proof?.hash ?? null;
+}
+
+export function recordedSettlement(db: SqliteDb, caseId: string) {
   const row = db
     .prepare(
-      `SELECT json_extract(payload_json, '$.receiptRef') AS receipt FROM claims_case_events
+      `SELECT payload_json FROM claims_case_events
      WHERE case_id = ? AND reason_code = 'SETTLEMENT_RECONCILED'
-       AND from_status = 'SETTLEMENT_PENDING' AND to_status = 'PAID'
+       AND from_status IN ('SETTLEMENT_PENDING', 'SETTLEMENT_FAILED') AND to_status = 'PAID'
        AND actor LIKE 'authority:%'
-     ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+     ORDER BY rowid DESC LIMIT 1`,
     )
-    .get(claim.id) as { receipt: unknown } | undefined;
-  return hasArcReceiptHash(row?.receipt) ? row.receipt : null;
+    .get(caseId) as { payload_json: string } | undefined;
+  if (!row) return null;
+  const { receiptRef, anchor } = JSON.parse(row.payload_json) as {
+    receiptRef: unknown;
+    anchor?: { blockNumber: string; blockHash: `0x${string}` };
+  };
+  if (!hasArcReceiptHash(receiptRef)) return null;
+  return { hash: receiptRef.toLowerCase(), anchor };
 }

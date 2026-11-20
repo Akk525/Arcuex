@@ -62,6 +62,14 @@ describe('validateRuntimeEnvironment', () => {
     ).toThrow(/CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP/);
   });
 
+  it('rejects invalid production independent evidence configuration without echoing its contents', () => {
+    expect(() =>
+      validateRuntimeEnvironment(
+        basePublicBeta({ ARCUEX_INDEPENDENT_LIQUIDATION_PROFILE: '{invalid' }),
+      ),
+    ).toThrow('ARCUEX_INDEPENDENT_LIQUIDATION_PROFILE');
+  });
+
   it('rejects private keys in production env', () => {
     expect(() =>
       validateRuntimeEnvironment(basePublicBeta({ DEPLOYER_PRIVATE_KEY: '0xabc' })),

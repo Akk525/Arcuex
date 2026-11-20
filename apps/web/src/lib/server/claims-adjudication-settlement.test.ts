@@ -124,6 +124,7 @@ function clientFor(
     lossPolicy?: string;
     lossCap?: bigint;
     chainId?: number;
+    settled?: boolean;
   } = {},
 ) {
   const readContract = vi.fn(async ({ functionName }: { functionName: string }) => {
@@ -148,12 +149,15 @@ function clientFor(
         0n,
         true,
       ];
+    if (functionName === 'settledClaims') return patch.settled ?? false;
     if (functionName === 'claimsAuthority') return authority;
     throw new Error(`Unexpected read ${functionName}`);
   });
   return {
+    call: async () => ({}),
     getChainId: async () => patch.chainId ?? 5042002,
-    getBlock: async () => ({ timestamp }),
+    getBlockNumber: async () => 12n,
+    getBlock: async () => ({ number: 10n, hash: c.lossKey, timestamp }),
     readContract,
   } as unknown as PublicClient;
 }
@@ -187,6 +191,7 @@ describe('offline authorized decision → existing settlement builder', () => {
   });
   it.each([
     { chainId: 1 },
+    { settled: true },
     { beneficiary: authority },
     { reserved: 0n },
     { lossPolicy: '0x' + 'ff'.repeat(32) },

@@ -1,6 +1,7 @@
 import { decodeEventLog, keccak256, parseAbi, toEventSelector, type PublicClient } from 'viem';
 import { ARC_USDC_ERC20_ADDRESS } from '@arcuex/chain';
 import type { IndependentEvidenceSource } from '@arcuex/insurance';
+import { ARC_CONFIRMATION_DEPTH } from './arc-confirmation';
 import { procurementClient } from './procurement-chain';
 
 const liquidationAbi = parseAbi([
@@ -18,7 +19,7 @@ export function independentLiquidationSource(
     async readLiquidation(transactionHash, logIndex, profile) {
       const [chainId, head, receipt] = await Promise.all([
         client.getChainId(),
-        client.getBlockNumber(),
+        client.getBlockNumber({ cacheTime: 0 }),
         client.getTransactionReceipt({ hash: transactionHash }),
       ]);
       if (
@@ -26,7 +27,7 @@ export function independentLiquidationSource(
         receipt.transactionHash !== transactionHash ||
         receipt.status !== 'success' ||
         receipt.to?.toLowerCase() !== profile.emitter ||
-        head < receipt.blockNumber + 2n
+        head < receipt.blockNumber + ARC_CONFIRMATION_DEPTH
       )
         throw new Error('Unsupported liquidation receipt');
       const [anchor, runtimeCode] = await Promise.all([
