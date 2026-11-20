@@ -1,4 +1,5 @@
 import { projectClaimTriage, workbenchStatuses } from '@/lib/server/claims-review-projection';
+import { claimListContext, verificationFreshness } from '@/lib/server/claims-list-context';
 import { confirmedClaimReceipt } from '@/lib/server/claims-settlement-projection';
 import { getRuntimeConfig } from '@/lib/server/runtime-config';
 import { withApiSecurity } from '@/lib/server/api-security';
@@ -41,9 +42,12 @@ async function GETHandler(request: Request) {
     .slice(0, 50)
     .map((claim) => ({
       ...serializeClaimsCase(claim),
+      // Read-only display context: labels, open requests and verifier freshness.
+      context: claimListContext(repo, claim),
       ...(workbench
         ? {
             triage: projectClaimTriage(repo, claim, auth.principal.role, chainSource === 'fixture'),
+            verification: verificationFreshness(repo, claim),
           }
         : {}),
       confirmedSettlementReceipt: confirmedClaimReceipt(db, chainSource, claim),

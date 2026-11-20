@@ -1,10 +1,12 @@
 export function statusTone(
   status: string,
-): 'neutral' | 'ok' | 'warn' | 'error' | 'pending' {
+): 'neutral' | 'ok' | 'warn' | 'error' | 'pending' | 'live' {
   switch (status) {
     case 'PAID':
-    case 'APPROVED':
       return 'ok';
+    case 'APPROVED':
+      // Approval is a decision, not a payment: never the success tone.
+      return 'live';
     case 'DENIED':
     case 'SETTLEMENT_FAILED':
       return 'error';

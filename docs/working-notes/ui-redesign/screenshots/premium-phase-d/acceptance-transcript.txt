@@ -1,0 +1,34 @@
+PASS Distinct insured-agent signer submits claim against owner policy using authenticated SDK
+PASS Agent SDK persists initial evidence with hash and server-derived provenance
+PASS Real HTTP rejects unauthenticated submission
+PASS Real signed nonce establishes policyholder session
+PASS Dossier shows the agent initial proof on the same claim
+PASS Agent provenance is labeled in the timeline
+PASS Next-step band reports the examiner run without implying a decision
+PASS Worker uses fixed OpenAI endpoint with no financial tools
+PASS Examiner receives the actual same-claim dossier and persisted verifier findings
+PASS Examiner receives server-checked in-window chronology with original timestamp provenance
+PASS Examiner sees authenticated signer and evidence scope separately from policy procurement
+PASS Examiner report alone never changes claim or grants payment authority
+PASS Human adopts advisory request and creates an outstanding proof gate
+PASS Reviewer next step waits for claimant evidence
+PASS Inline response rejects oversized proof
+PASS Inline response rejects invalid UTF-8
+PASS Agent response persists exact bytes, hash and agent identity linked to the request
+PASS Human resolution closes the request while retaining submissions
+PASS Deterministic reverification recorded and shown separately from AI advice
+PASS Worker uses fixed OpenAI endpoint with no financial tools
+PASS Examiner receives the actual same-claim dossier and persisted verifier findings
+PASS Examiner receives server-checked in-window chronology with original timestamp provenance
+PASS Examiner sees authenticated signer and evidence scope separately from policy procurement
+PASS Reassessment uses current dossier and retains earlier report
+PASS Approval stays disabled until contractual confirmation and rationale
+PASS Human decision is APPROVED with pending authority, never reimbursed
+PASS No payment-confirmed language appears for the approved claim
+PASS Fixture API still denies settlement preparation
+PASS Incident step requires a reference and time
+PASS Browser filing opens a synthetic case under the authenticated policyholder
+PASS Real signed nonce establishes policyholder session
+PASS No horizontal overflow on any captured page: {"d01-claims-overview-agent-submitted-desktop":0,"d02-dossier-initial-examiner-gap-desktop":0,"d03-workbench-signed-out-desktop":0,"d04-workbench-awaiting-human-desktop":0,"d05-claims-overview-evidence-requested-desktop":0,"d05-claims-overview-evidence-requested-mobile":0,"d06-dossier-inline-response-validation-desktop":0,"d06-dossier-evidence-requested-mobile":0,"d07-workbench-response-awaiting-review-desktop":0,"d08-dossier-reviewer-resolving-desktop":0,"d09-dossier-reverified-reassessed-desktop":0,"d10-workbench-ready-for-decision-desktop":0,"d11-dossier-approved-unpaid-reviewer-desktop":0,"d11-dossier-approved-unpaid-mobile":0,"d12-claims-overview-approved-desktop":0,"d12-workbench-claimant-session-mobile":0,"d13-workbench-settlement-handoff-mobile":0,"d14-file-claim-policy-desktop":0,"d15-file-claim-incident-desktop":0,"d16-file-claim-review-desktop":0,"d16-file-claim-policy-mobile":0,"d17-filed-claim-resulting-state-desktop":0,"d18-FAILURE-claims-list-desktop":0,"d19-FAILURE-claim-not-found-desktop":0,"d20-EMPTY-claims-signed-out-desktop":0,"d21-EMPTY-claims-no-claims-desktop":0,"d22-EMPTY-file-claim-no-policy-mobile":0}
+PASS No browser console errors: 
+PASS No paid or settlement-pending claims exist

@@ -4,6 +4,7 @@ import {
 } from '@/lib/claims/investigation-presentation';
 import { ClaimEvidenceLinks } from './claim-evidence-links';
 import { TruthBadge } from '@/components/ui/truth-badge';
+import { Button } from '@/components/ui/button';
 import type { getClaimsInvestigation } from '@arcuex/insurance';
 
 type Entry = ReturnType<typeof getClaimsInvestigation>['entries'][number];
@@ -21,8 +22,8 @@ type Analysis = {
 function FindingsList({ title, items }: { title: string; items?: string[] }) {
   return Array.isArray(items) && items.length > 0 ? (
     <div className="mt-3">
-      <h4 className="font-medium">{title}</h4>
-      <ul className="list-disc pl-5">
+      <h4 className="text-xs font-semibold text-[var(--ink-secondary)]">{title}</h4>
+      <ul className="mt-1 list-disc space-y-0.5 pl-5 marker:text-[var(--ink-faint)]">
         {items.map((item, index) => (
           <li key={index}>{item}</li>
         ))}
@@ -49,9 +50,13 @@ export function ClaimExaminerReport({
   const p = entry.payload;
   const analysis = p.analysis as Analysis | undefined;
   return (
-    <div className="mt-3 space-y-2 rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--ai-soft)]/40 p-3">
+    <div className="mt-2 space-y-2 text-[0.8125rem]">
       <div className="flex flex-wrap gap-1.5">
-        <TruthBadge label="AI advice" tone="ai" title="Never authorizes payout" />
+        <TruthBadge
+          label="AI advice · never authorizes an action"
+          tone="ai"
+          title="Never authorizes payout"
+        />
         <TruthBadge
           label={examinerExecutionLabel(p.execution, p.provider)}
           tone={String(p.execution).includes('live') ? 'live' : 'neutral'}
@@ -61,16 +66,16 @@ export function ClaimExaminerReport({
         Model {String(p.model ?? 'unavailable')} · Prompt {String(p.promptVersion ?? 'unavailable')}
       </p>
       {entry.stale && (
-        <p className="rounded-[var(--radius-sm)] border border-amber-300/70 bg-[var(--warn-soft)] p-2 text-amber-950">
+        <p className="rounded-[var(--radius-sm)] bg-[var(--warn-soft)] px-2.5 py-1.5 text-xs font-medium text-[var(--warn)]">
           {open
-            ? 'STALE DOSSIER — reassess before adopting a request.'
+            ? 'Stale dossier. Reassess before adopting a request.'
             : 'Historical assessment from an earlier dossier.'}
         </p>
       )}
       {analysis && (
         <>
           {analysis.chronology === undefined && (
-            <p className="text-xs">
+            <p className="text-xs text-[var(--ink-muted)]">
               Historical advisory report recorded before the chronology gate.
             </p>
           )}
@@ -82,9 +87,11 @@ export function ClaimExaminerReport({
               label="Referenced verifier records"
             />
           )}
-          <div className="rounded border border-zinc-200 bg-zinc-50 p-3">
-            <h4 className="font-medium">AI interpretation · advisory</h4>
-            <p className="whitespace-pre-wrap">{analysis.summary}</p>
+          <div className="rounded-[var(--radius)] border border-[#d6e0e9] bg-[var(--surface)] p-3">
+            <h4 className="text-xs font-semibold text-[var(--ai)]">AI interpretation · advisory</h4>
+            <p className="mt-1 leading-relaxed whitespace-pre-wrap text-[var(--ink)]">
+              {analysis.summary}
+            </p>
             <FindingsList
               title="Claimant assertions reported by the examiner"
               items={analysis.claimantAssertions}
@@ -95,11 +102,18 @@ export function ClaimExaminerReport({
             <FindingsList title="Unresolved evidence gaps" items={analysis.gaps} />
             {(analysis.recommendation || analysis.proposedRequests?.length) && (
               <div className="mt-3">
-                <h4 className="font-medium">Proposed next actions</h4>
-                {analysis.recommendation && <p>Recommendation: {analysis.recommendation}</p>}
+                <h4 className="text-xs font-semibold text-[var(--ink-secondary)]">
+                  Proposed next actions
+                </h4>
+                {analysis.recommendation && (
+                  <p className="mt-1 text-[var(--ink-secondary)]">
+                    Suggests: {analysis.recommendation.replaceAll('_', ' ')}. A human decides
+                    whether to act.
+                  </p>
+                )}
                 {analysis.proposedRequests?.map((proposal, index) => (
-                  <div key={index} className="mt-2 border-t border-zinc-200 pt-2">
-                    <p>
+                  <div key={index} className="mt-2 border-t border-[var(--line)] pt-2">
+                    <p className="text-[var(--ink)]">
                       Proposed proof: {typeof proposal === 'string' ? proposal : proposal.question}
                     </p>
                     {typeof proposal !== 'string' && (
@@ -109,14 +123,15 @@ export function ClaimExaminerReport({
                       open &&
                       analysis.chronology !== undefined &&
                       typeof proposal !== 'string' && (
-                        <button
-                          type="button"
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="mt-2"
                           disabled={busy || entry.stale}
-                          className="rounded border px-3 py-1 text-xs disabled:opacity-50"
                           onClick={() => onAdopt(index)}
                         >
                           Adopt evidence request {index + 1}
-                        </button>
+                        </Button>
                       )}
                   </div>
                 ))}
@@ -130,12 +145,11 @@ export function ClaimExaminerReport({
           />
         </>
       )}
-      <details className="text-xs">
-        <summary className="inline-flex min-h-11 cursor-pointer items-center underline">
-          Assessment record
-        </summary>
-        <p>Dossier {String(p.dossierDigest ?? 'unavailable')}</p>
-        <p>Response {String(p.responseId ?? 'unavailable')}</p>
+      <details className="record-details">
+        <summary>Assessment record</summary>
+        <pre>
+          {`Dossier ${String(p.dossierDigest ?? 'unavailable')}\nResponse ${String(p.responseId ?? 'unavailable')}`}
+        </pre>
       </details>
     </div>
   );

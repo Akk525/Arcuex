@@ -41,9 +41,70 @@ export type ClaimsCaseListRow = {
   payable: { usdc: string | null };
   reviewReasonCode: string | null;
   updatedAt: string;
+  createdAt?: string;
   triage?: CaseTriage;
   labels: { synthetic: string | null };
+  /** Read-only display context; absent from older servers. */
+  context?: ClaimListContext;
+  verification?: ClaimVerificationFreshness;
 };
+
+export type ClaimListContext = {
+  product: string | null;
+  insured: { label: string | null; position: string | null };
+  incident: { ref: string; observedAt: string } | null;
+  openRequests: number;
+  respondedRequests: number;
+};
+
+export type ClaimVerificationFreshness = {
+  state: 'current' | 'stale' | 'failed' | 'none';
+  at: string | null;
+  validUntilMs: number | null;
+  records: number;
+};
+
+const strOrNull = (v: unknown): v is string | null => v === null || typeof v === 'string';
+const count = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0;
+
+function parseListContext(raw: unknown): ClaimListContext | undefined {
+  if (!isRecord(raw) || !isRecord(raw.insured)) return undefined;
+  if (!strOrNull(raw.product) || !strOrNull(raw.insured.label) || !strOrNull(raw.insured.position))
+    return undefined;
+  if (!count(raw.openRequests) || !count(raw.respondedRequests)) return undefined;
+  const incident = raw.incident;
+  if (
+    incident !== null &&
+    !(
+      isRecord(incident) &&
+      typeof incident.ref === 'string' &&
+      typeof incident.observedAt === 'string'
+    )
+  )
+    return undefined;
+  return {
+    product: raw.product,
+    insured: { label: raw.insured.label, position: raw.insured.position },
+    incident: incident
+      ? { ref: incident.ref as string, observedAt: incident.observedAt as string }
+      : null,
+    openRequests: raw.openRequests,
+    respondedRequests: raw.respondedRequests,
+  };
+}
+
+function parseFreshness(raw: unknown): ClaimVerificationFreshness | undefined {
+  if (!isRecord(raw)) return undefined;
+  if (!['current', 'stale', 'failed', 'none'].includes(raw.state as string)) return undefined;
+  if (!strOrNull(raw.at) || !count(raw.records)) return undefined;
+  if (!(raw.validUntilMs === null || typeof raw.validUntilMs === 'number')) return undefined;
+  return {
+    state: raw.state as ClaimVerificationFreshness['state'],
+    at: raw.at,
+    validUntilMs: raw.validUntilMs,
+    records: raw.records,
+  };
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -79,6 +140,11 @@ export function parseClaimsCaseListPayload(json: unknown): ClaimsCaseListRow[] |
       Object.hasOwn(queueSections, raw.triage.section) &&
       typeof raw.triage.reason === 'string'
         ? { triage: { section: raw.triage.section as QueueSection, reason: raw.triage.reason } }
+        : {}),
+      ...(typeof raw.createdAt === 'string' ? { createdAt: raw.createdAt } : {}),
+      ...(parseListContext(raw.context) ? { context: parseListContext(raw.context) } : {}),
+      ...(parseFreshness(raw.verification)
+        ? { verification: parseFreshness(raw.verification) }
         : {}),
       id: raw.id,
       status: raw.status,
@@ -167,6 +233,7 @@ export function parseClaimCaseDetailPayload(json: unknown): {
   timeline: unknown[];
   confirmedSettlementReceipt?: string;
   evidenceManifests: unknown[];
+  context?: ClaimListContext;
 } | null {
   if (!isRecord(json) || !isRecord(json.case)) return null;
   if (!Array.isArray(json.timeline) || !Array.isArray(json.evidenceManifests)) return null;
@@ -199,6 +266,7 @@ export function parseClaimCaseDetailPayload(json: unknown): {
       ? { settlementVerificationBlocker: json.settlementVerificationBlocker }
       : {}),
     case: json.case,
+    ...(parseListContext(json.context) ? { context: parseListContext(json.context) } : {}),
     ...(hasArcReceiptHash(json.confirmedSettlementReceipt)
       ? { confirmedSettlementReceipt: json.confirmedSettlementReceipt }
       : {}),

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ClaimsAuthPanel } from '@/components/claims/claims-auth-panel';
+import { CaretLeft } from '@phosphor-icons/react/ssr';
 import { AppShell } from '@/components/app-shell';
 import { ReviewerWorkbench } from '@/components/claims/reviewer-workbench';
 import { PageHeader } from '@/components/ui/page-header';
@@ -7,23 +7,18 @@ import { PageHeader } from '@/components/ui/page-header';
 export default function ClaimsReviewPage() {
   return (
     <AppShell>
-      <div className="mb-3">
-        <Link
-          href="/claims"
-          className="inline-flex min-h-11 items-center text-sm text-[var(--accent)] underline"
-        >
-          ← My claims
-        </Link>
-      </div>
+      <Link
+        href="/claims"
+        className="mb-3 inline-flex min-h-9 items-center gap-1 text-[0.8125rem] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]"
+      >
+        <CaretLeft size={13} weight="bold" aria-hidden="true" />
+        Claims
+      </Link>
       <PageHeader
-        eyebrow="Ops"
-        title="Reviewer workbench"
-        description="Triage open claims, follow evidence requests and track settlement handoffs."
+        title="Review queue"
+        description="Claims grouped by what they need next. Open a claim to read its record and take the decisions your session is allowed to make."
       />
-      <div className="space-y-4">
-        <ClaimsAuthPanel />
-        <ReviewerWorkbench />
-      </div>
+      <ReviewerWorkbench />
     </AppShell>
   );
 }

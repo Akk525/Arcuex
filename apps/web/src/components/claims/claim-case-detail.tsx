@@ -1,10 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useState, useTransition } from 'react';
+import { type ReactNode, useCallback, useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { Panel } from '@/components/panel';
+import {
+  ArrowSquareOut,
+  ArrowsClockwise,
+  CaretLeft,
+  CheckCircle,
+  Gavel,
+  Robot,
+  ShieldCheck,
+  WarningCircle,
+} from '@phosphor-icons/react';
+import { PageHeader } from '@/components/ui/page-header';
 import { ClaimsInvestigation } from './claims-investigation';
-import { ClaimEventMetadata, ClaimEvidenceLinks } from './claim-evidence-links';
+import { ClaimEventMetadata, ClaimEvidenceLinks, formatClaimTime } from './claim-evidence-links';
 import { ClaimAuditEvent, type ClaimAuditRecord } from './claim-audit-event';
 import {
   evidenceAnchor,
@@ -16,9 +26,7 @@ import {
 } from '@/lib/claims/investigation-presentation';
 import { CaseStatusBadge } from '@/components/claims/case-status-badge';
 import { TruthBadge } from '@/components/ui/truth-badge';
-import { Metric } from '@/components/ui/metric';
 import { Button, ButtonLink } from '@/components/ui/button';
-import { Callout } from '@/components/ui/callout';
 import { settlementPresentation } from '@/lib/claims/settlement-presentation';
 import { claimsFetch } from '@/lib/claims/claims-api';
 import {
@@ -26,7 +34,16 @@ import {
   claimsNetworkFailure,
   parseClaimCaseDetailPayload,
   readClaimsClientResponse,
+  type ClaimListContext,
 } from '@/lib/claims/claims-client-response';
+import {
+  claimTitle,
+  dossierNextAction,
+  freshnessLabel,
+  type NextAction,
+  type Tone,
+} from '@/lib/claims/claim-presentation';
+import type { ExaminerSummary } from './claims-investigation';
 
 type DetailResponse = {
   source?: {
@@ -36,6 +53,7 @@ type DetailResponse = {
     checkpoint?: { sequence: number; createdAt: number; validUntil: number };
   };
   principalRole?: string;
+  context?: ClaimListContext;
   confirmedSettlementReceipt?: string;
   fixtureCatalog?: { reference: string; digest: string; raw: string };
   linkedIncident?: { id: string; observedAt: string; observedEventRef?: string };
@@ -111,6 +129,7 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   const [reviewRationale, setReviewRationale] = useState('');
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [examiner, setExaminer] = useState<ExaminerSummary>({ pending: false, latest: null });
 
   const refresh = useCallback(async () => {
     try {
@@ -213,33 +232,46 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
 
   if (error && !data) {
     return (
-      <Panel title="Claim case">
-        <p role="alert" className="text-sm text-[var(--danger)]">
-          {error}
-        </p>
-        {error === CLAIMS_SIGN_IN_REQUIRED ? (
-          <p className="mt-2 text-sm text-[var(--ink-muted)]">
-            Sign in with a claims session to open this case. Authorization failures are not treated
-            as an empty case.
+      <div className="space-y-4">
+        <BackLink />
+        <div
+          role="alert"
+          className="max-w-2xl rounded-[var(--radius-lg)] border border-[#f3c4bf] bg-[var(--danger-soft)] px-5 py-4"
+        >
+          <p className="text-sm font-semibold text-[var(--danger)]">
+            This claim could not be opened
           </p>
-        ) : null}
-        <div className="mt-3 flex flex-wrap gap-3">
-          <Button onClick={() => void refresh()}>Retry claim</Button>
-          <ButtonLink href="/claims" variant="secondary">
-            Back to list
-          </ButtonLink>
+          <p className="mt-1 text-[0.8125rem] text-[var(--ink-secondary)]">{error}</p>
+          {error === CLAIMS_SIGN_IN_REQUIRED ? (
+            <p className="mt-1 text-[0.8125rem] text-[var(--ink-secondary)]">
+              Sign in with the wallet that holds the policy, or a reviewer session. A failed sign-in
+              is never shown as an empty claim.
+            </p>
+          ) : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => void refresh()}>
+              Retry claim
+            </Button>
+            <ButtonLink href="/claims" size="sm" variant="secondary">
+              Back to claims
+            </ButtonLink>
+          </div>
         </div>
-      </Panel>
+      </div>
     );
   }
 
   if (!data) {
     return (
-      <Panel title="Claim case">
-        <p role="status" className="text-sm text-[var(--ink-muted)]">
-          Loading case…
-        </p>
-      </Panel>
+      <div className="space-y-4">
+        <BackLink />
+        <div role="status" className="space-y-3">
+          <span className="sr-only">Loading case…</span>
+          <div className="h-9 w-72 max-w-full animate-pulse rounded-[var(--radius)] bg-[var(--surface-inset)]" />
+          <div className="h-20 animate-pulse rounded-[var(--radius-lg)] bg-[var(--surface-inset)]" />
+          <div className="h-64 animate-pulse rounded-[var(--radius-lg)] bg-[var(--surface-inset)]" />
+        </div>
+      </div>
     );
   }
 
@@ -329,74 +361,115 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
       'The entered amount does not match the supported economic assessment. It cannot be approved.',
   };
 
+  const ctx = data.context;
+  const unanswered = ctx ? Math.max(0, ctx.openRequests - ctx.respondedRequests) : 0;
+  const next = dossierNextAction({
+    role: data.principalRole,
+    status: c.status,
+    unansweredRequests: unanswered,
+    responsesAwaitingReview: ctx?.respondedRequests ?? 0,
+    reviewBlocker: approvalBlocker,
+    approvalReady: canReview && Boolean(approvalId) && !approvalBlocker,
+    examinerPending: examiner.pending,
+    fixtureBlocked,
+    receipt,
+    canPrepare,
+  });
+  const recordedDecision = (() => {
+    if (!c.adjudicationBindingJson) return null;
+    try {
+      const binding = JSON.parse(c.adjudicationBindingJson) as {
+        reviewer?: { actor?: string; contractualReview?: { rationale?: string } };
+      };
+      return binding.reviewer ?? null;
+    } catch {
+      return null;
+    }
+  })();
+  const decisionEvent = [...data.timeline]
+    .reverse()
+    .find((e) => ['APPROVED', 'DENIED'].includes(e.toStatus) && e.fromStatus !== e.toStatus);
+  const payableLabel = fixtureBlocked
+    ? 'Illustrative payable'
+    : receipt
+      ? 'Reimbursed'
+      : 'Proposed payable';
+  const payableHint = fixtureBlocked
+    ? 'Synthetic fixture. Not reimbursed.'
+    : receipt
+      ? 'Matched to a reconciled settlement receipt.'
+      : 'Not paid. Requires a verified settlement receipt.';
+  const title = claimTitle({ id: c.id, context: ctx });
+  const verificationFresh = (id: string) => data.verificationStates[id];
+  const latestVerification = data.verifications?.at(-1);
+
   return (
-    <div className="claim-case min-w-0 space-y-4 [overflow-wrap:anywhere]">
-      <nav aria-label="Claim navigation" className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        <Link className="inline-flex min-h-10 items-center underline" href="/claims">
-          All claims
-        </Link>
-        <Link
-          className="inline-flex min-h-10 items-center underline"
-          href={`/policies/${c.policyId}`}
-        >
-          Linked policy
-        </Link>
-        <a className="inline-flex min-h-10 items-center underline" href="#claim-verifier-findings">
-          Verifier findings
-        </a>
-        {isReviewer && (
+    <div className="claim-case min-w-0 [overflow-wrap:anywhere]">
+      <BackLink />
+      <PageHeader
+        title={title}
+        badges={
           <>
-            <Link className="inline-flex min-h-10 items-center underline" href="/claims/review">
-              Review queue
-            </Link>
-            <a className="inline-flex min-h-10 items-center underline" href="#claim-review-actions">
-              Reviewer actions
-            </a>
+            <CaseStatusBadge status={c.status} confirmedReceipt={receipt} />
+            {c.syntheticDemo ? <TruthBadge label="Synthetic fixture" tone="synthetic" /> : null}
           </>
-        )}
-      </nav>
+        }
+        description={[
+          ctx?.product,
+          ctx?.insured.position,
+          data.linkedIncident
+            ? `Incident observed ${formatClaimTime(data.linkedIncident.observedAt)}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+        action={
+          <>
+            {isReviewer ? (
+              <ButtonLink href="/claims/review" variant="secondary" size="sm">
+                Review queue
+              </ButtonLink>
+            ) : null}
+            <Button size="sm" variant="secondary" disabled={pending} onClick={() => void refresh()}>
+              <ArrowsClockwise
+                size={14}
+                aria-hidden="true"
+                className={pending ? 'motion-safe:animate-spin' : ''}
+              />
+              Reload claim and findings
+            </Button>
+          </>
+        }
+      />
 
-      <Callout
-        kind={fixtureBlocked ? 'synthetic' : receipt ? 'live' : 'warn'}
-        title={`${decision} · ${settlement.label}`}
-      >
-        <p>{settlement.action}</p>
-        {fixtureBlocked && c.status === 'APPROVED' ? (
-          <p className="mt-1">
-            Approved for contractual coverage only. Fixture mode cannot prepare or broadcast
-            settlement — this case is not reimbursed.
-          </p>
-        ) : null}
-        {c.status === 'REVIEW' && c.reviewReasonCode && reviewHelp[c.reviewReasonCode] ? (
-          <p className="mt-1">{reviewHelp[c.reviewReasonCode]}</p>
-        ) : null}
-        {notice ? (
-          <p role="status" className="mt-1">
-            {notice}
-          </p>
-        ) : null}
-        {error ? (
-          <p role="alert" className="mt-1 text-[var(--danger)]">
-            {error}
-          </p>
-        ) : null}
-        <div className="mt-2 flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" disabled={pending} onClick={() => void refresh()}>
-            Reload claim and findings
-          </Button>
-          {receipt ? (
-            <a
-              className="inline-flex min-h-8 items-center text-sm underline"
-              href={`https://explorer.testnet.arc.io/tx/${receipt}`}
-            >
-              View verified settlement receipt
-            </a>
-          ) : null}
-        </div>
-      </Callout>
+      <NextActionBand
+        next={next}
+        notice={notice}
+        error={error}
+        reviewNote={
+          c.status === 'REVIEW' && c.reviewReasonCode
+            ? (reviewHelp[c.reviewReasonCode] ?? null)
+            : null
+        }
+      />
 
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-5">
-        <div className="min-w-0 space-y-4">
+      {/* Compact outcome summary for small screens; the sidebar carries it on desktop. */}
+      <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--line)] text-[0.8125rem] lg:hidden">
+        {[
+          ['Decision', decision],
+          ['Settlement', settlement.label],
+          [payableLabel, `${c.payable.usdc ?? '—'} USDC`],
+          ['Open requests', ctx ? String(ctx.openRequests) : '—'],
+        ].map(([k, v]) => (
+          <div key={k} className="bg-[var(--surface)] px-3.5 py-2.5">
+            <dt className="text-xs text-[var(--ink-muted)]">{k}</dt>
+            <dd className="mt-0.5 font-medium tabular-nums text-[var(--ink)]">{v}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6">
+        <div className="min-w-0 space-y-6">
           {c.syntheticDemo ? (
             <ClaimsInvestigation
               caseId={caseId}
@@ -408,464 +481,828 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
               audit={data.timeline}
               verificationEvents={data.verifications ?? []}
               receipt={receipt}
+              onSummary={setExaminer}
+              findings={
+                <FindingsComparison
+                  verification={latestVerification}
+                  state={latestVerification ? verificationFresh(latestVerification.id) : undefined}
+                  examiner={examiner.latest}
+                  synthetic={c.syntheticDemo}
+                />
+              }
             />
           ) : (
-            <Panel title="Case timeline">
-              <ol className="space-y-2 text-sm">
-                {data.timeline.map((event) => (
-                  <ClaimAuditEvent
-                    key={event.id}
-                    event={event}
-                    receipt={receipt}
-                    targets={targets}
-                  />
-                ))}
-              </ol>
-            </Panel>
+            <>
+              <FindingsComparison
+                verification={latestVerification}
+                state={latestVerification ? verificationFresh(latestVerification.id) : undefined}
+                examiner={null}
+                synthetic={false}
+              />
+              <DossierSection title="Timeline" id="claim-timeline">
+                <ol className="timeline-rail px-5 py-4" aria-label="Case timeline">
+                  {data.timeline.map((event) => (
+                    <ClaimAuditEvent
+                      key={event.id}
+                      event={event}
+                      receipt={receipt}
+                      targets={targets}
+                    />
+                  ))}
+                </ol>
+              </DossierSection>
+            </>
           )}
 
-          <div id="claim-verifier-findings" className="scroll-mt-4">
-            <Panel
-              title={
-                c.syntheticDemo
-                  ? 'Deterministic findings · synthetic fixture'
-                  : 'Deterministic findings · independent liquidation'
-              }
-            >
-              <div className="mb-2 flex flex-wrap gap-2">
+          <DossierSection
+            id="claim-verifier-findings"
+            title="Verification records"
+            description={
+              c.syntheticDemo
+                ? 'Fixture consistency only. No real-world event or economic loss is independently authenticated.'
+                : 'Submit the signed replay and recovery envelope through the independent verification API. Coverage remains a human determination.'
+            }
+            badges={
+              <>
                 <TruthBadge
                   label={c.syntheticDemo ? 'Fixture consistency' : 'Independent verifier'}
                   tone={c.syntheticDemo ? 'synthetic' : 'ok'}
                 />
                 <TruthBadge label="Not a human decision" tone="human" />
-              </div>
-              <p className="text-sm text-[var(--ink-muted)]">
-                {c.syntheticDemo
-                  ? 'Fixture consistency only. No real-world event or economic loss is independently authenticated.'
-                  : 'Submit the signed replay and recovery envelope through the independent verification API. Coverage remains a human determination.'}
-              </p>
+              </>
+            }
+          >
+            <div className="space-y-3 px-5 py-4">
               {!data.verifications?.length && (
-                <p className="mt-2 text-sm text-[var(--ink-muted)]">No verifier record yet.</p>
+                <p className="text-[0.8125rem] text-[var(--ink-muted)]">
+                  No verifier record yet. Verification runs on the current evidence and is recorded
+                  here before any human decision.
+                </p>
               )}
-              {data.verifications?.map((v) => (
-                <article
-                  key={v.id}
-                  id={evidenceAnchor('verification', v.id)}
-                  tabIndex={-1}
-                  className="mt-3 scroll-mt-4 space-y-1 rounded-[var(--radius-sm)] border border-[var(--line)] p-3 text-xs"
-                >
-                  <div className="flex flex-wrap gap-2">
-                    <TruthBadge
-                      label={
-                        data.verificationStates[v.id] === 'stale'
-                          ? 'Stale'
-                          : data.verificationStates[v.id] === 'failed'
-                            ? 'Failed'
-                            : data.verificationStates[v.id] === 'current'
-                              ? 'Current'
-                              : 'Unknown freshness'
-                      }
-                      tone={
-                        data.verificationStates[v.id] === 'current'
-                          ? 'ok'
-                          : data.verificationStates[v.id] === 'stale'
-                            ? 'warn'
-                            : 'danger'
-                      }
-                    />
-                    <TruthBadge
-                      label={
-                        v.independentlyAuthenticated
-                          ? 'Independently authenticated'
-                          : v.authenticity === 'synthetic_fixture'
-                            ? 'Fixture only'
-                            : 'Unverified'
-                      }
-                      tone={v.independentlyAuthenticated ? 'ok' : 'synthetic'}
-                    />
-                  </div>
-                  <p>
-                    {v.executionStatus} · Evidence {v.evidenceSufficiency}
-                  </p>
-                  <ClaimEventMetadata actor={v.actor} timestamp={v.createdAt} />
-                  <details>
-                    <summary className="cursor-pointer text-xs underline">
-                      Technical verification detail
-                    </summary>
-                    <div className="mt-2 space-y-1 break-all font-mono">
-                      <p>Verification {v.id}</p>
-                      <p>Verifier {v.verifierVersion ?? 'unavailable'}</p>
-                      {c.syntheticDemo ? (
-                        <p>
-                          Fixture: {v.fixtureReference} · {v.fixtureDigest}
-                        </p>
-                      ) : null}
-                      <p>Context: {v.contextDigest}</p>
+              {data.verifications?.map((v) => {
+                const state = verificationFresh(v.id);
+                return (
+                  <article
+                    key={v.id}
+                    id={evidenceAnchor('verification', v.id)}
+                    tabIndex={-1}
+                    className="scroll-mt-24 rounded-[var(--radius)] border border-[var(--line)] p-3.5 text-[0.8125rem] focus-visible:outline-2 focus-visible:outline-[var(--focus)]"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-[var(--ink)]">
+                        {v.executionStatus} · Evidence {v.evidenceSufficiency}
+                      </p>
+                      <TruthBadge
+                        label={
+                          state === 'stale'
+                            ? 'Stale'
+                            : state === 'failed'
+                              ? 'Failed'
+                              : state === 'current'
+                                ? 'Current'
+                                : 'Unknown freshness'
+                        }
+                        tone={state === 'current' ? 'ok' : state === 'stale' ? 'warn' : 'danger'}
+                      />
+                      <TruthBadge
+                        label={
+                          v.independentlyAuthenticated
+                            ? 'Independently authenticated'
+                            : v.authenticity === 'synthetic_fixture'
+                              ? 'Fixture only'
+                              : 'Unverified'
+                        }
+                        tone={v.independentlyAuthenticated ? 'ok' : 'synthetic'}
+                      />
                     </div>
-                  </details>
-                  <ul className="list-disc pl-4">
-                    {v.findings.map((finding, i) => (
-                      <li key={i}>{finding}</li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
+                    <ClaimEventMetadata actor={v.actor} timestamp={v.createdAt} />
+                    {v.findings.length > 0 && (
+                      <ul className="mt-2 space-y-1 text-[var(--ink-secondary)]">
+                        {v.findings.map((finding, i) => (
+                          <li key={i} className="flex gap-2">
+                            <CheckCircle
+                              size={14}
+                              weight="bold"
+                              aria-hidden="true"
+                              className="mt-0.5 shrink-0 text-[var(--accent-signal)]"
+                            />
+                            {finding}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <details className="record-details">
+                      <summary>Technical verification detail</summary>
+                      <pre>
+                        {[
+                          `Verification ${v.id}`,
+                          `Verifier ${v.verifierVersion ?? 'unavailable'}`,
+                          c.syntheticDemo
+                            ? `Fixture ${v.fixtureReference} · ${v.fixtureDigest}`
+                            : null,
+                          `Context ${v.contextDigest}`,
+                          v.validUntilMs
+                            ? `Valid until ${new Date(v.validUntilMs).toISOString()}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join('\n')}
+                      </pre>
+                    </details>
+                  </article>
+                );
+              })}
               {c.syntheticDemo &&
                 ['COLLECTING_EVIDENCE', 'INVESTIGATING', 'REVIEW'].includes(c.status) &&
                 ['claimant', 'reviewer'].includes(data.principalRole ?? '') && (
-                  <Button
-                    className="mt-3"
-                    size="sm"
-                    variant="secondary"
-                    disabled={pending}
-                    onClick={verifyFixture}
-                  >
+                  <Button size="sm" variant="secondary" disabled={pending} onClick={verifyFixture}>
+                    <ShieldCheck size={15} aria-hidden="true" />
                     Attach and verify synthetic fixture
                   </Button>
                 )}
-            </Panel>
-          </div>
+            </div>
+          </DossierSection>
 
-          {isReviewer && (
-            <div id="claim-review-actions" className="scroll-mt-4">
-              <Panel title="Reviewer / authority actions">
-                <p className="mb-2 text-xs text-[var(--ink-muted)]">{reviewActionHelp}</p>
-                {approvalId && (
-                  <ClaimEvidenceLinks
-                    references={[approvalId]}
-                    targets={targets}
-                    kind="verification"
-                    label="Verification for human review"
-                  />
-                )}
-                {canReview && (
-                  <>
-                    <p className="mb-2 text-xs text-[var(--ink-secondary)]">
-                      {c.syntheticDemo
-                        ? 'Catalog gross economic loss: 1.50 USDC after extinguished debt. Scenario recoveries and prior compensation: zero. Policy deductible and limits still apply.'
-                        : independentLoss
-                          ? `Verified gross loss ${asUsdc(independentLoss.grossLossMicros)} USDC, recoveries ${asUsdc(independentLoss.recoveriesMicros)} USDC, prior compensation ${asUsdc(independentLoss.priorCompensationMicros)} USDC. Policy limits and deductible apply.`
-                          : 'A current independent verification is required for approval.'}
+          <DossierSection
+            id="claim-review-actions"
+            title="Human decision"
+            description={
+              isReviewer
+                ? 'Only a signed-in reviewer can record coverage. Examiner advice and verifier output never decide on their own.'
+                : 'Coverage is decided by a human reviewer. Approval is not payment.'
+            }
+          >
+            <div className="space-y-4 px-5 py-4">
+              {decisionEvent ? (
+                <div className="flex gap-3 rounded-[var(--radius)] bg-[var(--surface-inset)] p-3.5">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--ink)] text-white">
+                    <Gavel size={15} weight="bold" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 text-[0.8125rem]">
+                    <p className="font-semibold text-[var(--ink)]">
+                      {decisionEvent.toStatus === 'APPROVED'
+                        ? 'Coverage approved'
+                        : 'Coverage denied'}
                     </p>
-                    <label className="mb-2 flex min-h-10 items-start gap-2 text-sm">
-                      <input
-                        className="mt-1 shrink-0"
-                        type="checkbox"
-                        checked={reviewConfirmed}
-                        onChange={(e) => setReviewConfirmed(e.target.checked)}
-                      />
-                      {c.syntheticDemo
-                        ? 'I reviewed event applicability and resolved all policy exclusions for this synthetic scenario.'
-                        : 'I reviewed event applicability and resolved all policy exclusions for the verified incident.'}
-                    </label>
-                    <label className="mb-3 block text-sm">
-                      Contractual review rationale
-                      <textarea
-                        value={reviewRationale}
-                        onChange={(e) => setReviewRationale(e.target.value)}
-                        maxLength={4000}
-                        className="field-control mt-1 block"
-                      />
-                    </label>
-                    <div className="mb-3 flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        disabled={
-                          pending ||
-                          !canReview ||
-                          !reviewConfirmed ||
-                          !reviewRationale.trim() ||
-                          !approvalId ||
-                          (!c.syntheticDemo && !independentLoss)
-                        }
-                        onClick={() =>
-                          run('reviewer', {
-                            action: 'adjudicate',
-                            coverageDetermination: 'covered',
-                            verificationId: approvalId,
-                            contractualReview: {
-                              eventApplies: reviewConfirmed,
-                              exclusionsResolved: reviewConfirmed,
-                              rationale: reviewRationale,
-                            },
-                            verifiedLossUsdc: c.syntheticDemo
-                              ? '1.500000'
-                              : independentLoss
-                                ? asUsdc(independentLoss.grossLossMicros)
-                                : null,
-                            recoveriesUsdc: c.syntheticDemo
-                              ? '0.000000'
-                              : independentLoss
-                                ? asUsdc(independentLoss.recoveriesMicros)
-                                : null,
-                            ...(independentLoss
-                              ? {
-                                  priorCompensationUsdc: asUsdc(
-                                    independentLoss.priorCompensationMicros,
-                                  ),
-                                }
-                              : {}),
-                            requestedUsdc: '1.000000',
-                          })
-                        }
-                      >
-                        Review and approve up to 1 USDC
-                      </Button>
-                      {c.syntheticDemo ? (
+                    <ClaimEventMetadata
+                      actor={decisionEvent.actor}
+                      timestamp={decisionEvent.createdAt}
+                    />
+                    {recordedDecision?.contractualReview?.rationale ? (
+                      <blockquote className="mt-2 border-l-2 border-[var(--line-emphasis)] pl-3 whitespace-pre-wrap text-[var(--ink-secondary)]">
+                        {recordedDecision.contractualReview.rationale}
+                      </blockquote>
+                    ) : (
+                      <p className="mt-1 text-[var(--ink-muted)]">
+                        Reason code {decisionEvent.reasonCode}.
+                      </p>
+                    )}
+                    {decisionEvent.toStatus === 'APPROVED' ? (
+                      <p className="mt-2 font-medium text-[var(--live)]">
+                        Approval is not reimbursement. {settlement.label}.
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : !isReviewer ? (
+                <p className="text-[0.8125rem] text-[var(--ink-muted)]">
+                  No decision yet. {decision}.
+                </p>
+              ) : null}
+
+              {isReviewer && (
+                <>
+                  <p className="text-[0.8125rem] text-[var(--ink-secondary)]">{reviewActionHelp}</p>
+                  {approvalId && (
+                    <ClaimEvidenceLinks
+                      references={[approvalId]}
+                      targets={targets}
+                      kind="verification"
+                      label="Verification for human review"
+                    />
+                  )}
+                  {canReview && (
+                    <div className="space-y-3 rounded-[var(--radius)] border border-[var(--line)] p-4">
+                      <p className="text-xs leading-relaxed text-[var(--ink-muted)]">
+                        {c.syntheticDemo
+                          ? 'Catalog gross economic loss: 1.50 USDC after extinguished debt. Scenario recoveries and prior compensation: zero. Policy deductible and limits still apply.'
+                          : independentLoss
+                            ? `Verified gross loss ${asUsdc(independentLoss.grossLossMicros)} USDC, recoveries ${asUsdc(independentLoss.recoveriesMicros)} USDC, prior compensation ${asUsdc(independentLoss.priorCompensationMicros)} USDC. Policy limits and deductible apply.`
+                            : 'A current independent verification is required for approval.'}
+                      </p>
+                      <label className="flex min-h-10 items-start gap-2.5 text-[0.8125rem] text-[var(--ink)]">
+                        <input
+                          className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
+                          type="checkbox"
+                          checked={reviewConfirmed}
+                          onChange={(e) => setReviewConfirmed(e.target.checked)}
+                        />
+                        {c.syntheticDemo
+                          ? 'I reviewed event applicability and resolved all policy exclusions for this synthetic scenario.'
+                          : 'I reviewed event applicability and resolved all policy exclusions for the verified incident.'}
+                      </label>
+                      <label className="block">
+                        <span className="field-label">Contractual review rationale</span>
+                        <textarea
+                          value={reviewRationale}
+                          onChange={(e) => setReviewRationale(e.target.value)}
+                          maxLength={4000}
+                          rows={3}
+                          className="field-control mt-1.5 block w-full"
+                        />
+                      </label>
+                      <div className="flex flex-wrap gap-2 pt-1">
                         <Button
                           size="sm"
-                          variant="secondary"
-                          disabled={pending || !canReview}
+                          className="active:scale-100"
+                          disabled={
+                            pending ||
+                            !canReview ||
+                            !reviewConfirmed ||
+                            !reviewRationale.trim() ||
+                            !approvalId ||
+                            (!c.syntheticDemo && !independentLoss)
+                          }
                           onClick={() =>
                             run('reviewer', {
                               action: 'adjudicate',
                               coverageDetermination: 'covered',
-                              verificationId: approvalId ?? undefined,
+                              verificationId: approvalId,
                               contractualReview: {
                                 eventApplies: reviewConfirmed,
                                 exclusionsResolved: reviewConfirmed,
                                 rationale: reviewRationale,
                               },
-                              verifiedLossUsdc: '1.500000',
-                              recoveriesUsdc: null,
+                              verifiedLossUsdc: c.syntheticDemo
+                                ? '1.500000'
+                                : independentLoss
+                                  ? asUsdc(independentLoss.grossLossMicros)
+                                  : null,
+                              recoveriesUsdc: c.syntheticDemo
+                                ? '0.000000'
+                                : independentLoss
+                                  ? asUsdc(independentLoss.recoveriesMicros)
+                                  : null,
+                              ...(independentLoss
+                                ? {
+                                    priorCompensationUsdc: asUsdc(
+                                      independentLoss.priorCompensationMicros,
+                                    ),
+                                  }
+                                : {}),
                               requestedUsdc: '1.000000',
                             })
                           }
                         >
-                          Force REVIEW (unknown recoveries)
+                          Review and approve up to 1 USDC
                         </Button>
-                      ) : null}
+                        {c.syntheticDemo ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="active:scale-100"
+                            disabled={pending || !canReview}
+                            onClick={() =>
+                              run('reviewer', {
+                                action: 'adjudicate',
+                                coverageDetermination: 'covered',
+                                verificationId: approvalId ?? undefined,
+                                contractualReview: {
+                                  eventApplies: reviewConfirmed,
+                                  exclusionsResolved: reviewConfirmed,
+                                  rationale: reviewRationale,
+                                },
+                                verifiedLossUsdc: '1.500000',
+                                recoveriesUsdc: null,
+                                requestedUsdc: '1.000000',
+                              })
+                            }
+                          >
+                            Force REVIEW (unknown recoveries)
+                          </Button>
+                        ) : null}
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          className="active:scale-100"
+                          disabled={pending || !canReview}
+                          onClick={() =>
+                            run('reviewer', {
+                              action: 'adjudicate',
+                              coverageDetermination: 'not_covered',
+                              verifiedLossUsdc: c.syntheticDemo ? '1.500000' : null,
+                              recoveriesUsdc: c.syntheticDemo ? '0.000000' : null,
+                              requestedUsdc: '1.000000',
+                            })
+                          }
+                        >
+                          Deny (not covered)
+                        </Button>
+                        {c.status === 'REVIEW' ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={pending}
+                            onClick={() => run('reviewer', { action: 'reopen_investigation' })}
+                          >
+                            Reopen investigation
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
+                  {data.principalRole === 'authority' && (
+                    <div className="space-y-2 rounded-[var(--radius)] border border-[var(--line)] p-4">
+                      <p className="text-sm font-semibold text-[var(--ink)]">
+                        Settlement preparation
+                      </p>
+                      {!canPrepare && (
+                        <p className="text-xs text-[var(--ink-muted)]">
+                          {data.settlementVerificationBlocker
+                            ? settlementBlockerMessage(data.settlementVerificationBlocker)
+                            : settlement.action}
+                        </p>
+                      )}
                       <Button
                         size="sm"
-                        variant="danger"
-                        disabled={pending || !canReview}
+                        className="active:scale-100"
+                        disabled={pending || !canPrepare}
                         onClick={() =>
-                          run('reviewer', {
-                            action: 'adjudicate',
-                            coverageDetermination: 'not_covered',
-                            verifiedLossUsdc: c.syntheticDemo ? '1.500000' : null,
-                            recoveriesUsdc: c.syntheticDemo ? '0.000000' : null,
-                            requestedUsdc: '1.000000',
+                          run('authority', {
+                            action: 'prepare_settlement',
+                            confirmedRecipient: c.payoutTo,
+                            confirmedAmountUsdc: c.payable.usdc,
+                            confirmedLossKey: c.lossKey,
+                            confirmedEvidenceRoot: c.evidenceRoot,
                           })
                         }
                       >
-                        Deny (not covered)
+                        Prepare settlement (authority session, no broadcast)
                       </Button>
-                      {c.status === 'REVIEW' ? (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={pending}
-                          onClick={() => run('reviewer', { action: 'reopen_investigation' })}
-                        >
-                          Reopen investigation
-                        </Button>
-                      ) : null}
                     </div>
-                  </>
-                )}
-                {data.principalRole === 'authority' && (
-                  <>
-                    {!canPrepare && (
-                      <p className="mb-2 text-xs text-[var(--ink-muted)]">
-                        {data.settlementVerificationBlocker
-                          ? settlementBlockerMessage(data.settlementVerificationBlocker)
-                          : settlement.action}
-                      </p>
-                    )}
-                    <Button
-                      size="sm"
-                      disabled={pending || !canPrepare}
-                      onClick={() =>
-                        run('authority', {
-                          action: 'prepare_settlement',
-                          confirmedRecipient: c.payoutTo,
-                          confirmedAmountUsdc: c.payable.usdc,
-                          confirmedLossKey: c.lossKey,
-                          confirmedEvidenceRoot: c.evidenceRoot,
-                        })
-                      }
-                    >
-                      Prepare settlement (authority session, no broadcast)
-                    </Button>
-                  </>
-                )}
-              </Panel>
+                  )}
+                </>
+              )}
             </div>
-          )}
+          </DossierSection>
         </div>
 
-        <aside className="mt-4 space-y-3 lg:mt-0 lg:sticky lg:top-4">
-          <Panel
-            title="Case status"
-            action={
-              <div className="flex flex-wrap gap-1.5">
-                <CaseStatusBadge status={c.status} confirmedReceipt={receipt} />
-                {c.syntheticDemo ? <TruthBadge label="Synthetic" tone="synthetic" /> : null}
-              </div>
-            }
+        <aside
+          aria-label="Claim summary"
+          className="mt-6 space-y-4 lg:sticky lg:top-[calc(var(--topbar-h)+1.25rem)] lg:mt-0"
+        >
+          <section
+            aria-labelledby="claim-outcome"
+            className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)]"
           >
-            {c.labels.synthetic ? (
-              <p className="mb-3 text-xs text-[var(--synthetic)]">{c.labels.synthetic}</p>
-            ) : null}
-            <div className="space-y-3">
-              <Metric label="Evidence authenticity" value={c.evidenceAuthenticity} />
-              <Metric label="Coverage determination" value={c.coverageDetermination} />
-              <Metric label="Settlement" value={settlement.label} />
-              <Metric
-                label={
-                  fixtureBlocked
-                    ? 'Illustrative payable'
-                    : receipt
-                      ? 'Reimbursed amount'
-                      : 'Proposed payable'
-                }
-                value={`${c.payable.usdc ?? '—'} USDC`}
-                accent
-                hint={
-                  fixtureBlocked
-                    ? 'Not reimbursed in fixture mode'
-                    : receipt
-                      ? 'Matched settlement receipt'
-                      : 'Requires verified settlement receipt'
-                }
-              />
-              <Metric
-                label={`Assessed gross loss${c.syntheticDemo ? ' (synthetic)' : ''}`}
-                value={`${c.verifiedLoss.usdc ?? '—'} USDC`}
-              />
-              <Metric label="Deductible" value={`${c.deductible?.usdc ?? '—'} USDC`} />
-              <Metric label="Coverage limit" value={`${c.lossCap?.usdc ?? '—'} USDC`} />
-              <Metric label="Recoveries" value={`${c.recoveries.usdc ?? 'unknown / REVIEW'} USDC`} />
+            <div className="border-b border-[var(--line)] px-5 py-4">
+              <h2 id="claim-outcome" className="text-xs font-medium text-[var(--ink-muted)]">
+                Financial outcome
+              </h2>
+              <p className="mt-2 text-xs text-[var(--ink-muted)]">{payableLabel}</p>
+              <p className="font-display text-[1.75rem] leading-tight font-semibold tracking-[-0.02em] tabular-nums text-[var(--ink)]">
+                {c.payable.usdc ?? '—'}{' '}
+                <span className="text-base font-medium text-[var(--ink-muted)]">USDC</span>
+              </p>
+              <p className="mt-1 text-xs text-[var(--ink-secondary)]">{payableHint}</p>
             </div>
-          </Panel>
+            <dl className="facts px-5 py-4">
+              <dt>Decision</dt>
+              <dd>{decision}</dd>
+              <dt>Settlement</dt>
+              <dd>{settlement.label}</dd>
+              <dt>Gross loss{c.syntheticDemo ? ' (synthetic)' : ''}</dt>
+              <dd>{c.verifiedLoss.usdc ?? '—'} USDC</dd>
+              <dt>Deductible</dt>
+              <dd>{c.deductible?.usdc ?? '—'} USDC</dd>
+              <dt>Coverage limit</dt>
+              <dd>{c.lossCap?.usdc ?? '—'} USDC</dd>
+              <dt>Recoveries</dt>
+              <dd>{c.recoveries.usdc ? `${c.recoveries.usdc} USDC` : 'Unknown'}</dd>
+              <dt>Evidence</dt>
+              <dd>{c.evidenceAuthenticity.replaceAll('_', ' ')}</dd>
+            </dl>
+            <div className="border-t border-[var(--line)] px-5 py-3.5 text-xs text-[var(--ink-secondary)]">
+              <p className="flex gap-2">
+                <WarningCircle
+                  size={14}
+                  aria-hidden="true"
+                  className="mt-px shrink-0 text-[var(--ink-muted)]"
+                />
+                <span>
+                  {data.settlementVerificationBlocker
+                    ? settlementBlockerMessage(data.settlementVerificationBlocker)
+                    : settlement.action}
+                </span>
+              </p>
+              {receipt ? (
+                <a
+                  className="mt-2 inline-flex items-center gap-1 font-medium text-[var(--accent)] hover:underline"
+                  href={`https://explorer.testnet.arc.io/tx/${receipt}`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  View verified settlement receipt
+                  <ArrowSquareOut size={12} aria-hidden="true" />
+                </a>
+              ) : null}
+            </div>
+          </section>
 
-          <Panel title="Linked records">
+          <section
+            aria-labelledby="claim-records"
+            className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)]"
+          >
+            <h2
+              id="claim-records"
+              className="border-b border-[var(--line)] px-5 py-3 text-xs font-medium text-[var(--ink-muted)]"
+            >
+              Linked records
+            </h2>
             <dl
               id={evidenceAnchor('case', c.id)}
               tabIndex={-1}
-              className="scroll-mt-4 space-y-2 text-sm"
+              className="scroll-mt-24 divide-y divide-[var(--line)] text-[0.8125rem]"
             >
-              <div id={evidenceAnchor('policy', c.policyId)} tabIndex={-1} className="scroll-mt-4">
-                <dt className="text-[0.6875rem] font-semibold tracking-wide text-[var(--ink-muted)] uppercase">
-                  Policy
-                </dt>
-                <dd className="break-all font-mono text-xs">
-                  <Link className="underline" href={`/policies/${c.policyId}`}>
-                    {c.policyId}
-                  </Link>
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[0.6875rem] font-semibold tracking-wide text-[var(--ink-muted)] uppercase">
-                  Claim
-                </dt>
-                <dd className="break-all font-mono text-xs">{c.id}</dd>
-              </div>
-              <div
+              <RecordRow id={evidenceAnchor('policy', c.policyId)} label="Policy">
+                <Link
+                  className="font-mono text-xs text-[var(--accent)] hover:underline"
+                  href={`/policies/${c.policyId}`}
+                >
+                  {c.policyId}
+                </Link>
+                {ctx?.product ? (
+                  <span className="block text-xs text-[var(--ink-muted)]">{ctx.product}</span>
+                ) : null}
+              </RecordRow>
+              <RecordRow label="Claim">
+                <span className="font-mono text-xs">{c.id}</span>
+              </RecordRow>
+              <RecordRow
                 id={
                   data.linkedIncident
                     ? evidenceAnchor('incident', data.linkedIncident.id)
                     : undefined
                 }
-                tabIndex={-1}
-                className="scroll-mt-4"
+                label="Incident"
               >
-                <dt className="text-[0.6875rem] font-semibold tracking-wide text-[var(--ink-muted)] uppercase">
-                  Incident
-                </dt>
-                <dd className="break-all font-mono text-xs">
-                  {data.linkedIncident?.id ?? '—'}
-                  {data.linkedIncident ? (
-                    <>
-                      <br />
-                      <time dateTime={data.linkedIncident.observedAt}>
-                        {data.linkedIncident.observedAt}
-                      </time>
-                    </>
-                  ) : null}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[0.6875rem] font-semibold tracking-wide text-[var(--ink-muted)] uppercase">
-                  Beneficiary
-                </dt>
-                <dd className="break-all font-mono text-xs">{c.payoutTo ?? '—'}</dd>
-              </div>
+                {data.linkedIncident ? (
+                  <>
+                    <span className="block font-mono text-xs">
+                      {data.linkedIncident.observedEventRef ?? data.linkedIncident.id}
+                    </span>
+                    <time
+                      className="block text-xs text-[var(--ink-muted)]"
+                      dateTime={data.linkedIncident.observedAt}
+                    >
+                      Observed {formatClaimTime(data.linkedIncident.observedAt)}
+                    </time>
+                  </>
+                ) : (
+                  <span className="text-[var(--ink-muted)]">Not recorded</span>
+                )}
+              </RecordRow>
+              <RecordRow label="Insured agent">
+                <span>{ctx?.insured.label ?? '—'}</span>
+                <span className="block font-mono text-xs text-[var(--ink-muted)]">
+                  {c.exposureId}
+                </span>
+              </RecordRow>
+              <RecordRow label="Beneficiary">
+                <span className="font-mono text-xs">{c.payoutTo ?? '—'}</span>
+              </RecordRow>
             </dl>
-            <details className="mt-3">
-              <summary className="cursor-pointer text-xs underline">Technical identifiers</summary>
-              <dl className="mt-2 space-y-2 text-xs">
-                <div>
-                  <dt className="text-[var(--ink-muted)]">Evidence root</dt>
-                  <dd className="break-all font-mono">{c.evidenceRoot ?? '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-[var(--ink-muted)]">Loss key</dt>
-                  <dd className="break-all font-mono">{c.lossKey ?? '—'}</dd>
-                </div>
-                {c.status === 'REVIEW' && c.reviewReasonCode ? (
-                  <div>
-                    <dt className="text-[var(--ink-muted)]">Review reason</dt>
-                    <dd>{c.reviewReasonCode}</dd>
-                  </div>
-                ) : null}
-                {c.denialReasonCode ? (
-                  <div>
-                    <dt className="text-[var(--ink-muted)]">Denial reason</dt>
-                    <dd>{c.denialReasonCode}</dd>
-                  </div>
-                ) : null}
-              </dl>
-            </details>
-          </Panel>
+          </section>
 
-          {data.source?.mode === 'fixture' && (
-            <Panel title="Fixture source">
-              <p className="break-all text-xs font-mono text-[var(--ink-muted)]">
-                {data.source.id}
-              </p>
-              <p className="mt-1 text-xs text-[var(--ink-muted)]">
-                Checkpoint {data.source.checkpoint?.sequence}
-                {data.source.checkpoint
-                  ? ` · expires ${new Date(data.source.checkpoint.validUntil * 1000).toISOString()}`
-                  : ''}
-                . Not Arc confirmations.
-              </p>
-            </Panel>
-          )}
-
-          <Panel title="Evidence manifests">
+          <section
+            aria-labelledby="claim-manifests"
+            className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)]"
+          >
+            <h2
+              id="claim-manifests"
+              className="border-b border-[var(--line)] px-5 py-3 text-xs font-medium text-[var(--ink-muted)]"
+            >
+              Evidence manifests
+            </h2>
             {data.evidenceManifests.length === 0 ? (
-              <p className="text-sm text-[var(--ink-muted)]">No manifests attached.</p>
+              <p className="px-5 py-3.5 text-[0.8125rem] text-[var(--ink-muted)]">
+                No manifests attached.
+              </p>
             ) : (
-              <ul className="space-y-2 text-xs">
+              <ul className="divide-y divide-[var(--line)]">
                 {data.evidenceManifests.map((m) => (
                   <li
                     key={m.id}
                     id={evidenceAnchor('manifest', m.id)}
                     tabIndex={-1}
-                    className="scroll-mt-4 rounded-[var(--radius-sm)] border border-[var(--line)] p-2.5"
+                    className="scroll-mt-24 px-5 py-3 text-xs focus-visible:outline-2 focus-visible:outline-[var(--focus)]"
                   >
-                    <p className="font-medium">{m.source}</p>
+                    <p className="text-[0.8125rem] font-medium text-[var(--ink)]">{m.source}</p>
                     <p className="text-[var(--ink-muted)]">
                       {m.syntheticFixture ? 'Synthetic fixture' : 'Recorded evidence'} ·{' '}
-                      {m.sourceReliability.replaceAll('_', ' ')}
+                      {m.sourceReliability.replaceAll('_', ' ')} · {formatClaimTime(m.createdAt)}
                     </p>
-                    <details>
-                      <summary className="mt-1 cursor-pointer underline">Digest & chain</summary>
-                      <p className="mt-1 break-all font-mono">{m.rawEvidenceDigest}</p>
-                      {m.transactionHash ? (
-                        <p className="break-all font-mono">{m.transactionHash}</p>
-                      ) : null}
+                    <details className="record-details">
+                      <summary>Digest and chain</summary>
+                      <pre>
+                        {[m.rawEvidenceDigest, m.transactionHash].filter(Boolean).join('\n')}
+                      </pre>
                     </details>
                   </li>
                 ))}
               </ul>
             )}
-          </Panel>
+          </section>
+
+          <details className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)] px-5 py-3 text-xs">
+            <summary className="cursor-pointer text-xs font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]">
+              Technical identifiers
+            </summary>
+            <dl className="mt-3 space-y-2.5">
+              <div>
+                <dt className="text-[var(--ink-muted)]">Evidence root</dt>
+                <dd className="font-mono break-all">{c.evidenceRoot ?? '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-[var(--ink-muted)]">Loss key</dt>
+                <dd className="font-mono break-all">{c.lossKey ?? '—'}</dd>
+              </div>
+              {c.status === 'REVIEW' && c.reviewReasonCode ? (
+                <div>
+                  <dt className="text-[var(--ink-muted)]">Review reason</dt>
+                  <dd>{c.reviewReasonCode}</dd>
+                </div>
+              ) : null}
+              {c.denialReasonCode ? (
+                <div>
+                  <dt className="text-[var(--ink-muted)]">Denial reason</dt>
+                  <dd>{c.denialReasonCode}</dd>
+                </div>
+              ) : null}
+              {data.source?.mode === 'fixture' ? (
+                <div>
+                  <dt className="text-[var(--ink-muted)]">Fixture source</dt>
+                  <dd className="font-mono break-all">{data.source.id}</dd>
+                  <dd className="mt-0.5 text-[var(--ink-muted)]">
+                    Checkpoint {data.source.checkpoint?.sequence}
+                    {data.source.checkpoint
+                      ? `, expires ${new Date(data.source.checkpoint.validUntil * 1000).toISOString()}`
+                      : ''}
+                    . Not Arc confirmations.
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          </details>
+          {c.labels.synthetic ? (
+            <p className="px-1 text-xs text-[var(--synthetic)]">{c.labels.synthetic}</p>
+          ) : null}
         </aside>
       </div>
     </div>
+  );
+}
+
+function BackLink() {
+  return (
+    <Link
+      href="/claims"
+      className="mb-3 inline-flex min-h-9 items-center gap-1 text-[0.8125rem] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]"
+    >
+      <CaretLeft size={13} weight="bold" aria-hidden="true" />
+      Claims
+    </Link>
+  );
+}
+
+const bandTone: Record<Tone, string> = {
+  neutral: 'border-l-[var(--line-emphasis)]',
+  ok: 'border-l-[var(--ok)]',
+  warn: 'border-l-[var(--warn)]',
+  error: 'border-l-[var(--danger)]',
+  pending: 'border-l-[var(--pending)]',
+  live: 'border-l-[var(--accent-signal)]',
+  synthetic: 'border-l-[var(--synthetic)]',
+};
+
+function NextActionBand({
+  next,
+  notice,
+  error,
+  reviewNote,
+}: {
+  next: NextAction;
+  notice: string | null;
+  error: string | null;
+  reviewNote: string | null;
+}) {
+  return (
+    <section
+      aria-label="Next action"
+      className={`flex flex-col gap-3 rounded-[var(--radius-lg)] border border-l-[3px] border-[var(--line)] bg-[var(--surface)] px-5 py-4 shadow-[var(--shadow-sm)] sm:flex-row sm:items-center sm:justify-between ${bandTone[next.tone]}`}
+    >
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-[var(--ink-muted)]">Next step</p>
+        <p className="mt-0.5 text-[0.9375rem] font-semibold text-[var(--ink)]">{next.title}</p>
+        <p className="mt-0.5 text-[0.8125rem] text-[var(--ink-secondary)]">{next.detail}</p>
+        {reviewNote ? (
+          <p className="mt-1 text-[0.8125rem] text-[var(--ink-secondary)]">{reviewNote}</p>
+        ) : null}
+        {notice ? (
+          <p role="status" className="mt-1.5 text-[0.8125rem] font-medium text-[var(--live)]">
+            {notice}
+          </p>
+        ) : null}
+        {error ? (
+          <p role="alert" className="mt-1.5 text-[0.8125rem] font-medium text-[var(--danger)]">
+            {error}
+          </p>
+        ) : null}
+      </div>
+      {next.anchor ? (
+        <a
+          href={`#${next.anchor}`}
+          className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-[var(--radius)] border border-[var(--line-strong)] px-3 text-[0.8125rem] font-semibold text-[var(--ink)] hover:bg-[var(--surface-inset)]"
+        >
+          Go to {next.anchor === 'outstanding-requests' ? 'requests' : 'decision'}
+        </a>
+      ) : null}
+    </section>
+  );
+}
+
+function DossierSection({
+  id,
+  title,
+  description,
+  badges,
+  children,
+}: {
+  id?: string;
+  title: string;
+  description?: string;
+  badges?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      id={id}
+      aria-labelledby={id ? `${id}-title` : undefined}
+      className="scroll-mt-24 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)]"
+    >
+      <header className="border-b border-[var(--line)] px-5 py-3.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2
+            id={id ? `${id}-title` : undefined}
+            className="text-sm font-semibold text-[var(--ink)]"
+          >
+            {title}
+          </h2>
+          {badges}
+        </div>
+        {description ? (
+          <p className="mt-0.5 text-[0.8125rem] text-[var(--ink-muted)]">{description}</p>
+        ) : null}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function RecordRow({ id, label, children }: { id?: string; label: string; children: ReactNode }) {
+  return (
+    <div
+      id={id}
+      tabIndex={id ? -1 : undefined}
+      className="scroll-mt-24 px-5 py-2.5 focus-visible:outline-2 focus-visible:outline-[var(--focus)]"
+    >
+      <dt className="text-xs text-[var(--ink-muted)]">{label}</dt>
+      <dd className="mt-0.5 min-w-0 break-all text-[var(--ink)]">{children}</dd>
+    </div>
+  );
+}
+
+/** Deterministic verifier output beside the examiner's advisory reading, never merged. */
+function FindingsComparison({
+  verification,
+  state,
+  examiner,
+  synthetic,
+}: {
+  verification?: NonNullable<DetailResponse['verifications']>[number];
+  state?: VerificationState;
+  examiner: ExaminerSummary['latest'];
+  synthetic: boolean;
+}) {
+  const fresh = freshnessLabel(
+    verification
+      ? {
+          state: state ?? 'failed',
+          at: verification.createdAt ?? null,
+          validUntilMs: verification.validUntilMs ?? null,
+          records: 1,
+        }
+      : undefined,
+    Date.now(),
+  );
+  return (
+    <section
+      aria-labelledby="claim-findings"
+      className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)]"
+    >
+      <h2 id="claim-findings" className="sr-only">
+        Findings
+      </h2>
+      <div className="grid md:grid-cols-2">
+        <div className="border-b border-[var(--line)] px-5 py-4 md:border-r md:border-b-0">
+          <p className="flex items-center gap-2 text-xs font-medium text-[var(--ink-muted)]">
+            <ShieldCheck
+              size={14}
+              weight="bold"
+              aria-hidden="true"
+              className="text-[var(--accent-signal)]"
+            />
+            Verified by the server
+          </p>
+          {verification ? (
+            <>
+              <p className="mt-2 text-sm font-semibold text-[var(--ink)]">
+                {verification.executionStatus === 'completed'
+                  ? `Evidence ${verification.evidenceSufficiency}`
+                  : `Verification ${verification.executionStatus}`}
+              </p>
+              <p className="mt-0.5 text-xs">
+                <span
+                  className={
+                    fresh.tone === 'ok'
+                      ? 'text-[var(--ok)]'
+                      : fresh.tone === 'warn'
+                        ? 'text-[var(--warn)]'
+                        : 'text-[var(--danger)]'
+                  }
+                >
+                  {fresh.label}
+                </span>
+                <span className="text-[var(--ink-muted)]">
+                  {' · '}
+                  {verification.independentlyAuthenticated
+                    ? 'independently authenticated'
+                    : synthetic
+                      ? 'fixture consistency only'
+                      : 'not independently authenticated'}
+                </span>
+              </p>
+              <a
+                href={`#${evidenceAnchor('verification', verification.id)}`}
+                className="mt-2 inline-block text-xs font-medium text-[var(--accent)] hover:underline"
+              >
+                Open verification record
+              </a>
+            </>
+          ) : (
+            <p className="mt-2 text-[0.8125rem] text-[var(--ink-muted)]">
+              No verification has run on this claim yet.
+            </p>
+          )}
+        </div>
+        <div className="bg-[color-mix(in_srgb,var(--ai-soft)_45%,var(--surface))] px-5 py-4">
+          <p className="flex flex-wrap items-center gap-2 text-xs font-medium text-[var(--ink-muted)]">
+            <Robot size={14} weight="bold" aria-hidden="true" className="text-[var(--ai)]" />
+            Examiner advice
+            <TruthBadge
+              label="Advisory only"
+              tone="ai"
+              title="Never authorizes payout or any action"
+            />
+          </p>
+          {examiner ? (
+            <>
+              <p className="mt-2 line-clamp-3 text-[0.8125rem] text-[var(--ink)]">
+                {examiner.summary}
+              </p>
+              <p className="mt-1 text-xs text-[var(--ink-muted)]">
+                {examiner.execution}
+                {examiner.recommendation
+                  ? ` · suggests ${examiner.recommendation.replaceAll('_', ' ')}`
+                  : ''}
+                {examiner.stale ? ' · earlier dossier' : ''}
+              </p>
+              <a
+                href={`#${examiner.anchor}`}
+                className="mt-2 inline-block text-xs font-medium text-[var(--accent)] hover:underline"
+              >
+                Read the full assessment
+              </a>
+            </>
+          ) : (
+            <p className="mt-2 text-[0.8125rem] text-[var(--ink-muted)]">
+              {synthetic
+                ? 'No examiner assessment recorded yet.'
+                : 'No examiner assessment is shown for this claim.'}
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }

@@ -1,4 +1,5 @@
 import { withApiSecurity } from '@/lib/server/api-security';
+import { claimListContext } from '@/lib/server/claims-list-context';
 import { NextResponse } from 'next/server';
 import { ARC_USDC_ERC20_ADDRESS } from '@arcuex/chain';
 import {
@@ -80,12 +81,12 @@ async function GETHandler(request: Request) {
     ]),
   );
   const policies = accessiblePolicies.map((p) => ({
-      id: p.id,
-      status: p.status,
-      synthetic: Boolean(p.terms.synthetic),
-      claimsEligible: store.claimsEligible(p.id, now),
-      label: p.terms.synthetic ? 'Synthetic policy' : `Policy ${p.id.slice(0, 8)}`,
-    }));
+    id: p.id,
+    status: p.status,
+    synthetic: Boolean(p.terms.synthetic),
+    claimsEligible: store.claimsEligible(p.id, now),
+    label: p.terms.synthetic ? 'Synthetic policy' : `Policy ${p.id.slice(0, 8)}`,
+  }));
 
   let agents: DashboardOverviewInput['agents'] = [];
   let delegations: DashboardOverviewInput['delegations'] = [];
@@ -126,11 +127,11 @@ async function GETHandler(request: Request) {
       evidenceRequests.push({ caseId: claim.id, id: req.id, href });
     }
     const receipt = confirmedClaimReceipt(db, chainSource, claim);
-    // Label from what is persisted: the covered exposure the claim was filed against.
-    const exposure = repo.listExposures(claim.policyId).find((e) => e.id === claim.exposureId);
+    // Label from what is persisted: the insured agent or exposure the claim was filed against.
+    const context = claimListContext(repo, claim);
     claims.push({
       id: claim.id,
-      title: exposure?.description?.trim() || null,
+      title: context.insured.label?.trim() || null,
       filedAt: claim.createdAt,
       synthetic: claim.syntheticDemo,
       status: claim.status,

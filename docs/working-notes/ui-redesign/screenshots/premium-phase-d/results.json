@@ -1,0 +1,360 @@
+{
+  "completed": true,
+  "caseId": "1770eee7-0bc1-498c-a623-ae82c3a9eb23",
+  "boundary": "Actual production fixture app, HTTP, authentication, SDK, verifier, SQLite and browser. Only OpenAI transport mocked; zero paid inference calls.",
+  "modelCalls": 2,
+  "providerResponses": [],
+  "estimatedSpendMicros": 0,
+  "source": {
+    "id": "candidate-c6b73dd1-74cb-4327-9125-3fe4fe7f8090",
+    "digest": "c92215c8ffaa144409595991bfe9e1c6a3a824ae118c6f3ce46009ffe2718cd1",
+    "checkpoint": {
+      "sequence": 1,
+      "createdAt": 1795151429,
+      "validUntil": 1795151729
+    }
+  },
+  "finalCase": {
+    "id": "1770eee7-0bc1-498c-a623-ae82c3a9eb23",
+    "schemaVersion": 1,
+    "status": "APPROVED",
+    "policyId": "7c14e1b5-bd93-4cd1-adc4-6191ae8d4dc4",
+    "exposureId": "8bbe8480-b1ab-40bd-831c-79954b367447",
+    "incidentId": "0413c04d-05f5-45cb-9bf2-cbfab820e72c",
+    "claimId": null,
+    "claimantRef": "0xc102a25d3d041ed8535c0d2ea05eb4ef69bca5ab",
+    "idempotencyKey": "4daed280-dde5-4745-8463-421304c3b841",
+    "syntheticDemo": true,
+    "evidenceAuthenticity": "synthetic_fixture",
+    "coverageDetermination": "covered",
+    "settlementAuthorization": "pending_authority",
+    "verifiedLossMicros": "1500000",
+    "deductibleMicros": "100000",
+    "priorCompensationMicros": "0",
+    "recoveriesMicros": "0",
+    "remainingLimitMicros": "1000000",
+    "lossCapMicros": "1000000",
+    "payableMicros": "1000000",
+    "lossKey": "0xcf537e24a8cd2cb12756ee841988feb9da1212d62d33dbdadb29e3ea1e2ee412",
+    "denialReasonCode": null,
+    "reviewReasonCode": null,
+    "authorityActor": "reviewer:reviewer:reviewer",
+    "settlementPrepId": null,
+    "payoutTo": "0x63a4dafcdfc147f19b220076124d7ef4cbc8ac0e",
+    "evidenceRoot": "sha256:1db0d9a9a0e4c0a35370f334505447e5e66d993f0a51bfa29005d8b676c528f1",
+    "adjudicationBindingJson": "{\"caseId\":\"1770eee7-0bc1-498c-a623-ae82c3a9eb23\",\"incidentId\":\"0413c04d-05f5-45cb-9bf2-cbfab820e72c\",\"verificationId\":\"7c1b0bc4-24fa-49dc-854d-6f8c266052d5\",\"verificationContextDigest\":\"sha256:7676a7cea1a947e2289a7bfa8fbdeb4fa590db0150227ebd34ba3f3ec5c03425\",\"reviewer\":{\"actor\":\"reviewer:reviewer:reviewer\",\"role\":\"reviewer\",\"contractualReview\":{\"eventApplies\":true,\"exclusionsResolved\":true,\"rationale\":\"Human evaluated fixture replay, applicable event, timing, registered exposure, all exclusions and zero recoveries. Synthetic-only adjudication, no real-world loss proof or reimbursement.\"}},\"asset\":{\"symbol\":\"USDC\",\"scale\":6},\"deductibleMicros\":\"100000\",\"priorCompensationMicros\":\"0\",\"netCoveredLossMicros\":\"1400000\",\"coverageLimitMicros\":\"1000000\",\"policyId\":\"7c14e1b5-bd93-4cd1-adc4-6191ae8d4dc4\",\"exposureId\":\"8bbe8480-b1ab-40bd-831c-79954b367447\",\"payableMicros\":\"1000000\",\"lossKey\":\"0xcf537e24a8cd2cb12756ee841988feb9da1212d62d33dbdadb29e3ea1e2ee412\",\"evidenceRoot\":\"sha256:1db0d9a9a0e4c0a35370f334505447e5e66d993f0a51bfa29005d8b676c528f1\",\"payoutTo\":\"0x63a4dafcdfc147f19b220076124d7ef4cbc8ac0e\",\"verifiedLossMicros\":\"1500000\",\"recoveriesMicros\":\"0\",\"coverageDetermination\":\"covered\",\"evidenceAuthenticity\":\"synthetic_fixture\"}",
+    "rowVersion": 6,
+    "createdAt": "2026-11-20T05:10:29.843Z",
+    "updatedAt": "2026-11-20T05:10:43.565Z"
+  },
+  "entries": [
+    {
+      "id": "99f31865-aae9-4875-8ff3-6d214c697714",
+      "caseId": "1770eee7-0bc1-498c-a623-ae82c3a9eb23",
+      "sequence": 1,
+      "kind": "proof_submission",
+      "actor": "claimant:0xc102a25d3d041ed8535c0d2ea05eb4ef69bca5ab/agent:8bbe8480-b1ab-40bd-831c-79954b367447",
+      "requestKey": "90a99047-6134-42ff-bfc0-47fbb2c714dc",
+      "createdAt": "2026-11-20T05:10:29.855Z",
+      "payloadJson": "{\"input\":{\"action\":\"submit_proof\",\"requestKey\":\"90a99047-6134-42ff-bfc0-47fbb2c714dc\",\"requestId\":null,\"filename\":\"initial-fixture.json\",\"content\":\"{\\\"expectedOutcome\\\":\\\"VERIFIED\\\",\\\"adapterRatioBps\\\":100,\\\"canonicalRatioBps\\\":200,\\\"wouldRemainHealthy\\\":true,\\\"seizedMicros\\\":\\\"2000000\\\",\\\"debtExtinguishedMicros\\\":\\\"500000\\\",\\\"deductibleMicros\\\":\\\"100000\\\",\\\"recoveriesMicros\\\":\\\"0\\\",\\\"priorCompensationMicros\\\":\\\"0\\\",\\\"recoveriesResolved\\\":true}\",\"contentHash\":\"sha256:a03a5e0524ff43f0fcdaeed9a2b804f8ef3a656cc1a96ab8da1733181b3c217f\",\"declaredSource\":\"synthetic-oracle-ratio-v1:wrongful-liquidation:v2\"},\"requestId\":null,\"filename\":\"initial-fixture.json\",\"content\":\"{\\\"expectedOutcome\\\":\\\"VERIFIED\\\",\\\"adapterRatioBps\\\":100,\\\"canonicalRatioBps\\\":200,\\\"wouldRemainHealthy\\\":true,\\\"seizedMicros\\\":\\\"2000000\\\",\\\"debtExtinguishedMicros\\\":\\\"500000\\\",\\\"deductibleMicros\\\":\\\"100000\\\",\\\"recoveriesMicros\\\":\\\"0\\\",\\\"priorCompensationMicros\\\":\\\"0\\\",\\\"recoveriesResolved\\\":true}\",\"contentHash\":\"sha256:a03a5e0524ff43f0fcdaeed9a2b804f8ef3a656cc1a96ab8da1733181b3c217f\",\"declaredSource\":\"synthetic-oracle-ratio-v1:wrongful-liquidation:v2\",\"sourceClassification\":\"synthetic_fixture\",\"verificationStatus\":\"unverified\",\"submitter\":{\"actor\":\"claimant:0xc102a25d3d041ed8535c0d2ea05eb4ef69bca5ab/agent:8bbe8480-b1ab-40bd-831c-79954b367447\",\"wallet\":\"0xc102a25d3d041ed8535c0d2ea05eb4ef69bca5ab\",\"agentId\":\"8bbe8480-b1ab-40bd-831c-79954b367447\"}}",
+      "previousHash": "genesis",
+      "recordHash": "sha256:2e325ba21cc0a6d5df5441d360d1dd0e44ec6a2029789393940ac15856345724"
+    },
+    {
+      "id": "0b25e710-b51f-4b79-a922-418b6a3a00e6",
+      "caseId": "1770eee7-0bc1-498c-a623-ae82c3a9eb23",
+      "sequence": 2,
+      "kind": "examiner_request",
+      "actor": "claimant:0x63a4dafcdfc147f19b220076124d7ef4cbc8ac0e",
+      "requestKey": "7b9df10c-4fe4-4b4e-82eb-f8c44b1a4cb6",
+      "createdAt": "2026-11-20T05:10:32.587Z",
+      "payloadJson": "{\"input\":{\"action\":\"request_examiner\",\"requestKey\":\"7b9df10c-4fe4-4b4e-82eb-f8c44b1a4cb6\"},\"dossierDigest\":\"sha256:630e8fe54b5c4a73068d97febd6b9927851f5abadb34e39e71d2ee1a38dbb8e0\"}",
+      "previousHash": "sha256:2e325ba21cc0a6d5df5441d360d1dd0e44ec6a2029789393940ac15856345724",
+      "recordHash": "sha256:fde06ac9fe9518e725ea08608405117788bfa98522e180943350933fe5bd0985"
+    },
+    {
+      "id": "04167212-8981-434a-80a5-7ef92c57486c",
+      "caseId": "1770eee7-0bc1-498c-a623-ae82c3a9eb23",
+      "sequence": 3,
+      "kind": "examiner_started",
+      "actor": "system:system",
+      "requestKey": "start:0b25e710-b51f-4b79-a922-418b6a3a00e6",
+      "createdAt": "2026-11-20T05:10:32.631Z",
+      "payloadJson": "{\"requestId\":\"0b25e710-b51f-4b79-a922-418b6a3a00e6\",\"dossierDigest\":\"sha256:630e8fe54b5c4a73068d97febd6b9927851f5abadb34e39e71d2ee1a38dbb8e0\"}",
+      "previousHash": "sha256:fde06ac9fe9518e725ea08608405117788bfa98522e180943350933fe5bd0985",
+      "recordHash": "sha256:1be450ca15e6d6f20d4865ac8883b6dc8ddd4651f8e9f4151b17d6125f7576d7"
+    },
+    {
+      "id": "282a7b29-920f-4e5e-86c7-7cd4d55eff2b",
+      "caseId": "1770eee7-0bc1-498c-a623-ae82c3a9eb23",
+      "sequence": 4,
+      "kind": "examiner_report",
+      "actor": "system:system",
+      "requestKey": "finish:0b25e710-b51f-4b79-a922-418b6a3a00e6",
+      "createdAt": "2026-11-20T05:10:32.640Z",
+      "payloadJson": "{\"requestId\":\"0b25e710-b51f-4b79-a922-418b6a3a00e6\",\"dossierDigest\":\"sha256:630e8fe54b5c4a73068d97febd6b9927851f5abadb34e39e71d2ee1a38dbb8e0\",\"provider\":\"openai\",\"model\":\"gpt-6.1-terra\",\"responseId\":\"test-double-response-1\",\"execution\":\"test_double\",\"analysis\":{\"summary\":\"This synthetic claim has no current persisted verifier findings. Request the versioned replay artifact and verify it.\",\"chronology\":\"during_coverage\",\"verifiedFindings\":[],\"claimantAssertions\":[],\"gaps\":[\"FRESH_PERSISTED_VERIFICATION_REQUIRED\"],\"proposedRequests\":[{\"question\":\"Supply the canonical synthetic replay artifact for this incident\",\"citations\":[\"1770eee7-0bc1-498c-a623-ae82c3a9eb23\"]}],\"recommendation\":\"request_proof\",\"citations\":[\"1770eee7-0bc1-498c-a623-ae82c3a9eb23\",\"99f31865-aae9-4875-8ff3-6d214c697714\"]},\"usage\":{\"inputTokens\":200,\"outputTokens\":100},\"promptVersion\":\"claims-dossier-v3\",\"sourceClassification\":\"ai_analysis\",\"verificationStatus\":\"not_independent_proof\",\"analysisHash\":\"sha256:f04a0ab8598c55d26372e92f4ac40753a9b71b6f04017cc4bac94aa8340dbee6\",\"notice\":\"Worker-reported provider provenance, not independent evidence or payment authority\"}",
+      "previousHash": "sha256:1be450ca15e6d6f20d4865ac8883b6dc8ddd4651f8e9f4151b17d6125f7576d7",
+      "recordHash": "sha256:ba83d7210b4648790659555aaaf486c12fb674a5e884175820578725bae542ae"
+    },
+    {
+      "id": "b23cc74d-2239-4063-8d33-9a1b63380119",
+      "caseId": "1770eee7-0bc1-498c-a623-ae82c3a9eb23",
+      "sequence": 5,
+      "kind": "proof_request",
+      "actor": "reviewer:reviewer:reviewer",
+      "requestKey": "5d52a640-a86e-42d6-ae9b-cef05e518dbe",
+      "createdAt": "2026-11-20T05:10:37.617Z",
+      "payloadJson": "{\"input\":{\"action\":\"adopt_examiner_request\",\"requestKey\":\"5d52a640-a86e-42d6-ae9b-cef05e518dbe\",\"reportId\":\"282a7b29-920f-4e5e-86c7-7cd4d55eff2b\",\"proposalIndex\":0},\"text\":\"Supply the canonical synthetic replay artifact for this incident\",\"citations\":[\"1770eee7-0bc1-498c-a623-ae82c3a9eb23\"],\"reportId\":\"282a7b29-920f-4e5e-86c7-7cd4d55eff2b\"}",
+      "previousHash": "sha256:ba83d7210b4648790659555aaaf486c12fb674a5e884175820578725bae542ae",
+      "recordHash": "sha256:95f7f526d5fd2c11346215c8be14dfa320233979604238e9432d0973b0b04ab2"
+    },
+    {
+      "id": "8d2df95f-f974-4d2b-a521-5f539f7797fd",
+      "caseId": "1770eee7-0bc1-498c-a623-ae82c3a9eb23",
+      "sequence": 6,
+      "kind": "proof_submission",
+      "actor": "claimant:0xc102a25d3d041ed8535c0d2ea05eb4ef69bca5ab/agent:8bbe8480-b1ab-40bd-831c-79954b367447",
+      "requestKey": "ef9b61ef-78b4-4e53-842d-00beb6863f27",
+      "createdAt": "2026-11-20T05:10:40.319Z",
+      "payloadJson": "{\"input\":{\"action\":\"submit_proof\",\"requestKey\":\"ef9b61ef-78b4-4e53-842d-00beb6863f27\",\"requestId\":\"b23cc74d-2239-4063-8d33-9a1b63380119\",\"filename\":\"requested-fixture.json\",\"content\":\"{\\\"expectedOutcome\\\":\\\"VERIFIED\\\",\\\"adapterRatioBps\\\":100,\\\"canonicalRatioBps\\\":200,\\\"wouldRemainHealthy\\\":true,\\\"seizedMicros\\\":\\\"2000000\\\",\\\"debtExtinguishedMicros\\\":\\\"500000\\\",\\\"deductibleMicros\\\":\\\"100000\\\",\\\"recoveriesMicros\\\":\\\"0\\\",\\\"priorCompensationMicros\\\":\\\"0\\\",\\\"recoveriesResolved\\\":true}\",\"contentHash\":\"sha256:a03a5e0524ff43f0fcdaeed9a2b804f8ef3a656cc1a96ab8da1733181b3c217f\",\"declaredSource\":\"Agent response to b23cc74d-2239-4063-8d33-9a1b63380119\"},\"requestId\":\"b23cc74d-2239-4063-8d33-9a1b63380119\",\"filename\":\"requested-fixture.json\",\"content\":\"{\\\"expectedOutcome\\\":\\\"VERIFIED\\\",\\\"adapterRatioBps\\\":100,\\\"canonicalRatioBps\\\":200,\\\"wouldRemainHealthy\\\":true,\\\"seizedMicros\\\":\\\"2000000\\\",\\\"debtExtinguishedMicros\\\":\\\"500000\\\",\\\"deductibleMicros\\\":\\\"100000\\\",\\\"recoveriesMicros\\\":\\\"0\\\",\\\"priorCompensationMicros\\\":\\\"0\\\",\\\"recoveriesResolved\\\":true}\",\"contentHash\":\"sha256:a03a5e0524ff43f0fcdaeed9a2b804f8ef3a656cc1a96ab8da1733181b3c217f\",\"declaredSource\":\"Agent response to b23cc74d-2239-4063-8d33-9a1b63380119\",\"sourceClassification\":\"synthetic_fixture\",\"verificationStatus\":\"unverified\",\"submitter\":{\"actor\":\"claimant:0xc102a25d3d041ed8535c0d2ea05eb4ef69bca5ab/agent:8bbe8480-b1ab-40bd-831c-79954b367447\",\"wallet\":\"0xc102a25d3d041ed8535c0d2ea05eb4ef69bca5ab\",\"agentId\":\"8bbe8480-b1ab-40bd-831c-79954b367447\"}}",
+      "previousHash": "sha256:95f7f526d5fd2c11346215c8be14dfa320233979604238e9432d0973b0b04ab2",
+      "recordHash": "sha256:baad02df31ae84e3c6d8702bdc187655c71ecd73f5ac69e1c7e3750e2e6f03af"
+    },
+    {
+      "id": "e9e55cd4-b0b8-4387-837e-fc33f8c38e3a",
+      "caseId": "1770eee7-0bc1-498c-a623-ae82c3a9eb23",
+      "sequence": 7,
+      "kind": "request_resolution",
+      "actor": "reviewer:reviewer:reviewer",
+      "requestKey": "1f9376a2-2923-445b-a819-e07a00c907e6",
+      "createdAt": "2026-11-20T05:10:41.698Z",
+      "payloadJson": "{\"input\":{\"action\":\"resolve_request\",\"requestKey\":\"1f9376a2-2923-445b-a819-e07a00c907e6\",\"text\":\"Human reviewed the requested synthetic bytes and their case/request provenance; no independent event proof is asserted.\",\"requestId\":\"b23cc74d-2239-4063-8d33-9a1b63380119\",\"submissionId\":\"8d2df95f-f974-4d2b-a521-5f539f7797fd\",\"resolution\":\"accepted\"},\"requestId\":\"b23cc74d-2239-4063-8d33-9a1b63380119\",\"submissionId\":\"8d2df95f-f974-4d2b-a521-5f539f7797fd\",\"resolution\":\"accepted\",\"text\":\"Human reviewed the requested synthetic bytes and their case/request provenance; no independent event proof is asserted.\"}",
+      "previousHash": "sha256:baad02df31ae84e3c6d8702bdc187655c71ecd73f5ac69e1c7e3750e2e6f03af",
+      "recordHash": "sha256:4ed24c312ddf2caa7566a11af8814399859dff1187b390721bfc8fc346ba67c8"
+    },
+    {
+      "id": "707d23dc-02ad-433e-8c98-2b3dad54badd",
+      "caseId": "1770eee7-0bc1-498c-a623-ae82c3a9eb23",
+      "sequence": 8,
+      "kind": "examiner_request",
+      "actor": "claimant:0xc102a25d3d041ed8535c0d2ea05eb4ef69bca5ab/agent:8bbe8480-b1ab-40bd-831c-79954b367447",
+      "requestKey": "1008b9bc-079a-4e66-8a32-9fe3abaffb63",
+      "createdAt": "2026-11-20T05:10:41.936Z",
+      "payloadJson": "{\"input\":{\"action\":\"request_examiner\",\"requestKey\":\"1008b9bc-079a-4e66-8a32-9fe3abaffb63\"},\"dossierDigest\":\"sha256:2b413e9d6cb832a212e2305f2bdd7f8a2613cfe7e727ffa2e22fe4e0af0c4ec1\"}",
+      "previousHash": "sha256:4ed24c312ddf2caa7566a11af8814399859dff1187b390721bfc8fc346ba67c8",
+      "recordHash": "sha256:85fdc8056a6e2bade2d1ae8aa745389aa0d29d428fb532126ea74fed9692cfb6"
+    },
+    {
+      "id": "c3504908-1bec-4276-9b15-b215592e72f0",
+      "caseId": "1770eee7-0bc1-498c-a623-ae82c3a9eb23",
+      "sequence": 9,
+      "kind": "examiner_started",
+      "actor": "system:system",
+      "requestKey": "start:707d23dc-02ad-433e-8c98-2b3dad54badd",
+      "createdAt": "2026-11-20T05:10:41.947Z",
+      "payloadJson": "{\"requestId\":\"707d23dc-02ad-433e-8c98-2b3dad54badd\",\"dossierDigest\":\"sha256:2b413e9d6cb832a212e2305f2bdd7f8a2613cfe7e727ffa2e22fe4e0af0c4ec1\"}",
+      "previousHash": "sha256:85fdc8056a6e2bade2d1ae8aa745389aa0d29d428fb532126ea74fed9692cfb6",
+      "recordHash": "sha256:2207d51d3271dfc2c08f702e00f94b726fbc4ee547f6365275934e1d19e5ebc6"
+    },
+    {
+      "id": "b30dedd3-b3a0-44a2-992f-012cd0b2e119",
+      "caseId": "1770eee7-0bc1-498c-a623-ae82c3a9eb23",
+      "sequence": 10,
+      "kind": "examiner_report",
+      "actor": "system:system",
+      "requestKey": "finish:707d23dc-02ad-433e-8c98-2b3dad54badd",
+      "createdAt": "2026-11-20T05:10:41.954Z",
+      "payloadJson": "{\"requestId\":\"707d23dc-02ad-433e-8c98-2b3dad54badd\",\"dossierDigest\":\"sha256:2b413e9d6cb832a212e2305f2bdd7f8a2613cfe7e727ffa2e22fe4e0af0c4ec1\",\"provider\":\"openai\",\"model\":\"gpt-6.1-terra\",\"responseId\":\"test-double-response-2\",\"execution\":\"test_double\",\"analysis\":{\"summary\":\"Persisted fixture verifier is current; human contractual review is still required.\",\"chronology\":\"during_coverage\",\"verifiedFindings\":[\"7c1b0bc4-24fa-49dc-854d-6f8c266052d5\"],\"claimantAssertions\":[],\"gaps\":[],\"proposedRequests\":[],\"recommendation\":\"human_review\",\"citations\":[\"1770eee7-0bc1-498c-a623-ae82c3a9eb23\",\"99f31865-aae9-4875-8ff3-6d214c697714\",\"8d2df95f-f974-4d2b-a521-5f539f7797fd\",\"7c1b0bc4-24fa-49dc-854d-6f8c266052d5\"]},\"usage\":{\"inputTokens\":200,\"outputTokens\":100},\"promptVersion\":\"claims-dossier-v3\",\"sourceClassification\":\"ai_analysis\",\"verificationStatus\":\"not_independent_proof\",\"analysisHash\":\"sha256:38e3503a12717041632ea32e15cbe39f0d981dbe69eb0a41150c415096a62391\",\"notice\":\"Worker-reported provider provenance, not independent evidence or payment authority\"}",
+      "previousHash": "sha256:2207d51d3271dfc2c08f702e00f94b726fbc4ee547f6365275934e1d19e5ebc6",
+      "recordHash": "sha256:f0c8e33caadedaaa0bbe63acc69d482efad02aa0534930351d8a2edf3b239059"
+    }
+  ],
+  "migrations": [
+    {
+      "id": "001_init.sql"
+    },
+    {
+      "id": "002_onchain.sql"
+    },
+    {
+      "id": "003_streams_inbox.sql"
+    },
+    {
+      "id": "004_claims_cases.sql"
+    },
+    {
+      "id": "004_procurement.sql"
+    },
+    {
+      "id": "005_claims_case_binding.sql"
+    },
+    {
+      "id": "005_procurement_immutability.sql"
+    },
+    {
+      "id": "006_claims_auth_sessions.sql"
+    },
+    {
+      "id": "007_procurement_claims_integration.sql"
+    },
+    {
+      "id": "008_shared_wallet_session_scope.sql"
+    },
+    {
+      "id": "009_launch_security.sql"
+    },
+    {
+      "id": "010_policy_reconciliation.sql"
+    },
+    {
+      "id": "011_claim_verifications.sql"
+    },
+    {
+      "id": "012_claim_investigation.sql"
+    }
+  ],
+  "integrity": [
+    {
+      "integrity_check": "ok"
+    }
+  ],
+  "foreignKeys": [],
+  "results": [
+    {
+      "status": "PASS",
+      "detail": "Distinct insured-agent signer submits claim against owner policy using authenticated SDK"
+    },
+    {
+      "status": "PASS",
+      "detail": "Agent SDK persists initial evidence with hash and server-derived provenance"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real HTTP rejects unauthenticated submission"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real signed nonce establishes policyholder session"
+    },
+    {
+      "status": "PASS",
+      "detail": "Dossier shows the agent initial proof on the same claim"
+    },
+    {
+      "status": "PASS",
+      "detail": "Agent provenance is labeled in the timeline"
+    },
+    {
+      "status": "PASS",
+      "detail": "Next-step band reports the examiner run without implying a decision"
+    },
+    {
+      "status": "PASS",
+      "detail": "Worker uses fixed OpenAI endpoint with no financial tools"
+    },
+    {
+      "status": "PASS",
+      "detail": "Examiner receives the actual same-claim dossier and persisted verifier findings"
+    },
+    {
+      "status": "PASS",
+      "detail": "Examiner receives server-checked in-window chronology with original timestamp provenance"
+    },
+    {
+      "status": "PASS",
+      "detail": "Examiner sees authenticated signer and evidence scope separately from policy procurement"
+    },
+    {
+      "status": "PASS",
+      "detail": "Examiner report alone never changes claim or grants payment authority"
+    },
+    {
+      "status": "PASS",
+      "detail": "Human adopts advisory request and creates an outstanding proof gate"
+    },
+    {
+      "status": "PASS",
+      "detail": "Reviewer next step waits for claimant evidence"
+    },
+    {
+      "status": "PASS",
+      "detail": "Inline response rejects oversized proof"
+    },
+    {
+      "status": "PASS",
+      "detail": "Inline response rejects invalid UTF-8"
+    },
+    {
+      "status": "PASS",
+      "detail": "Agent response persists exact bytes, hash and agent identity linked to the request"
+    },
+    {
+      "status": "PASS",
+      "detail": "Human resolution closes the request while retaining submissions"
+    },
+    {
+      "status": "PASS",
+      "detail": "Deterministic reverification recorded and shown separately from AI advice"
+    },
+    {
+      "status": "PASS",
+      "detail": "Worker uses fixed OpenAI endpoint with no financial tools"
+    },
+    {
+      "status": "PASS",
+      "detail": "Examiner receives the actual same-claim dossier and persisted verifier findings"
+    },
+    {
+      "status": "PASS",
+      "detail": "Examiner receives server-checked in-window chronology with original timestamp provenance"
+    },
+    {
+      "status": "PASS",
+      "detail": "Examiner sees authenticated signer and evidence scope separately from policy procurement"
+    },
+    {
+      "status": "PASS",
+      "detail": "Reassessment uses current dossier and retains earlier report"
+    },
+    {
+      "status": "PASS",
+      "detail": "Approval stays disabled until contractual confirmation and rationale"
+    },
+    {
+      "status": "PASS",
+      "detail": "Human decision is APPROVED with pending authority, never reimbursed"
+    },
+    {
+      "status": "PASS",
+      "detail": "No payment-confirmed language appears for the approved claim"
+    },
+    {
+      "status": "PASS",
+      "detail": "Fixture API still denies settlement preparation"
+    },
+    {
+      "status": "PASS",
+      "detail": "Incident step requires a reference and time"
+    },
+    {
+      "status": "PASS",
+      "detail": "Browser filing opens a synthetic case under the authenticated policyholder"
+    },
+    {
+      "status": "PASS",
+      "detail": "Real signed nonce establishes policyholder session"
+    },
+    {
+      "status": "PASS",
+      "detail": "No horizontal overflow on any captured page: {\"d01-claims-overview-agent-submitted-desktop\":0,\"d02-dossier-initial-examiner-gap-desktop\":0,\"d03-workbench-signed-out-desktop\":0,\"d04-workbench-awaiting-human-desktop\":0,\"d05-claims-overview-evidence-requested-desktop\":0,\"d05-claims-overview-evidence-requested-mobile\":0,\"d06-dossier-inline-response-validation-desktop\":0,\"d06-dossier-evidence-requested-mobile\":0,\"d07-workbench-response-awaiting-review-desktop\":0,\"d08-dossier-reviewer-resolving-desktop\":0,\"d09-dossier-reverified-reassessed-desktop\":0,\"d10-workbench-ready-for-decision-desktop\":0,\"d11-dossier-approved-unpaid-reviewer-desktop\":0,\"d11-dossier-approved-unpaid-mobile\":0,\"d12-claims-overview-approved-desktop\":0,\"d12-workbench-claimant-session-mobile\":0,\"d13-workbench-settlement-handoff-mobile\":0,\"d14-file-claim-policy-desktop\":0,\"d15-file-claim-incident-desktop\":0,\"d16-file-claim-review-desktop\":0,\"d16-file-claim-policy-mobile\":0,\"d17-filed-claim-resulting-state-desktop\":0,\"d18-FAILURE-claims-list-desktop\":0,\"d19-FAILURE-claim-not-found-desktop\":0,\"d20-EMPTY-claims-signed-out-desktop\":0,\"d21-EMPTY-claims-no-claims-desktop\":0,\"d22-EMPTY-file-claim-no-policy-mobile\":0}"
+    },
+    {
+      "status": "PASS",
+      "detail": "No browser console errors: "
+    },
+    {
+      "status": "PASS",
+      "detail": "No paid or settlement-pending claims exist"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { claimListContext } from '@/lib/server/claims-list-context';
 import {
   projectReviewReadiness,
   settlementVerificationBlocker,
@@ -58,6 +59,8 @@ async function GETHandler(request: Request, ctx: Ctx) {
     linkedIncident: c.incidentId ? repo.getIncident(c.incidentId) : null,
     principalRole: auth.principal.role,
     case: serializeClaimsCase(c),
+    // Read-only display labels (insured agent, product, open requests).
+    context: claimListContext(repo, c),
     confirmedSettlementReceipt: confirmedClaimReceipt(getDb(), chainSource, c),
     timeline,
     evidenceManifests: manifests,

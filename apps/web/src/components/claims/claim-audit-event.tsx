@@ -1,6 +1,8 @@
+import { ArrowsLeftRight } from '@phosphor-icons/react/ssr';
 import { claimStatusLabel } from '@/lib/claims/settlement-presentation';
 import { evidenceAnchor, type EvidenceTarget } from '@/lib/claims/investigation-presentation';
 import { ClaimEventMetadata, ClaimEvidenceLinks } from './claim-evidence-links';
+import { TimelineItem } from './timeline-item';
 
 export type ClaimAuditRecord = {
   id: string;
@@ -26,17 +28,21 @@ export function ClaimAuditEvent({
     binding && typeof binding === 'object' && 'verificationId' in binding
       ? binding.verificationId
       : event.payload?.verificationId;
+  const decision =
+    ['APPROVED', 'DENIED'].includes(event.toStatus) && event.fromStatus !== event.toStatus;
   return (
-    <li
+    <TimelineItem
       id={evidenceAnchor('event', event.id)}
-      tabIndex={-1}
-      className="scroll-mt-4 rounded border border-zinc-200 bg-white p-3 text-sm"
+      icon={<ArrowsLeftRight size={14} weight="bold" />}
+      tone={decision ? 'human' : 'neutral'}
+      kind="status_change"
     >
-      <p className="font-medium">
+      <p className="text-sm font-semibold text-[var(--ink)]">
+        {decision ? 'Human decision · ' : ''}
         {claimStatusLabel(event.fromStatus, receipt)} → {claimStatusLabel(event.toStatus, receipt)}
       </p>
       <ClaimEventMetadata actor={event.actor} timestamp={event.createdAt} />
-      <p className="text-xs text-zinc-600">{event.reasonCode}</p>
+      <p className="mt-1 font-mono text-[0.6875rem] text-[var(--ink-muted)]">{event.reasonCode}</p>
       {typeof verificationId === 'string' && (
         <ClaimEvidenceLinks
           references={[verificationId]}
@@ -46,15 +52,11 @@ export function ClaimAuditEvent({
         />
       )}
       {event.payload && (
-        <details className="mt-1">
-          <summary className="inline-flex min-h-11 cursor-pointer items-center text-xs underline">
-            Decision / investigation record
-          </summary>
-          <pre className="overflow-auto whitespace-pre-wrap break-all text-xs">
-            {JSON.stringify(event.payload, null, 2)}
-          </pre>
+        <details className="record-details">
+          <summary>Decision record</summary>
+          <pre>{JSON.stringify(event.payload, null, 2)}</pre>
         </details>
       )}
-    </li>
+    </TimelineItem>
   );
 }

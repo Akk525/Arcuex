@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CaretLeft } from '@phosphor-icons/react/ssr';
 import { AppShell } from '@/components/app-shell';
 import { SubmitClaimForm } from '@/components/claims/submit-claim-form';
 import { PageHeader } from '@/components/ui/page-header';
@@ -11,22 +12,18 @@ export default async function NewClaimPage({
   const { policyId } = await searchParams;
   return (
     <AppShell>
-      <div className="mb-3">
-        <Link
-          href="/claims"
-          className="inline-flex min-h-11 items-center text-sm text-[var(--accent)] underline"
-        >
-          ← My claims
-        </Link>
-      </div>
+      <Link
+        href="/claims"
+        className="mb-3 inline-flex min-h-9 items-center gap-1 text-[0.8125rem] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]"
+      >
+        <CaretLeft size={13} weight="bold" aria-hidden="true" />
+        Claims
+      </Link>
       <PageHeader
-        eyebrow="Claims"
-        title="Submit a claim"
-        description="Select an eligible policy and record the incident to open an investigation."
+        title="File a claim"
+        description="Tell us which policy covered the agent and what happened. Filing opens an investigation; a human reviewer decides coverage."
       />
-      <div className="max-w-2xl">
-        <SubmitClaimForm initialPolicyId={policyId} />
-      </div>
+      <SubmitClaimForm initialPolicyId={policyId} />
     </AppShell>
   );
 }

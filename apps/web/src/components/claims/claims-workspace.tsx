@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Plus, Stack } from '@phosphor-icons/react';
 import { ClaimsCaseList } from '@/components/claims/claims-case-list';
 import { ClaimsPanel } from '@/components/claims/claims-panel';
 import { PageHeader } from '@/components/ui/page-header';
@@ -17,18 +18,21 @@ export function ClaimsWorkspace() {
   const showOpsPanels = ops && workspace === 'ops';
 
   return (
-    <div className="space-y-6">
+    <div>
       <PageHeader
-        eyebrow="Claims"
-        title="My claims"
-        description="Find your cases, respond to evidence requests and check each decision and payment status."
+        title="Claims"
+        description="Track each claim from filing to decision. Respond to evidence requests here so reviewers can see your proof in the record."
         action={
-          ops && workspace === 'ops' ? (
+          ops ? (
             <ButtonLink href="/claims/review" variant="secondary">
-              Open review queue
+              <Stack size={16} aria-hidden="true" />
+              Review queue
             </ButtonLink>
           ) : (
-            <ButtonLink href="/claims/new">Submit claim</ButtonLink>
+            <ButtonLink href="/claims/new">
+              <Plus size={16} weight="bold" aria-hidden="true" />
+              File a claim
+            </ButtonLink>
           )
         }
       />
@@ -38,27 +42,36 @@ export function ClaimsWorkspace() {
           Checking session…
         </p>
       ) : !session ? (
-        <AuthRequired description="Connect your wallet and sign in from the header to view its cases." />
+        <AuthRequired description="Connect your wallet and sign in from the header to see your claims." />
       ) : (
-        <ClaimsCaseList />
+        <ClaimsCaseList ops={ops} />
       )}
 
       {showOpsPanels ? (
-        <div className="space-y-4 border-t border-[var(--line)] pt-6">
-          <Callout kind="warn" title="Ops tools">
-            Legacy ledger access requires a provisioned reviewer/authority session. Frontend chrome
-            is not authorization.
-          </Callout>
-          <ClaimsPanel />
-        </div>
+        <details className="group mt-10 border-t border-[var(--line)] pt-6">
+          <summary className="cursor-pointer text-sm font-semibold text-[var(--ink)]">
+            Legacy claims ledger
+          </summary>
+          <div className="mt-4 space-y-4">
+            <Callout kind="warn" title="Ops tools">
+              Legacy ledger access requires a provisioned reviewer or authority session. Interface
+              visibility is not authorization.
+            </Callout>
+            <ClaimsPanel />
+          </div>
+        </details>
       ) : (
-        !ops && (
-          <Link
-            href="/claims/review"
-            className="inline-flex min-h-10 items-center text-sm text-[var(--accent)] underline"
-          >
-            Reviewer sign-in
-          </Link>
+        !ops &&
+        !loading && (
+          <p className="mt-10 text-xs text-[var(--ink-muted)]">
+            Reviewing claims for Arcuex?{' '}
+            <Link
+              href="/claims/review"
+              className="font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              Reviewer sign-in
+            </Link>
+          </p>
         )
       )}
     </div>
