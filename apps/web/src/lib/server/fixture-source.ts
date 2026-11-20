@@ -24,6 +24,15 @@ export function seedFixture(
 ) {
   if (!/^candidate-[0-9a-f-]{36}$/.test(input.id) || !Number.isSafeInteger(input.at))
     throw new Error('Invalid fixture identity/checkpoint');
+  // Wallet sessions are lowercase; a checksummed operator input would orphan the seeded policy.
+  const address = /^0x[0-9a-fA-F]{40}$/;
+  if (!address.test(input.owner) || (input.agentSigner && !address.test(input.agentSigner)))
+    throw new Error('Invalid fixture owner/signer address');
+  input = {
+    ...input,
+    owner: input.owner.toLowerCase(),
+    agentSigner: input.agentSigner?.toLowerCase(),
+  };
   return db.transaction(() => {
     for (const table of [
       'procurement_records',

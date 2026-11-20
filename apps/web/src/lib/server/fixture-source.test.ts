@@ -41,6 +41,13 @@ function fixture() {
   return { db, config, ...seeded };
 }
 describe('pinned fixture source isolation and recovery', () => {
+  it('normalizes a checksummed owner so wallet sessions can see the seeded policy', () => {
+    const db = openDatabase();
+    const checksummed = '0x1129c8790966d953845867e3971B43Ff7FDD1094';
+    const seeded = seedFixture(db, { id, owner: checksummed, at });
+    expect(seeded.snapshot.policy.terms.owner).toBe(checksummed.toLowerCase());
+    expect(() => seedFixture(openDatabase(), { id, owner: '', at })).toThrow(/owner/);
+  });
   it('requires a complete separate hosted identity and keeps HTTPS, gate and secure cookies enforced', () => {
     const hosted = {
       ...environment('/data', 'aa'.repeat(32)),
