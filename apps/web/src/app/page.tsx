@@ -1,10 +1,5 @@
-import { AppShell } from '@/components/app-shell';
-import { HomeEntry } from '@/components/home-entry';
+import { HomePage } from '@/components/marketing/home-page';
 
-export default function HomePage() {
-  return (
-    <AppShell>
-      <HomeEntry />
-    </AppShell>
-  );
+export default function Page() {
+  return <HomePage />;
 }

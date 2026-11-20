@@ -1,3 +1,4 @@
+import { claimListContext } from '@/lib/server/claims-list-context';
 import {
   recordSigningAuthorization,
   requireSigningAuthorization,
@@ -78,6 +79,7 @@ async function GETHandler(request: Request, ctx: Ctx) {
         ? { ...c, status: 'SETTLEMENT_PENDING' }
         : c,
     ),
+    context: claimListContext(repo, c),
     ...payment,
     timeline,
     evidenceManifests: manifests,

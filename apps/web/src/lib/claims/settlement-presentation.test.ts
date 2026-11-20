@@ -11,11 +11,11 @@ const render = (status: string, blocked = false, confirmedReceipt?: string, canP
 
 describe('claim financial presentation', () => {
   it('separates coverage approval from settlement preparation and payment', () => {
-    expect(render('APPROVED').label).toBe('Awaiting settlement authorization');
+    expect(render('APPROVED').label).toBe('Awaiting settlement preparation');
     expect(render('APPROVED', false, undefined, true).action).toContain('can request preparation');
-    expect(render('SETTLEMENT_PENDING').label).toBe('Awaiting a verified settlement receipt');
+    expect(render('SETTLEMENT_PENDING').label).toBe('Intent prepared');
     expect(render('SETTLEMENT_PENDING').action).toContain('requires separate submission');
-    expect(claimStatusLabel('SETTLEMENT_PENDING')).toBe('Settlement prepared');
+    expect(claimStatusLabel('SETTLEMENT_PENDING')).toBe('Intent prepared');
     expect(render('SETTLEMENT_FAILED').label).toBe('Settlement failed');
     expect(render('DENIED').label).toBe('No settlement');
   });

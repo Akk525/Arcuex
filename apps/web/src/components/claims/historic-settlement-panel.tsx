@@ -52,14 +52,13 @@ export function HistoricSettlementPanel() {
 
   return (
     <Panel
-      title="Verified Arc Testnet settlement (read-only)"
-      action={<StatusBadge label="CHAIN RECEIPT" tone="ok" />}
+      title="Archived Arc Testnet settlement"
+      action={<StatusBadge label="ARCHIVED" tone="neutral" />}
     >
       {error ? <p className="text-sm text-rose-700">{error}</p> : null}
       {authRequired ? (
         <p className="text-sm text-zinc-600">
-          Sign in to view the verified Arc Testnet settlement receipt. Auth failures are not treated
-          as a missing receipt.
+          Sign in to view the archived Arc Testnet receipt. Current payment finality is unverified.
         </p>
       ) : null}
       {!data && !error ? <p className="text-sm text-zinc-500">Loading receipt…</p> : null}
@@ -75,7 +74,7 @@ export function HistoricSettlementPanel() {
           <div className="break-all font-mono text-xs">Authority: {data.claimsAuthority}</div>
           <div className="break-all font-mono text-xs">Pool: {data.pool}</div>
           <div className="break-all font-mono text-xs">Loss key: {data.lossKey}</div>
-          <div className="text-xs text-zinc-500">Verified at {data.verifiedAt}</div>
+          <div className="text-xs text-zinc-500">Recorded verification at {data.verifiedAt} · historical snapshot</div>
           <a
             href={data.explorerUrl}
             target="_blank"

@@ -5,7 +5,11 @@ import {
   type ReviewReadiness,
   type VerificationState,
 } from './investigation-presentation';
-import { hasArcReceiptHash } from './settlement-presentation';
+import {
+  currentPaymentReceipt,
+  parsePaymentFinality,
+  type PaymentFinality,
+} from './payment-finality';
 
 /** Client-side claims API response discrimination (auth vs empty vs malformed). */
 
@@ -17,7 +21,12 @@ export type ClaimsClientFailureKind =
 
 export type ClaimsClientResult<T> =
   | { ok: true; data: T }
-  | { ok: false; kind: ClaimsClientFailureKind; status?: number; message: string };
+  | {
+      ok: false;
+      kind: ClaimsClientFailureKind;
+      status?: number;
+      message: string;
+    };
 
 export type LegacyClaimsLedger = {
   notice: string;
@@ -36,14 +45,76 @@ export type ClaimsCaseListRow = {
   id: string;
   status: string;
   policyId: string;
+  paymentFinality?: PaymentFinality;
   confirmedSettlementReceipt?: string;
   syntheticDemo: boolean;
   payable: { usdc: string | null };
   reviewReasonCode: string | null;
   updatedAt: string;
+  createdAt?: string;
   triage?: CaseTriage;
   labels: { synthetic: string | null };
+  /** Read-only display context; absent from older servers. */
+  context?: ClaimListContext;
+  verification?: ClaimVerificationFreshness;
 };
+
+export type ClaimListContext = {
+  product: string | null;
+  insured: { label: string | null; position: string | null };
+  incident: { ref: string; observedAt: string } | null;
+  openRequests: number;
+  respondedRequests: number;
+};
+
+export type ClaimVerificationFreshness = {
+  state: 'current' | 'stale' | 'failed' | 'none';
+  at: string | null;
+  validUntilMs: number | null;
+  records: number;
+};
+
+const strOrNull = (v: unknown): v is string | null => v === null || typeof v === 'string';
+const count = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0;
+
+function parseListContext(raw: unknown): ClaimListContext | undefined {
+  if (!isRecord(raw) || !isRecord(raw.insured)) return undefined;
+  if (!strOrNull(raw.product) || !strOrNull(raw.insured.label) || !strOrNull(raw.insured.position))
+    return undefined;
+  if (!count(raw.openRequests) || !count(raw.respondedRequests)) return undefined;
+  const incident = raw.incident;
+  if (
+    incident !== null &&
+    !(
+      isRecord(incident) &&
+      typeof incident.ref === 'string' &&
+      typeof incident.observedAt === 'string'
+    )
+  )
+    return undefined;
+  return {
+    product: raw.product,
+    insured: { label: raw.insured.label, position: raw.insured.position },
+    incident: incident
+      ? { ref: incident.ref as string, observedAt: incident.observedAt as string }
+      : null,
+    openRequests: raw.openRequests,
+    respondedRequests: raw.respondedRequests,
+  };
+}
+
+function parseFreshness(raw: unknown): ClaimVerificationFreshness | undefined {
+  if (!isRecord(raw)) return undefined;
+  if (!['current', 'stale', 'failed', 'none'].includes(raw.state as string)) return undefined;
+  if (!strOrNull(raw.at) || !count(raw.records)) return undefined;
+  if (!(raw.validUntilMs === null || typeof raw.validUntilMs === 'number')) return undefined;
+  return {
+    state: raw.state as ClaimVerificationFreshness['state'],
+    at: raw.at,
+    validUntilMs: raw.validUntilMs,
+    records: raw.records,
+  };
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -70,15 +141,26 @@ export function parseClaimsCaseListPayload(json: unknown): ClaimsCaseListRow[] |
     if (!isRecord(raw.labels)) return null;
     const synthetic = raw.labels.synthetic;
     if (!(synthetic === null || typeof synthetic === 'string')) return null;
+    const paymentFinality = parsePaymentFinality(raw.paymentFinality);
+    const receipt = currentPaymentReceipt(
+      raw.status,
+      paymentFinality,
+      raw.confirmedSettlementReceipt,
+      raw.syntheticDemo || synthetic !== null || raw.evidenceAuthenticity === 'synthetic_fixture',
+    );
     rows.push({
-      ...(hasArcReceiptHash(raw.confirmedSettlementReceipt) && !raw.syntheticDemo
-        ? { confirmedSettlementReceipt: raw.confirmedSettlementReceipt }
-        : {}),
+      ...(paymentFinality && { paymentFinality }),
+      ...(receipt && { confirmedSettlementReceipt: receipt }),
       ...(isRecord(raw.triage) &&
       typeof raw.triage.section === 'string' &&
       Object.hasOwn(queueSections, raw.triage.section) &&
       typeof raw.triage.reason === 'string'
         ? { triage: { section: raw.triage.section as QueueSection, reason: raw.triage.reason } }
+        : {}),
+      ...(typeof raw.createdAt === 'string' ? { createdAt: raw.createdAt } : {}),
+      ...(parseListContext(raw.context) ? { context: parseListContext(raw.context) } : {}),
+      ...(parseFreshness(raw.verification)
+        ? { verification: parseFreshness(raw.verification) }
         : {}),
       id: raw.id,
       status: raw.status,
@@ -165,12 +247,23 @@ export function parseClaimCaseDetailPayload(json: unknown): {
   settlementVerificationBlocker?: string | null;
   case: Record<string, unknown>;
   timeline: unknown[];
+  paymentFinality?: PaymentFinality;
   confirmedSettlementReceipt?: string;
   evidenceManifests: unknown[];
+  context?: ClaimListContext;
 } | null {
   if (!isRecord(json) || !isRecord(json.case)) return null;
   if (!Array.isArray(json.timeline) || !Array.isArray(json.evidenceManifests)) return null;
   if (typeof json.case.id !== 'string' || typeof json.case.status !== 'string') return null;
+  const paymentFinality = parsePaymentFinality(json.paymentFinality);
+  const receipt = currentPaymentReceipt(
+    json.case.status,
+    paymentFinality,
+    json.confirmedSettlementReceipt,
+    (isRecord(json.source) && json.source.mode === 'fixture') ||
+      json.case.syntheticDemo === true ||
+      json.case.evidenceAuthenticity === 'synthetic_fixture',
+  );
   return {
     source: isRecord(json.source) ? json.source : undefined,
     principalRole: typeof json.principalRole === 'string' ? json.principalRole : undefined,
@@ -199,9 +292,9 @@ export function parseClaimCaseDetailPayload(json: unknown): {
       ? { settlementVerificationBlocker: json.settlementVerificationBlocker }
       : {}),
     case: json.case,
-    ...(hasArcReceiptHash(json.confirmedSettlementReceipt)
-      ? { confirmedSettlementReceipt: json.confirmedSettlementReceipt }
-      : {}),
+    ...(parseListContext(json.context) ? { context: parseListContext(json.context) } : {}),
+    ...(paymentFinality && { paymentFinality }),
+    ...(receipt && { confirmedSettlementReceipt: receipt }),
     timeline: json.timeline,
     evidenceManifests: json.evidenceManifests,
   };

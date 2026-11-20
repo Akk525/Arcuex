@@ -104,6 +104,7 @@ Do not expose the service publicly until those checklists pass.
 - [docs/architecture/decisions/002-policy-agnostic-insurance-core.md](docs/architecture/decisions/002-policy-agnostic-insurance-core.md)
 - [docs/architecture/trust-boundaries.md](docs/architecture/trust-boundaries.md)
 - [docs/integrations/quicknode.md](docs/integrations/quicknode.md)
+- [Premium frontend and backend v1 local acceptance](docs/verification/2026-11-19-premium-backend-v1.md)
 - [AGENTS.md](AGENTS.md)
 
 ### Authenticated synthetic procurement beta

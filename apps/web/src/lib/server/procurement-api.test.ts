@@ -285,6 +285,22 @@ it.each(['owner', 'delegated agent'] as const)(
     ).toHaveLength(1);
 
     const step = { policyId, acceptedDigest: quoted.digest };
+    if (grant) {
+      const atExpiry = vi.spyOn(Date, 'now').mockReturnValue(grant.expiresAt * 1000);
+      try {
+        for (const stage of ['approve', 'bind'] as const) {
+          await expect(buyer.api.payment({ ...step, stage })).rejects.toThrow(
+            /FORBIDDEN.*expired/i,
+          );
+        }
+        expect(await buyer.api.lifecycle(policyId, exposure.id)).toMatchObject({
+          state: 'expired',
+          claimsEligible: false,
+        });
+      } finally {
+        atExpiry.mockRestore();
+      }
+    }
     vi.mocked(preflightPayment).mockRejectedValueOnce(
       new ProcurementError('CAPITAL_UNAVAILABLE', 'Insufficient pool capacity'),
     );

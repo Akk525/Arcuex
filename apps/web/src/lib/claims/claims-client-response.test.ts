@@ -130,3 +130,46 @@ describe('parseLegacyClaimsLedgerPayload', () => {
     expect(parseLegacyClaimsLedgerPayload(payload)).toEqual(payload);
   });
 });
+
+describe('parseClaimsCaseListPayload context', () => {
+  const base = {
+    id: 'case-1',
+    status: 'COLLECTING_EVIDENCE',
+    policyId: 'pol-1',
+    syntheticDemo: true,
+    payable: { usdc: null },
+    reviewReasonCode: null,
+    updatedAt: '2026-11-17T00:00:00.000Z',
+    createdAt: '2026-11-16T00:00:00.000Z',
+    labels: { synthetic: 'fixture' },
+  };
+
+  it('keeps valid display context and verifier freshness', () => {
+    const context = {
+      product: 'Oracle adapter liquidation',
+      insured: { label: 'treasury-agent', position: 'demo-position-01' },
+      incident: { ref: 'synthetic:event-001', observedAt: '2026-11-16T00:00:00.000Z' },
+      openRequests: 1,
+      respondedRequests: 0,
+    };
+    const verification = { state: 'stale', at: null, validUntilMs: 5, records: 2 };
+    const [row] = parseClaimsCaseListPayload({ cases: [{ ...base, context, verification }] })!;
+    expect(row?.context).toEqual(context);
+    expect(row?.verification).toEqual(verification);
+    expect(row?.createdAt).toBe(base.createdAt);
+  });
+
+  it('drops malformed context instead of inventing values', () => {
+    const [row] = parseClaimsCaseListPayload({
+      cases: [
+        {
+          ...base,
+          context: { product: 1, insured: {}, openRequests: -1 },
+          verification: { state: 'fresh' },
+        },
+      ],
+    })!;
+    expect(row?.context).toBeUndefined();
+    expect(row?.verification).toBeUndefined();
+  });
+});

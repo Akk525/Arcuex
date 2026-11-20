@@ -3,11 +3,13 @@ import { headers } from 'next/headers';
 import { cookieToInitialState } from 'wagmi';
 import { AppProviders } from '@/providers/app-providers';
 import { createWagmiConfig } from '@/lib/wagmi';
+import { fontDisplay, fontMono, fontSans } from './fonts';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Arcuex — Arc Testnet',
-  description: 'Programmable financial protection for humans and autonomous agents on Arc Testnet.',
+  title: 'Arcuex — Insurance for autonomous agents',
+  description:
+    'Procurement, delegated authority, evidence-backed claims, human adjudication, and controlled Arc settlement.',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -17,15 +19,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const initialState = cookieToInitialState(createWagmiConfig(fixtureMode), cookie);
 
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={`${fontSans.variable} ${fontMono.variable} ${fontDisplay.variable}`}>
       <body>
         <AppProviders initialState={initialState} fixtureMode={fixtureMode}>
           {children}

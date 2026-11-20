@@ -1,3 +1,4 @@
+import { ArrowElbowDownRight } from '@phosphor-icons/react/ssr';
 import {
   actorLabel,
   evidenceAnchor,
@@ -19,6 +20,7 @@ export function openClaimRecord(anchor: string) {
   target.scrollIntoView({ block: 'nearest' });
 }
 
+/** Citations to exact records in this case. Unknown references are shown as unavailable, never guessed. */
 export function ClaimEvidenceLinks({
   references,
   targets,
@@ -33,22 +35,27 @@ export function ClaimEvidenceLinks({
   const matches = resolveEvidenceTargets(references, targets, kind);
   if (!matches.length) return null;
   return (
-    <div className="mt-2 text-xs">
-      <p className="font-medium">{label}</p>
-      <ul className="flex flex-wrap gap-x-3">
+    <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
+      <span className="text-[var(--ink-muted)]">{label}</span>
+      <ul className="contents">
         {matches.map((record, index) => (
           <li key={record?.id ?? index}>
             {record ? (
               <a
                 href={`#${evidenceAnchor(record.kind, record.id)}`}
-                className="inline-flex min-h-11 items-center text-[var(--accent)] underline"
+                className="citation"
+                data-stale={record.stale || undefined}
                 onClick={() => openClaimRecord(evidenceAnchor(record.kind, record.id))}
               >
-                {record.label} · {record.id.slice(0, 12)}
-                {record.stale ? ' · Earlier evidence context' : ''}
+                <ArrowElbowDownRight size={11} weight="bold" aria-hidden="true" />
+                {record.label}
+                <span className="font-mono text-[0.6875rem] opacity-70">
+                  {record.id.slice(0, 8)}
+                </span>
+                {record.stale ? <span className="text-[var(--warn)]">earlier context</span> : null}
               </a>
             ) : (
-              <span className="inline-flex min-h-11 items-center text-zinc-600">
+              <span className="citation" data-missing>
                 Reference unavailable in this case
               </span>
             )}
@@ -59,26 +66,40 @@ export function ClaimEvidenceLinks({
   );
 }
 
+const timeFormat = new Intl.DateTimeFormat('en', {
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'UTC',
+  hourCycle: 'h23',
+});
+
+export function formatClaimTime(timestamp: string) {
+  const t = Date.parse(timestamp);
+  return Number.isFinite(t) ? `${timeFormat.format(t)} UTC` : timestamp;
+}
+
 export function ClaimEventMetadata({ actor, timestamp }: { actor?: string; timestamp?: string }) {
   return (
-    <p className="text-xs text-zinc-600">
+    <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--ink-muted)]">
       {actor ? (
         <>
-          {actorLabel(actor)} · <span className="font-mono">{actor}</span>
+          <span className="font-medium text-[var(--ink-secondary)]">{actorLabel(actor)}</span>
+          <span className="max-w-[16rem] truncate font-mono text-[0.6875rem]" title={actor}>
+            {actor}
+          </span>
         </>
       ) : (
-        'Actor unavailable'
+        <span>Actor unavailable</span>
       )}
+      <span aria-hidden="true">·</span>
       {timestamp ? (
-        <>
-          {' '}
-          ·{' '}
-          <time className="tabular-nums" dateTime={timestamp}>
-            {timestamp}
-          </time>
-        </>
+        <time className="tabular-nums" dateTime={timestamp} title={timestamp}>
+          {formatClaimTime(timestamp)}
+        </time>
       ) : (
-        ' · Time unavailable'
+        <span>Time unavailable</span>
       )}
     </p>
   );

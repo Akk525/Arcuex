@@ -41,6 +41,7 @@ import {
 import { reconcileSettlementAnchors } from './settlement-reconciliation';
 import { prepareClaimsTransaction } from './claims-chain';
 import { POST as verifyHttp } from '@/app/api/claims/cases/[id]/verification/route';
+import { GET as listHttp } from '@/app/api/claims/cases/route';
 import { GET as readHttp, POST as mutateHttp } from '@/app/api/claims/cases/[id]/route';
 
 const testClient = vi.hoisted(() => vi.fn());
@@ -612,7 +613,43 @@ it('reconciles exact payments across a SQLite restart and reopens an orphan with
       }),
       { params: Promise.resolve({ id: approved.id }) },
     );
+  const claimsRequest = (path: string) =>
+    new Request(`http://localhost:3000/api/claims/cases${path}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+  const context = {
+    insured: { position: policy.terms.exposure.position },
+    incident: { ref: eventRef },
+  };
   try {
+    const workbench = async () =>
+      (await (await listHttp(claimsRequest('?view=workbench'))).json()).cases;
+    expect(await workbench()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: approved.id,
+          context: expect.objectContaining({
+            insured: expect.objectContaining(context.insured),
+            incident: expect.objectContaining(context.incident),
+          }),
+          verification: expect.objectContaining({ state: 'current' }),
+        }),
+      ]),
+    );
+    const expiry = vi.spyOn(Date, 'now').mockReturnValue(v.validUntilMs!);
+    try {
+      expect(await workbench()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: approved.id,
+            verification: expect.objectContaining({ state: 'stale' }),
+            confirmedSettlementReceipt: null,
+          }),
+        ]),
+      );
+    } finally {
+      expiry.mockRestore();
+    }
     const authorization = {
       action: 'prepare_settlement',
       confirmedRecipient: owner,
@@ -830,15 +867,31 @@ it('reconciles exact payments across a SQLite restart and reopens an orphan with
     );
     expect(await projected.json()).toMatchObject({
       case: { status: 'SETTLEMENT_PENDING' },
+      context,
       paymentFinality: 'reorged',
       confirmedSettlementReceipt: null,
     });
+    const reorgedList = await (await listHttp(claimsRequest(''))).json();
+    expect(
+      reorgedList.cases.find((claim: { id: string }) => claim.id === approved.id),
+    ).toMatchObject({
+      status: 'SETTLEMENT_PENDING',
+      context,
+      paymentFinality: 'reorged',
+      confirmedSettlementReceipt: null,
+    });
+    expect((await (await listHttp(claimsRequest('?status=PAID'))).json()).cases).toEqual([]);
     expect(repo.getClaimsCase(approved.id)?.status).toBe('PAID');
     expect(await reconcileSettlementAnchors(db, client)).toBe(1);
     expect(await reconcileSettlementAnchors(db, client)).toBe(0);
     expect(repo.getClaimsCase(approved.id)?.status).toBe('SETTLEMENT_PENDING');
     expect(repo.sumCommittedForPolicy(approved.policyId, 'another-case')).toBe(amount);
     expect((await post(markPaid)).status).toBe(409);
+    expect(
+      repo
+        .listClaimsCaseEvents(approved.id)
+        .filter((event) => event.reasonCode === 'SETTLEMENT_RECONCILED'),
+    ).toHaveLength(1);
   } finally {
     globals.__arcuexDb = priorDb;
     globals.__arcuexRepo = priorRepo;

@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Read-only Git export of committed frontend files. Writes are confined to a disposable snapshot.
+# Read-only Git export of a candidate commit or staged Git tree. Writes are confined to a disposable snapshot.
 checks="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(git -C "$checks" rev-parse --show-toplevel)"
-frontend="$(git -C "$root" rev-parse "${1:-ui/premium-product-redesign}^{commit}")"
+frontend="$(git -C "$root" rev-parse --verify "${1:-ui/premium-product-redesign}")"
+git -C "$root" rev-parse --verify "$frontend^{tree}" >/dev/null
 backend_tag=backend-integration/2026-11-19-v1
 backend="$(git -C "$root" rev-parse "$backend_tag^{commit}")"
 [[ "$backend" == fa462049cd4d87afce6ac9a3df9ef8dd2f55a7fc ]] || {

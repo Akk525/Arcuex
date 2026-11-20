@@ -1,4 +1,5 @@
 import { projectClaimTriage, workbenchStatuses } from '@/lib/server/claims-review-projection';
+import { claimListContext, verificationFreshness } from '@/lib/server/claims-list-context';
 import { projectSettlementFinality } from '@/lib/server/claims-settlement-projection';
 import { getRuntimeConfig } from '@/lib/server/runtime-config';
 import { withApiSecurity } from '@/lib/server/api-security';
@@ -48,8 +49,10 @@ async function GETHandler(request: Request) {
           : claim;
       return {
         ...serializeClaimsCase(current),
+        context: claimListContext(repo, current),
         ...(workbench && {
           triage: projectClaimTriage(repo, current, auth.principal.role, chainSource === 'fixture'),
+          verification: verificationFreshness(repo, current),
         }),
         ...payment,
       };

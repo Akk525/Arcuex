@@ -1,5 +1,5 @@
 import { AppShell } from '@/components/app-shell';
-import { PoliciesPanel } from '@/components/coverage/policies-panel';
+import { PolicyPortfolio } from '@/components/coverage/policy-portfolio';
 import { ButtonLink } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 
@@ -8,11 +8,11 @@ export default function PoliciesPage() {
     <AppShell>
       <PageHeader
         eyebrow="Protect"
-        title="Policy portfolio"
-        description="Review your policies, resume checkout and find policies eligible for claim intake."
-        action={<ButtonLink href="/coverage">Explore coverage</ButtonLink>}
+        title="Policies"
+        description="Every policy this wallet owns or paid for, with its confirmation status, coverage window and next step."
+        action={<ButtonLink href="/coverage">Buy coverage</ButtonLink>}
       />
-      <PoliciesPanel />
+      <PolicyPortfolio />
     </AppShell>
   );
 }
