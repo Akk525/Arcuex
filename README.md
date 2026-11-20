@@ -218,10 +218,17 @@ The [backend integration contract](docs/integrations/backend-integration-v1.md) 
 
 `/api/mcp` exposes the policyholder workflows to MCP-compatible agents through the official
 TypeScript SDK. Tools call the existing API route handlers in-process, so backend authorization is
-unchanged. Wallet-signature tokens are scoped and revocable. Underwriting review, renewal and claim
-reconsideration are reported as unsupported because the backend has no such services. See
-[the MCP integration guide](docs/integrations/mcp.md) and the
-[local verification report](docs/verification/2026-11-20-mcp-server.md). The
-[hosted acceptance report](docs/verification/2026-11-20-mcp-hosted-acceptance.md) records real
-remote SDK clients against two isolated, gated Railway test services. Existing staging and Plan A
+unchanged. Wallet-signature tokens are scoped and revocable.
+
+Some tools are discoverable but always return `BLOCKED`:
+- **Underwriting tools** return `MCP_EXPOSURE_NOT_ACCEPTED`. The backend's underwriting API exists,
+  but MCP won't call it until it passes a separate MCP acceptance.
+- **Renewal and claim reconsideration** return `NOT_SUPPORTED_BY_BACKEND`, because the backend has
+  no such workflows.
+
+See [the MCP integration guide](docs/integrations/mcp.md),
+[local verification](docs/verification/2026-11-20-mcp-server.md),
+[hosted acceptance](docs/verification/2026-11-20-mcp-hosted-acceptance.md) and
+[final merge acceptance](docs/verification/2026-11-20-mcp-merge-acceptance.md). Those runs used
+real remote SDK clients against isolated, gated Railway test services. Existing staging and Plan A
 were not changed or accepted.
