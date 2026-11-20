@@ -1,0 +1,196 @@
+import { withApiSecurity } from '@/lib/server/api-security';
+import { NextResponse } from 'next/server';
+import { ARC_USDC_ERC20_ADDRESS } from '@arcuex/chain';
+import {
+  canAccessClaimsPolicy,
+  listClaimsCases,
+  outstandingProofRequests,
+} from '@arcuex/insurance';
+import { ProcurementStore } from '@arcuex/persistence';
+import {
+  buildDashboardOverview,
+  type DashboardOverviewInput,
+} from '@/lib/server/dashboard-overview';
+import { confirmedClaimReceipt } from '@/lib/server/claims-settlement-projection';
+import { loadPrincipalFromSession, parseSessionCookie } from '@/lib/server/claims-session';
+import { getDb, getRepo } from '@/lib/server/db';
+import { configuredIndependentLiquidation } from '@/lib/server/independent-evidence';
+import { ProcurementService } from '@/lib/server/procurement';
+import { procurementPool } from '@/lib/server/procurement-chain';
+import { reconciliationRows } from '@/lib/server/policy-reconciliation';
+import { getRuntimeConfig } from '@/lib/server/runtime-config';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+const responseHeaders = { 'Cache-Control': 'no-store', Vary: 'Cookie' };
+
+const labels = {
+  synthetic: 'Synthetic ledger / demo underwriting',
+  live: 'Live Arc Testnet reads; on-chain finance only when pool is deployed',
+};
+
+function emptyInput(
+  state: 'anonymous' | 'authenticated',
+  role: string | null,
+  wallet: string | null,
+): DashboardOverviewInput {
+  return {
+    state,
+    role,
+    wallet,
+    policies: [],
+    agents: [],
+    delegations: [],
+    claims: [],
+    evidenceRequests: [],
+    reconciliation: [],
+    recentActivity: [],
+    labels,
+  };
+}
+
+async function GETHandler(request: Request) {
+  const repo = getRepo();
+  const db = getDb();
+  const sessionId = parseSessionCookie(request.headers.get('cookie'));
+  const principal = sessionId ? loadPrincipalFromSession(repo, sessionId) : null;
+
+  if (!principal) {
+    return NextResponse.json(buildDashboardOverview(emptyInput('anonymous', null, null)), {
+      headers: responseHeaders,
+    });
+  }
+
+  const store = new ProcurementStore(db);
+  const now = Math.floor(Date.now() / 1000);
+  const chainSource = getRuntimeConfig().chainSource;
+
+  const policies = repo
+    .listPolicies(50)
+    .filter((p) => canAccessClaimsPolicy(repo, principal, p.id))
+    .map((p) => ({
+      id: p.id,
+      status: p.status,
+      synthetic: Boolean(p.terms.synthetic),
+      claimsEligible: store.claimsEligible(p.id, now),
+      label: p.terms.synthetic ? 'Synthetic policy' : `Policy ${p.id.slice(0, 8)}`,
+    }));
+
+  let agents: DashboardOverviewInput['agents'] = [];
+  let delegations: DashboardOverviewInput['delegations'] = [];
+  if (principal.walletAddress) {
+    const svc = new ProcurementService(
+      store,
+      procurementPool,
+      ARC_USDC_ERC20_ADDRESS,
+      undefined,
+      configuredIndependentLiquidation(),
+    );
+    const listed = svc.list(principal.walletAddress.toLowerCase());
+    agents = listed.agents.map((a) => ({
+      id: a.id,
+      label: a.label || a.id.slice(0, 8),
+      status: 'registered',
+    }));
+    delegations = listed.delegations.map((d) => ({
+      id: d.id,
+      agentId: d.agentId,
+      validity: d.validity,
+      synthetic: undefined,
+    }));
+  }
+
+  const cases = listClaimsCases(repo, { limit: 50 }).filter((c) =>
+    canAccessClaimsPolicy(repo, principal, c.policyId),
+  );
+
+  const evidenceRequests: DashboardOverviewInput['evidenceRequests'] = [];
+  const claims: DashboardOverviewInput['claims'] = [];
+  const recentActivity: DashboardOverviewInput['recentActivity'] = [];
+
+  for (const claim of cases) {
+    const href = `/claims/${claim.id}`;
+    const outstanding = outstandingProofRequests(repo, claim.id);
+    for (const req of outstanding) {
+      evidenceRequests.push({ caseId: claim.id, id: req.id, href });
+    }
+    const receipt = confirmedClaimReceipt(db, chainSource, claim);
+    claims.push({
+      id: claim.id,
+      status: claim.status,
+      reason:
+        claim.status === 'COLLECTING_EVIDENCE'
+          ? 'Evidence collection in progress'
+          : claim.status === 'DRAFT'
+            ? 'Draft claim needs submission'
+            : `Claim status ${claim.status}`,
+      href,
+      hasConfirmedSettlement: Boolean(receipt),
+    });
+    recentActivity.push({
+      at: claim.updatedAt ?? claim.createdAt,
+      kind: 'claim',
+      summary: `Claim ${claim.status}`,
+      href,
+    });
+  }
+
+  for (const policy of policies.slice(0, 10)) {
+    recentActivity.push({
+      at: new Date().toISOString(),
+      kind: 'policy',
+      summary: `${policy.synthetic ? 'Synthetic' : 'Policy'} ${policy.status}`,
+      href: `/policies/${policy.id}`,
+    });
+  }
+
+  recentActivity.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+
+  const wallet = principal.walletAddress?.toLowerCase() ?? null;
+  const reconciliation = reconciliationRows(db)
+    .filter((r) => {
+      if (principal.role !== 'claimant') return r.status !== 'VERIFIED_LINKED';
+      if (!wallet) return false;
+      try {
+        const evidence = JSON.parse(r.payload) as {
+          premiumPayer?: string;
+          beneficiary?: string;
+        };
+        const local = r.local_policy_id ? store.policy(r.local_policy_id) : null;
+        const owner = local?.terms?.owner?.toLowerCase();
+        return (
+          r.status !== 'VERIFIED_LINKED' &&
+          (owner === wallet ||
+            evidence.premiumPayer?.toLowerCase() === wallet ||
+            evidence.beneficiary?.toLowerCase() === wallet)
+        );
+      } catch {
+        return false;
+      }
+    })
+    .map((r) => ({
+      policyId: r.local_policy_id,
+      onchainPolicyId: r.onchain_policy_id,
+      completeness: r.status,
+      href: r.local_policy_id ? `/policies/${r.local_policy_id}` : '/policies',
+    }));
+
+  const overview = buildDashboardOverview({
+    state: 'authenticated',
+    role: principal.role,
+    wallet,
+    policies,
+    agents,
+    delegations,
+    claims,
+    evidenceRequests,
+    reconciliation,
+    recentActivity: recentActivity.slice(0, 20),
+    labels,
+  });
+
+  return NextResponse.json(overview, { headers: responseHeaders });
+}
+
+export const GET = withApiSecurity(GETHandler);
