@@ -10,6 +10,7 @@ import { Callout } from '@/components/ui/callout';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatusBadge } from '@/components/status-badge';
 import { useFixtureMode } from '@/providers/source-mode';
+import { McpPanel } from '@/components/integrations/mcp-panel';
 
 type Check = { name: string; ok: boolean; detail: string; kind: string };
 
@@ -118,6 +119,7 @@ export default function IntegrationsPage() {
           <TestTransactionPanel />
         )}
       </div>
+      <McpPanel />
     </AppShell>
   );
 }
