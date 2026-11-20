@@ -1467,7 +1467,7 @@ function StepSection({
       className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-sm)]"
     >
       <header className="border-b border-[var(--line)] px-5 py-4 sm:px-6">
-        <p className="text-xs tabular-nums text-[var(--ink-muted)]">Step {n} of 4</p>
+        <p className="text-xs tabular-nums text-[var(--ink-muted)]">Step {n} of 5</p>
         <h2 id={`checkout-step-${n}`} className="mt-0.5 font-display text-lg font-semibold tracking-[-0.015em] text-[var(--ink)]">
           {title}
         </h2>

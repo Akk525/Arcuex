@@ -19,7 +19,7 @@ const PROTECT: AppNavGroup = {
   id: 'protect',
   label: 'Protect',
   items: [
-    { href: '/coverage', label: 'Get coverage', icon: 'coverage' },
+    { href: '/coverage', label: 'Buy coverage', icon: 'coverage' },
     { href: '/policies', label: 'Policies', icon: 'policies' },
   ],
 };
