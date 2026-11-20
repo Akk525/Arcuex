@@ -1,0 +1,9 @@
+Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/2a703647-ffdc-4ebb-a075-8ad8913a53d6/vol_8gjfxp6x0lmblnsx
+Starting Container
+entrypoint: prestart backup captured
+   ▲ Next.js 15.5.29
+   - Local:        http://localhost:8080
+   - Network:      http://0.0.0.0:8080
+
+ ✓ Starting...
+ ✓ Ready in 593ms

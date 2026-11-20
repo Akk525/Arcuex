@@ -1,0 +1,40 @@
+Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/41024124-4ade-4aa8-aecf-f0108e4eb6e9/vol_nhio0cb22ai97eja
+Starting Container
+entrypoint: prestart backup captured
+backend startup: database initialized and source verified
+   ▲ Next.js 15.5.29
+   - Local:        http://localhost:8080
+   - Network:      http://0.0.0.0:8080
+
+ ✓ Starting...
+ ✓ Ready in 417ms
+2026-11-20T10:50:44.875789606Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73176350" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T10:51:55.144364251Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73176471" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T10:52:55.130934542Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73176591" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T10:53:54.988369685Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73176712" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T10:54:55.393615212Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73176832" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T10:55:55.302747624Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73176954" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T10:56:55.329973977Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73177075" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T10:57:55.461736604Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73177195" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T10:59:05.985443566Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73177316" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T11:00:06.529354599Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73177436" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T11:01:06.382052089Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73177557" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T11:02:06.951829313Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73177677" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T11:03:07.258647714Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73177798" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T11:04:07.343370898Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73177919" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T11:05:07.471496411Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73178040" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T11:06:07.713846012Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73178160" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T11:07:08.130347251Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73178281" observed=0 orphaned=0 orphanedSettlements=0
+Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/41024124-4ade-4aa8-aecf-f0108e4eb6e9/vol_nhio0cb22ai97eja
+entrypoint: prestart backup captured
+backend startup: database initialized and source verified
+   ▲ Next.js 15.5.29
+   - Local:        http://localhost:8080
+   - Network:      http://0.0.0.0:8080
+
+ ✓ Starting...
+ ✓ Ready in 419ms
+2026-11-20T11:07:58.400732154Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73178371" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T11:08:58.704805895Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73178492" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T11:09:58.838674391Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73178612" observed=0 orphaned=0 orphanedSettlements=0
+2026-11-20T11:10:58.662580660Z [INFO]  event="policy-reconciliation" healthy=true backfillComplete=true nextBlock="73178732" observed=0 orphaned=0 orphanedSettlements=0

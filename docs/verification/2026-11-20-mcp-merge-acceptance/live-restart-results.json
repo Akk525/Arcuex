@@ -1,0 +1,42 @@
+{
+  "mode": "restart",
+  "base": "https://mcp-live-production.up.railway.app",
+  "startedAt": "2026-11-20T11:08:42.856Z",
+  "durationMs": 2051,
+  "stats": {
+    "http429": 0,
+    "toolRateLimited": 0,
+    "requests": 10
+  },
+  "passed": 6,
+  "failed": 0,
+  "results": [
+    {
+      "check": "restart: token and wallet session survive restart",
+      "pass": true
+    },
+    {
+      "check": "restart: registered agent persisted",
+      "pass": true
+    },
+    {
+      "check": "restart: accepted quote persisted",
+      "pass": true,
+      "detail": {
+        "reasonCode": "ACCEPTED"
+      }
+    },
+    {
+      "check": "restart: delegation persisted and active",
+      "pass": true
+    },
+    {
+      "check": "restart: policy still not reported bound",
+      "pass": true
+    },
+    {
+      "check": "restart: token revoked after the check",
+      "pass": true
+    }
+  ]
+}
