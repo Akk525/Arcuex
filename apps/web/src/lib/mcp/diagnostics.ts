@@ -34,6 +34,7 @@ export function mcpDiagnostics(request: Request) {
     },
     scopes: MCP_SCOPES,
     chainSource: c.chainSource,
+    ingress: c.requireAcceptanceGate ? 'acceptance_gated' : c.enforced ? 'public' : 'local',
     checks: { tokenStore },
     hostedAcceptance: 'not_performed',
     tools: TOOL_CATALOG,

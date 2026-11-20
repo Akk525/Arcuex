@@ -228,6 +228,9 @@ deployment's database and session epoch, so it does not work on any other enviro
 ```
 
 Token issuance calls (`/api/mcp/auth/challenge`, `/api/mcp/auth/token`) also need the gate header.
+A deployment opened with `ARCUEX_PUBLIC_ACCESS=1` has no gate, so leave out the
+`x-arcuex-acceptance-gate` header. `/api/mcp/health` reports `ingress: public` or
+`ingress: acceptance_gated`.
 Operational limits come from the existing API boundary:
 
 - **All requests:** 300 per minute per edge-verified client IP.

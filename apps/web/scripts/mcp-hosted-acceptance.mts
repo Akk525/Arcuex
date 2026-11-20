@@ -21,8 +21,11 @@ if (mode !== 'live' && mode !== 'fixture' && mode !== 'restart')
 const base = new URL(process.env.ARCUEX_MCP_BASE_URL ?? '');
 if (base.protocol !== 'https:') throw new Error('hosted acceptance requires an https base URL');
 const readSecret = (name: string) => readFileSync(process.env[name] ?? '', 'utf8').trim();
-const gate = readSecret('ARCUEX_ACCEPTANCE_GATE_TOKEN_FILE');
-const secrets = [gate];
+// Optional: omit ARCUEX_ACCEPTANCE_GATE_TOKEN_FILE for a deployment opened with ARCUEX_PUBLIC_ACCESS=1.
+const gate = process.env.ARCUEX_ACCEPTANCE_GATE_TOKEN_FILE
+  ? readSecret('ARCUEX_ACCEPTANCE_GATE_TOKEN_FILE')
+  : '';
+const secrets = gate ? [gate] : [];
 
 const results: Array<{ check: string; pass: boolean; detail?: unknown }> = [];
 const stats = { http429: 0, toolRateLimited: 0, requests: 0 };
@@ -41,7 +44,7 @@ async function edgeFetch(input: string | URL | Request, init: RequestInit = {}, 
     const headers = new Headers(
       init.headers ?? (input instanceof Request ? input.headers : undefined),
     );
-    if (withGate) headers.set('x-arcuex-acceptance-gate', gate);
+    if (withGate && gate) headers.set('x-arcuex-acceptance-gate', gate);
     stats.requests++;
     const r = await fetch(input, { ...init, headers });
     if (r.status !== 429 || attempt >= 4) return r;
@@ -132,22 +135,30 @@ const FORBIDDEN_TOOL =
 const ALL = ['arcuex:read', 'arcuex:register', 'arcuex:quote', 'arcuex:purchase', 'arcuex:claims'];
 
 async function ingressAndAuth() {
-  check(
-    'gate: health without acceptance gate refused',
-    (await edgeFetch(url('/api/mcp/health'), {}, false)).status === 401,
-  );
+  const ungated = await edgeFetch(url('/api/mcp/health'), {}, false);
+  if (gate) {
+    check('gate: health without acceptance gate refused', ungated.status === 401);
+    check(
+      'gate: MCP without acceptance gate refused',
+      (await rawMcp(undefined, false)).status === 401,
+    );
+  } else {
+    check('public: MCP health reachable without any gate', ungated.status === 200);
+    const home = await edgeFetch(url('/'), {}, false);
+    check(
+      'public: website served from the same container',
+      home.status === 200 && (home.headers.get('content-type') ?? '').includes('text/html'),
+    );
+  }
   const health = await edgeFetch(url('/api/mcp/health'));
   const healthBody = await health.json();
-  check('health reachable through gate', health.status === 200, {
+  check('health reachable', health.status === 200, {
     transport: healthBody.transport,
     chainSource: healthBody.chainSource,
+    ingress: healthBody.ingress,
     hostedAcceptance: healthBody.hostedAcceptance,
     tokenStore: healthBody.checks?.tokenStore,
   });
-  check(
-    'gate: MCP without acceptance gate refused',
-    (await rawMcp(undefined, false)).status === 401,
-  );
   for (const [auth, code] of [
     [undefined, 'TOKEN_MISSING'],
     ['Bearer not-a-token', 'TOKEN_MALFORMED'],
@@ -548,7 +559,7 @@ async function rawMcpWithHeaders(_c: unknown, i: number) {
       'content-type': 'application/json',
       accept: 'application/json, text/event-stream',
       authorization: `Bearer ${token}`,
-      'x-arcuex-acceptance-gate': gate,
+      ...(gate ? { 'x-arcuex-acceptance-gate': gate } : {}),
       'x-forwarded-for': `203.0.113.${i % 250}`,
       'x-real-ip': `198.51.100.${i % 250}`,
     },

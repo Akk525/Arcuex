@@ -50,6 +50,40 @@ describe('validateRuntimeEnvironment', () => {
     expect(cfg.secureCookies).toBe(true);
   });
 
+  it('requires the acceptance gate in public-beta unless public access is explicitly opted in', () => {
+    expect(() =>
+      validateRuntimeEnvironment(basePublicBeta({ ARCUEX_ACCEPTANCE_GATE_TOKEN: undefined })),
+    ).toThrow(ConfigurationError);
+    const open = validateRuntimeEnvironment(
+      basePublicBeta({ ARCUEX_ACCEPTANCE_GATE_TOKEN: undefined, ARCUEX_PUBLIC_ACCESS: '1' }),
+    );
+    expect(open.publicAccess).toBe(true);
+    expect(open.requireAcceptanceGate).toBe(false);
+    // Every other public-beta control stays enforced.
+    expect(open.requireRailwayEdge && open.secureCookies && open.enforced).toBe(true);
+    expect(validateRuntimeEnvironment(basePublicBeta()).requireAcceptanceGate).toBe(true);
+  });
+
+  it('rejects ambiguous or invalid public access configuration', () => {
+    expect(() => validateRuntimeEnvironment(basePublicBeta({ ARCUEX_PUBLIC_ACCESS: '1' }))).toThrow(
+      /cannot be combined/,
+    );
+    expect(() =>
+      validateRuntimeEnvironment(
+        basePublicBeta({ ARCUEX_ACCEPTANCE_GATE_TOKEN: undefined, ARCUEX_PUBLIC_ACCESS: 'yes' }),
+      ),
+    ).toThrow(ConfigurationError);
+    expect(() =>
+      validateRuntimeEnvironment(
+        basePublicBeta({
+          ARCUEX_ACCEPTANCE_GATE_TOKEN: undefined,
+          ARCUEX_PUBLIC_ACCESS: '1',
+          ARCUEX_CHAIN_SOURCE: 'fixture',
+        }),
+      ),
+    ).toThrow(/requires ARCUEX_CHAIN_SOURCE=arc-testnet/);
+  });
+
   it('rejects ARCUEX_PROXY_TOKEN in production', () => {
     expect(() => validateRuntimeEnvironment(basePublicBeta({ ARCUEX_PROXY_TOKEN: hex64 }))).toThrow(
       ConfigurationError,

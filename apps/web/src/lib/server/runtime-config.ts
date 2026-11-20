@@ -133,11 +133,19 @@ export function validateRuntimeEnvironment(env: Record<string, string | undefine
   const authorityToken = secret('CLAIMS_AUTHORITY_API_TOKEN');
   const systemToken = secret('CLAIMS_SYSTEM_API_TOKEN', false);
   // Private host-acceptance / pre-public gate. Required for public-beta so a
-  // Railway HTTPS domain is not anonymously reachable before authorization.
+  // Railway HTTPS domain is not anonymously reachable before authorization, unless the
+  // operator explicitly opens the testnet deployment with ARCUEX_PUBLIC_ACCESS=1.
+  const publicAccess = value('ARCUEX_PUBLIC_ACCESS') === '1';
+  fail('ARCUEX_PUBLIC_ACCESS', ['', '0', '1'].includes(value('ARCUEX_PUBLIC_ACCESS')));
   const acceptanceGateToken = secret(
     'ARCUEX_ACCEPTANCE_GATE_TOKEN',
-    enforced && profile === 'public-beta',
+    enforced && profile === 'public-beta' && !publicAccess,
   );
+  if (publicAccess)
+    fail(
+      'ARCUEX_PUBLIC_ACCESS cannot be combined with ARCUEX_ACCEPTANCE_GATE_TOKEN',
+      !acceptanceGateToken,
+    );
 
   if (enforced) {
     const secrets = [
@@ -172,6 +180,11 @@ export function validateRuntimeEnvironment(env: Record<string, string | undefine
 
   const chainSource = value('ARCUEX_CHAIN_SOURCE', enforced ? '' : 'arc-testnet');
   fail('ARCUEX_CHAIN_SOURCE', ['arc-testnet', 'fixture'].includes(chainSource));
+  // Public access is for the live Arc Testnet app only; fixture rehearsals stay gated.
+  fail(
+    'ARCUEX_PUBLIC_ACCESS requires ARCUEX_CHAIN_SOURCE=arc-testnet',
+    !publicAccess || chainSource === 'arc-testnet',
+  );
   const independentProfileRaw = value('ARCUEX_INDEPENDENT_LIQUIDATION_PROFILE');
   let independentLiquidationProfile: IndependentLiquidationProfile | undefined;
   if (independentProfileRaw && chainSource === 'arc-testnet') {
@@ -311,7 +324,9 @@ export function validateRuntimeEnvironment(env: Record<string, string | undefine
     nonceTtlSeconds,
     secureCookies: enforced || value('CLAIMS_COOKIE_SECURE') === '1',
     requireRailwayEdge: enforced && profile === 'public-beta',
-    requireAcceptanceGate: enforced && profile === 'public-beta' && Boolean(acceptanceGateToken),
+    publicAccess,
+    requireAcceptanceGate:
+      enforced && profile === 'public-beta' && !publicAccess && Boolean(acceptanceGateToken),
   };
 }
 

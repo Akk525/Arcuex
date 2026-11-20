@@ -9,6 +9,20 @@ Reviewed November 19, 2026 (America/Chicago). The candidate is deployable only a
 - Enable reconciliation with an operator-verified start block at or before the first candidate policy bind. Supply an RPC that can serve historical logs, blocks, receipts, transaction calldata, bytecode and block-tagged contract calls at the full candidate backfill depth. A healthy process probe only verifies liveness. Check gated `/api/health/ready`, backfill completion, checkpoint freshness and canonical links through `/api/policies/reconciliation`.
 - Build from a clean reviewed SHA and record the resulting image digest. The Dockerfile pins the Node base digest and pnpm version and uses a frozen dependency lockfile. Debian packages still resolve from package repositories at build time. A repeated build may yield a different digest. Local source build and startup guard tests are recorded in the verification report.
 
+## Public access (no acceptance gate)
+
+`ARCUEX_PUBLIC_ACCESS=1` removes only the acceptance gate, so a reviewed Arc Testnet deployment can
+be reached anonymously, for example by hackathon judges.
+
+- Don't set `ARCUEX_ACCEPTANCE_GATE_TOKEN` alongside it. Startup rejects the combination.
+- Fixture mode rejects it.
+- Everything else stays enforced: Railway edge/origin/host checks, rate limits, secure cookies,
+  distinct operator credentials, the pinned chain and pool, and
+  `CLAIMS_ALLOW_SYNTHETIC_SETTLEMENT_PREP=0`.
+
+The website, API routes, MCP endpoint and reconciliation worker all run in the one container
+started by `start-isolated.sh`.
+
 ## Storage and recovery
 
 The candidate inherits 14 migrations including claim verification and investigation tables. The isolated startup validates runtime configuration before shared volume bootstrap. After verifying the volume marker and backing up any existing candidate database, it migrates and verifies the database source before launching Next.js or the indexer. A failure exits startup before either child starts. Test migration from the intended source snapshot on an isolated copy before any approved use of existing data.
