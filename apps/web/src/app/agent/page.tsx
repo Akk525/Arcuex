@@ -12,7 +12,7 @@ export default async function AgentPage({
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Build"
+        eyebrow="Mission Control"
         title="Agent management"
         description="Register a signer, set delegated procurement scope and review who can pay."
         action={

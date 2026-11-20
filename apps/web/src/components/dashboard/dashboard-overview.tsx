@@ -19,7 +19,7 @@ export function DashboardOverview() {
   if (!data) {
     return (
       <>
-        <PageHeader title="Overview" />
+        <PageHeader title="Mission Control" />
         <div
           role="alert"
           className="flex flex-col items-start gap-3 rounded-[var(--radius-lg)] border border-[#f3c4bf] bg-[var(--danger-soft)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
@@ -48,7 +48,7 @@ export function DashboardOverview() {
   return (
     <>
       <PageHeader
-        title="Overview"
+        title="Mission Control"
         description={
           anonymous
             ? 'Your insurance workspace. Sign in to see the policies, agents and claims tied to your wallet.'

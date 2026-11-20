@@ -7,7 +7,7 @@ export default function CapitalPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Ops"
+        eyebrow="Insurer"
         title="Capital"
         description="Inspect the synthetic solvency ledger and the conditions for confirmed pool deposits."
       />

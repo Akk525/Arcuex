@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import {
   ArrowUpRight,
   Bank,
+  ClockCounterClockwise,
   Code,
   FilePlus,
   Files,
@@ -54,6 +55,7 @@ const ICONS: Record<AppNavIcon, Icon> = {
   integrations: PlugsConnected,
   review: Scales,
   capital: Bank,
+  replay: ClockCounterClockwise,
 };
 
 export function AppShell({

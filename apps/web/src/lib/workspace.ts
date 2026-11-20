@@ -5,8 +5,8 @@ export const WORKSPACE_STORAGE_KEY = 'arcuex.workspace';
 export const WORKSPACE_LABEL: Record<WorkspaceId, string> = {
   protect: 'Protect',
   claims: 'Claims',
-  build: 'Build',
-  ops: 'Ops',
+  build: 'Mission Control',
+  ops: 'Insurer',
 };
 
 export type NavItem = { href: string; label: string };

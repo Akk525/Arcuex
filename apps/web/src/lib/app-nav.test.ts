@@ -42,4 +42,15 @@ describe('app navigation', () => {
     expect(workspaceForNavHref('/claims/review', ops)).toBe('ops');
     expect(workspaceForNavHref('/dashboard', ops)).toBe('protect');
   });
+
+  it('groups navigation into Protect, Claims, Insurer and Mission Control', () => {
+    expect(appNavGroups(true).map((g) => g.label)).toEqual([
+      'Protect',
+      'Claims',
+      'Insurer',
+      'Mission Control',
+    ]);
+    expect(appNavGroups(false).map((g) => g.label)).toEqual(['Protect', 'Claims', 'Mission Control']);
+    expect(hrefs(false)).toContain('/replay/oracle-liquidation');
+  });
 });
