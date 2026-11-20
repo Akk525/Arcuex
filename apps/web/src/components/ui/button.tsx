@@ -13,11 +13,11 @@ const variants: Record<Variant, string> = {
 };
 
 const base =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius)] font-medium transition-colors disabled:cursor-not-allowed';
+  'inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium transition-[background,color,transform,opacity] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100';
 
 const sizes: Record<Size, string> = {
-  sm: 'px-3 py-1.5 text-xs',
-  md: 'px-4 py-2.5 text-sm',
+  sm: 'px-2.5 py-1.5 text-xs min-h-8',
+  md: 'px-3.5 py-2 text-sm',
 };
 
 export function Button({
@@ -47,14 +47,16 @@ export function ButtonLink({
   variant = 'primary',
   size = 'md',
   children,
+  className = '',
 }: {
   href: string;
   variant?: Exclude<Variant, 'danger'>;
   size?: Size;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <Link href={href} className={`${base} ${variants[variant]} ${sizes[size]}`}>
+    <Link href={href} className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}>
       {children}
     </Link>
   );

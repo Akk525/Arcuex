@@ -19,6 +19,8 @@ import { Callout } from '@/components/ui/callout';
 import { Stepper, type StepItem } from '@/components/ui/stepper';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
+import { Metric } from '@/components/ui/metric';
+import { TruthBadge } from '@/components/ui/truth-badge';
 import { useFixtureMode } from '@/providers/source-mode';
 
 import {
@@ -537,22 +539,29 @@ export function HumanProcurementPanel({
     }
   }
 
+  const terms = quote?.terms ?? prep?.policy.terms;
+  const summaryPremium = terms ? usdc(terms.premiumMicros) : '—';
+  const summaryLimit = terms ? usdc(terms.limitMicros) : product ? usdc(limit) : '—';
+  const summaryDeductible = terms ? usdc(terms.deductibleMicros) : '—';
+
   return (
-    <div className="procurement space-y-6">
-      <div className="space-y-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-5">
+    <div className="procurement lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:items-start lg:gap-6">
+      <div className="min-w-0 space-y-5">
+      <div className="space-y-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] sm:p-5">
         <div className="flex flex-wrap gap-2">
           {product && (
-            <StatusBadge
-              label={product.synthetic ? 'SYNTHETIC PRODUCT' : 'INDEPENDENT-EVIDENCE PILOT'}
+            <TruthBadge
+              label={product.synthetic ? 'Synthetic product' : 'Independent-evidence pilot'}
               tone={product.synthetic ? 'synthetic' : 'pending'}
             />
           )}
           {catalog && (
-            <StatusBadge
-              label={offline ? 'OFFLINE QUOTES ONLY' : 'ARC TESTNET · PAYMENT PREFLIGHT REQUIRED'}
-              tone="pending"
+            <TruthBadge
+              label={offline ? 'Offline quotes only' : 'Testnet payment preflight'}
+              tone={offline ? 'synthetic' : 'live'}
             />
           )}
+          {delegated ? <TruthBadge label="Delegated procurement" tone="human" /> : null}
         </div>
         {catalogError && <p role="alert">Product catalog unavailable. Reload to retry.</p>}
         {!catalog && !catalogError && <p role="status">Loading approved products…</p>}
@@ -589,20 +598,20 @@ export function HumanProcurementPanel({
             <p className="max-w-2xl text-sm leading-relaxed text-[var(--ink-muted)]">
               {product.event}
             </p>
-            <p className="text-sm text-[var(--ink)]">{product.pricing}</p>
-            <p className="text-sm">
-              Limits {product.limitsMicros.map(usdc).join(', ')} · Durations{' '}
-              {product.durationsDays.join(', ')} days.
-            </p>
+            <p className="text-sm text-[var(--ink-secondary)]">{product.pricing}</p>
             <details className="text-sm">
               <summary className="cursor-pointer py-2 font-medium">
-                Eligibility and exclusions
+                Eligibility, limits and exclusions
               </summary>
-              <p>
+              <p className="mt-2 text-[var(--ink-muted)]">
+                Limits {product.limitsMicros.map(usdc).join(', ')} · Durations{' '}
+                {product.durationsDays.join(', ')} days.
+              </p>
+              <p className="mt-2">
                 Use a registered position, attest its health and control, and disclose any known
                 incident.
               </p>
-              <ul className="ml-5 mt-2 list-disc">
+              <ul className="ml-5 mt-2 list-disc text-[var(--ink-muted)]">
                 {product.exclusions.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
@@ -621,7 +630,7 @@ export function HumanProcurementPanel({
 
       {resumePolicyId && catalog && !offline && stage === 1 && (
         <Button variant="secondary" disabled={busy} onClick={() => void run(resumePayment)}>
-          Resume accepted purchase
+          Resume interrupted checkout
         </Button>
       )}
 
@@ -873,29 +882,35 @@ export function HumanProcurementPanel({
       )}
 
       {stage === 3 && quote && product && (
-        <section className="space-y-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-5">
-          <h3 className="text-lg font-semibold">3. Accept immutable terms</h3>
-          <dl className="grid gap-4 rounded-[var(--radius)] bg-[var(--surface-inset)] p-5 sm:grid-cols-3">
-            {[
-              ['Premium', usdc(quote.terms.premiumMicros)],
-              ['Limit', usdc(quote.terms.limitMicros)],
-              ['Deductible', usdc(quote.terms.deductibleMicros)],
-              ['Effective after binding', displayDate(quote.terms.effectiveAt)],
-              ['Coverage expiry', displayDate(quote.terms.expiresAt)],
-              ['Quote expires', displayDate(quote.terms.quoteExpiresAt)],
-            ].map(([k, v]) => (
-              <div key={k}>
-                <dt className="text-xs text-[var(--ink-muted)]">{k}</dt>
-                <dd className="mt-1 text-sm font-medium">{v}</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="break-all text-sm">
-            <strong>Payer</strong> {wallet.address} ·{' '}
-            {delegated ? 'Delegated signer' : 'Policyholder wallet'}
+        <section className="space-y-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] sm:p-5">
+          <h3 className="text-base font-semibold tracking-tight">3. Accept immutable terms</h3>
+          <div className="grid gap-4 rounded-[var(--radius-sm)] bg-[var(--surface-inset)] p-4 sm:grid-cols-3">
+            <Metric label="Premium" value={usdc(quote.terms.premiumMicros)} accent />
+            <Metric label="Coverage limit" value={usdc(quote.terms.limitMicros)} accent />
+            <Metric label="Deductible" value={usdc(quote.terms.deductibleMicros)} />
+            <Metric label="Effective after binding" value={displayDate(quote.terms.effectiveAt)} />
+            <Metric label="Coverage expiry" value={displayDate(quote.terms.expiresAt)} />
+            <Metric
+              label="Quote expires"
+              value={displayDate(quote.terms.quoteExpiresAt)}
+              hint={expired ? 'Expired — generate a new quote' : 'Accept before this deadline'}
+            />
+          </div>
+          <div className="space-y-1 text-sm">
+            <p className="break-all">
+              <span className="text-[var(--ink-muted)]">Payer · </span>
+              <span className="font-mono text-xs">{wallet.address}</span>
+              {' · '}
+              {delegated ? 'Delegated agent authority' : 'Policyholder wallet'}
+            </p>
+            <p className="break-all">
+              <span className="text-[var(--ink-muted)]">Beneficiary · </span>
+              <span className="font-mono text-xs">{quote.terms.beneficiary}</span>
+            </p>
+          </div>
+          <p className="text-sm leading-relaxed text-[var(--ink-secondary)]">
+            {quote.terms.insuredEvent}
           </p>
-          <p className="break-all text-sm">Beneficiary: {quote.terms.beneficiary}</p>
-          <p className="text-sm leading-6">{quote.terms.insuredEvent}</p>
           <div>
             <p className="text-sm font-medium text-[var(--ink)]">Exclusions</p>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-[var(--ink-muted)]">
@@ -909,8 +924,8 @@ export function HumanProcurementPanel({
             matching bind and the scheduled start. Late binds are ineligible.
           </Callout>
           <details>
-            <summary className="cursor-pointer text-sm">Full versioned terms & digest</summary>
-            <pre className="mt-3 overflow-auto rounded-lg bg-[var(--surface-inset)] p-4 font-mono text-xs">
+            <summary className="cursor-pointer text-sm">Technical terms & digest</summary>
+            <pre className="mt-3 overflow-auto rounded-[var(--radius-sm)] bg-[var(--surface-inset)] p-4 font-mono text-xs">
               {JSON.stringify(quote, null, 2)}
             </pre>
           </details>
@@ -1106,6 +1121,49 @@ export function HumanProcurementPanel({
           ) : null}
         </div>
       )}
+      </div>
+
+      <aside
+        aria-label="Purchase summary"
+        className="space-y-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] lg:sticky lg:top-4"
+      >
+        <p className="text-[0.6875rem] font-semibold tracking-wide text-[var(--ink-muted)] uppercase">
+          Purchase summary
+        </p>
+        <Metric
+          label="Premium"
+          value={summaryPremium === '—' ? '—' : summaryPremium}
+          accent
+        />
+        <Metric label="Coverage limit" value={summaryLimit === '—' ? '—' : summaryLimit} />
+        <Metric
+          label="Deductible"
+          value={summaryDeductible === '—' ? '—' : summaryDeductible}
+        />
+        {terms ? (
+          <>
+            <Metric label="Quote expires" value={displayDate(terms.quoteExpiresAt)} />
+            <Metric label="Coverage window" value={`${displayDate(terms.effectiveAt)} → ${displayDate(terms.expiresAt)}`} />
+          </>
+        ) : (
+          <p className="text-xs text-[var(--ink-muted)]">
+            Configure exposure and generate a quote to see premium, limit and dates here.
+          </p>
+        )}
+        <div className="space-y-1 border-t border-[var(--line)] pt-3 text-xs text-[var(--ink-muted)]">
+          <p>
+            Stage {stage} of 4
+            {delegated ? ' · delegated agent' : ' · policyholder'}
+          </p>
+          <p>
+            {offline
+              ? 'Synthetic / offline — no Arc payment'
+              : confirmed
+                ? 'Confirmed on Arc Testnet after reconciliation'
+                : 'Submitted txs need wallet approval and receipt checks'}
+          </p>
+        </div>
+      </aside>
     </div>
   );
 }

@@ -1,9 +1,10 @@
-export type WorkspaceId = 'protect' | 'build' | 'ops';
+export type WorkspaceId = 'protect' | 'claims' | 'build' | 'ops';
 
 export const WORKSPACE_STORAGE_KEY = 'arcuex.workspace';
 
 export const WORKSPACE_LABEL: Record<WorkspaceId, string> = {
   protect: 'Protect',
+  claims: 'Claims',
   build: 'Build',
   ops: 'Ops',
 };
@@ -15,7 +16,10 @@ export const WORKSPACE_NAV: Record<WorkspaceId, readonly NavItem[]> = {
     { href: '/', label: 'Overview' },
     { href: '/coverage', label: 'Coverage' },
     { href: '/policies', label: 'Policies' },
-    { href: '/claims', label: 'Claims' },
+  ],
+  claims: [
+    { href: '/claims', label: 'Cases' },
+    { href: '/claims/new', label: 'Submit' },
   ],
   build: [
     { href: '/agent', label: 'Agents' },
@@ -32,7 +36,7 @@ export const WORKSPACE_NAV: Record<WorkspaceId, readonly NavItem[]> = {
 };
 
 export function isWorkspaceId(value: unknown): value is WorkspaceId {
-  return value === 'protect' || value === 'build' || value === 'ops';
+  return value === 'protect' || value === 'claims' || value === 'build' || value === 'ops';
 }
 
 export function readStoredWorkspace(): WorkspaceId | null {
@@ -58,6 +62,8 @@ export function defaultHrefForWorkspace(workspace: WorkspaceId): string {
   switch (workspace) {
     case 'protect':
       return '/';
+    case 'claims':
+      return '/claims';
     case 'build':
       return '/agent';
     case 'ops':
@@ -73,6 +79,15 @@ export function workspaceForPath(
   if (pathname === '/') return 'protect';
   if (pathname === '/claims/review' || pathname === '/capital')
     return mayUseOps ? 'ops' : 'protect';
+  // Claim routes are Claims-owned unless Ops holds a valid preference on /claims list.
+  if (
+    pathname === '/claims' ||
+    pathname === '/claims/new' ||
+    (pathname.startsWith('/claims/') && pathname !== '/claims/review')
+  ) {
+    if (pathname === '/claims' && preferred === 'ops' && mayUseOps) return 'ops';
+    return 'claims';
+  }
   if (preferred && (preferred !== 'ops' || mayUseOps) && activeWorkspaceLink(pathname, preferred))
     return preferred;
   if (activeWorkspaceLink(pathname, 'build') && !activeWorkspaceLink(pathname, 'protect'))
@@ -82,6 +97,14 @@ export function workspaceForPath(
 
 export function activeWorkspaceLink(pathname: string, workspace: WorkspaceId): NavItem | undefined {
   if (pathname === '/claims/review' && workspace !== 'ops') return undefined;
+  if (
+    (pathname === '/claims/new' ||
+      (pathname.startsWith('/claims/') && pathname !== '/claims/review')) &&
+    workspace === 'ops'
+  ) {
+    // Ops secondary "Claims" highlights for case deep-links via /claims prefix.
+    return WORKSPACE_NAV.ops.find((i) => i.href === '/claims');
+  }
   return WORKSPACE_NAV[workspace]
     .filter(({ href }) => pathname === href || (href !== '/' && pathname.startsWith(`${href}/`)))
     .sort((a, b) => b.href.length - a.href.length)[0];

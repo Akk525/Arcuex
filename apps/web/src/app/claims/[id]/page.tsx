@@ -9,7 +9,7 @@ export default async function ClaimCasePage({ params }: { params: Promise<{ id: 
       <PageHeader
         eyebrow="Claims"
         title="Case investigation"
-        description="Review evidence requests, findings and the human decision on this case."
+        description="Respond to evidence requests, review findings and record a human decision. Approval is not reimbursement."
       />
       <ClaimCaseDetail caseId={id} />
     </AppShell>

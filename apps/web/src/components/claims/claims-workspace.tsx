@@ -23,7 +23,7 @@ export function ClaimsWorkspace() {
         title="My claims"
         description="Find your cases, respond to evidence requests and check each decision and payment status."
         action={
-          ops ? (
+          ops && workspace === 'ops' ? (
             <ButtonLink href="/claims/review" variant="secondary">
               Open review queue
             </ButtonLink>
@@ -55,7 +55,7 @@ export function ClaimsWorkspace() {
         !ops && (
           <Link
             href="/claims/review"
-            className="inline-flex min-h-11 items-center text-sm text-[var(--accent)] underline"
+            className="inline-flex min-h-10 items-center text-sm text-[var(--accent)] underline"
           >
             Reviewer sign-in
           </Link>

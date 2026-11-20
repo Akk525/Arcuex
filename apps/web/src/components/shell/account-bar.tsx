@@ -126,7 +126,7 @@ export function AccountBar() {
             href={ARC_TESTNET_FAUCET}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex min-h-11 items-center rounded-[var(--radius)] px-3 py-1.5 text-xs font-medium text-[var(--ink-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--ink)]"
+            className="inline-flex min-h-8 items-center rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium text-[var(--ink-muted)] hover:bg-[var(--surface-inset)] hover:text-[var(--ink)]"
           >
             Faucet
           </a>

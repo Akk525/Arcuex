@@ -15,7 +15,10 @@ import {
   type VerificationState,
 } from '@/lib/claims/investigation-presentation';
 import { CaseStatusBadge } from '@/components/claims/case-status-badge';
-import { StatusBadge } from '@/components/status-badge';
+import { TruthBadge } from '@/components/ui/truth-badge';
+import { Metric } from '@/components/ui/metric';
+import { Button, ButtonLink } from '@/components/ui/button';
+import { Callout } from '@/components/ui/callout';
 import { settlementPresentation } from '@/lib/claims/settlement-presentation';
 import { claimsFetch } from '@/lib/claims/claims-api';
 import {
@@ -211,29 +214,20 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   if (error && !data) {
     return (
       <Panel title="Claim case">
-        <p role="alert" className="text-sm text-rose-700">
+        <p role="alert" className="text-sm text-[var(--danger)]">
           {error}
         </p>
         {error === CLAIMS_SIGN_IN_REQUIRED ? (
-          <p className="mt-2 text-sm text-zinc-600">
+          <p className="mt-2 text-sm text-[var(--ink-muted)]">
             Sign in with a claims session to open this case. Authorization failures are not treated
             as an empty case.
           </p>
         ) : null}
-        <div className="mt-2 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => void refresh()}
-            className="min-h-11 rounded border px-3 text-sm"
-          >
-            Retry claim
-          </button>
-          <Link
-            href="/claims"
-            className="inline-flex min-h-11 items-center text-sm text-sky-800 underline"
-          >
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Button onClick={() => void refresh()}>Retry claim</Button>
+          <ButtonLink href="/claims" variant="secondary">
             Back to list
-          </Link>
+          </ButtonLink>
         </div>
       </Panel>
     );
@@ -242,7 +236,7 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   if (!data) {
     return (
       <Panel title="Claim case">
-        <p role="status" className="text-sm text-zinc-500">
+        <p role="status" className="text-sm text-[var(--ink-muted)]">
           Loading case…
         </p>
       </Panel>
@@ -338,480 +332,540 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   return (
     <div className="claim-case min-w-0 space-y-4 [overflow-wrap:anywhere]">
       <nav aria-label="Claim navigation" className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        <Link className="inline-flex min-h-11 items-center underline" href="/claims">
+        <Link className="inline-flex min-h-10 items-center underline" href="/claims">
           All claims
         </Link>
         <Link
-          className="inline-flex min-h-11 items-center underline"
+          className="inline-flex min-h-10 items-center underline"
           href={`/policies/${c.policyId}`}
         >
           Linked policy
         </Link>
-        <a className="inline-flex min-h-11 items-center underline" href="#claim-verifier-findings">
+        <a className="inline-flex min-h-10 items-center underline" href="#claim-verifier-findings">
           Verifier findings
         </a>
         {isReviewer && (
           <>
-            <Link className="inline-flex min-h-11 items-center underline" href="/claims/review">
+            <Link className="inline-flex min-h-10 items-center underline" href="/claims/review">
               Review queue
             </Link>
-            <a className="inline-flex min-h-11 items-center underline" href="#claim-review-actions">
+            <a className="inline-flex min-h-10 items-center underline" href="#claim-review-actions">
               Reviewer actions
             </a>
           </>
         )}
       </nav>
-      <Panel title="Decision and payment">
-        <div role="status" className="space-y-1 text-sm">
-          <p className="font-semibold">{decision}</p>
-          <p className="font-semibold">{settlement.label}</p>
-          <p>{settlement.action}</p>
-          {fixtureBlocked && c.status === 'DENIED' && (
-            <p>Synthetic fixture financial restrictions apply.</p>
-          )}
-          {receipt && (
+
+      <Callout
+        kind={fixtureBlocked ? 'synthetic' : receipt ? 'live' : 'warn'}
+        title={`${decision} · ${settlement.label}`}
+      >
+        <p>{settlement.action}</p>
+        {fixtureBlocked && c.status === 'APPROVED' ? (
+          <p className="mt-1">
+            Approved for contractual coverage only. Fixture mode cannot prepare or broadcast
+            settlement — this case is not reimbursed.
+          </p>
+        ) : null}
+        {c.status === 'REVIEW' && c.reviewReasonCode && reviewHelp[c.reviewReasonCode] ? (
+          <p className="mt-1">{reviewHelp[c.reviewReasonCode]}</p>
+        ) : null}
+        {notice ? (
+          <p role="status" className="mt-1">
+            {notice}
+          </p>
+        ) : null}
+        {error ? (
+          <p role="alert" className="mt-1 text-[var(--danger)]">
+            {error}
+          </p>
+        ) : null}
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button size="sm" variant="secondary" disabled={pending} onClick={() => void refresh()}>
+            Reload claim and findings
+          </Button>
+          {receipt ? (
             <a
-              className="inline-flex min-h-11 items-center underline"
+              className="inline-flex min-h-8 items-center text-sm underline"
               href={`https://explorer.testnet.arc.io/tx/${receipt}`}
             >
               View verified settlement receipt
             </a>
-          )}
+          ) : null}
         </div>
-        {c.status === 'REVIEW' && c.reviewReasonCode && reviewHelp[c.reviewReasonCode] && (
-          <p className="mt-2 text-sm">{reviewHelp[c.reviewReasonCode]}</p>
-        )}
-        {notice && (
-          <p role="status" className="mt-2 text-sm">
-            {notice}
-          </p>
-        )}
-        {error && (
-          <p role="alert" className="mt-2 text-rose-700">
-            {error}
-          </p>
-        )}
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => void refresh()}
-          className="mt-2 rounded-md border px-3 py-1.5 text-xs"
-        >
-          Reload claim and findings
-        </button>
-      </Panel>
-      {c.syntheticDemo ? (
-        <ClaimsInvestigation
-          caseId={caseId}
-          role={data.principalRole}
-          status={c.status}
-          verificationRevision={data.verifications?.length ?? 0}
-          onChange={refresh}
-          targets={targets}
-          audit={data.timeline}
-          verificationEvents={data.verifications ?? []}
-          receipt={receipt}
-        />
-      ) : null}
-      {data.source?.mode === 'fixture' && (
-        <Panel title="Synthetic chain-state source">
-          <p className="break-all text-sm">
-            {data.source.id} · {data.source.digest}
-          </p>
-          <p className="text-sm">
-            Checkpoint {data.source.checkpoint?.sequence} · expires{' '}
-            {data.source.checkpoint &&
-              new Date(data.source.checkpoint.validUntil * 1000).toISOString()}
-            . Policy and reservation are fixture data, not Arc confirmations.
-          </p>
-        </Panel>
-      )}
-      <Panel
-        title={`Case ${c.id.slice(0, 8)}…`}
-        action={
-          <div className="flex flex-wrap gap-2">
-            <CaseStatusBadge status={c.status} confirmedReceipt={receipt} />
-            {c.syntheticDemo ? <StatusBadge label="SYNTHETIC" tone="warn" /> : null}
-          </div>
-        }
-      >
-        {c.labels.synthetic ? (
-          <p className="mb-3 text-xs text-amber-800">{c.labels.synthetic}</p>
-        ) : null}
-        <dl
-          id={evidenceAnchor('case', c.id)}
-          tabIndex={-1}
-          className="scroll-mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2"
-        >
-          <div id={evidenceAnchor('policy', c.policyId)} tabIndex={-1} className="scroll-mt-4">
-            <dt className="text-xs text-zinc-500">Policy</dt>
-            <dd className="break-all font-mono text-xs">
-              <Link className="underline" href={`/policies/${c.policyId}`}>
-                {c.policyId}
-              </Link>
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-zinc-500">Claim reference</dt>
-            <dd className="break-all font-mono text-xs">{c.id}</dd>
-          </div>
-          <div
-            id={
-              data.linkedIncident ? evidenceAnchor('incident', data.linkedIncident.id) : undefined
-            }
-            tabIndex={-1}
-            className="scroll-mt-4"
-          >
-            <dt className="text-xs text-zinc-500">Incident reference</dt>
-            <dd className="break-all font-mono text-xs">
-              {data.linkedIncident?.id ?? '—'} · {data.linkedIncident?.observedEventRef ?? '—'}
-              <br />
-              {data.linkedIncident ? (
-                <time dateTime={data.linkedIncident.observedAt}>
-                  {data.linkedIncident.observedAt}
-                </time>
-              ) : (
-                '—'
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-zinc-500">Policy beneficiary</dt>
-            <dd className="break-all font-mono text-xs">{c.payoutTo ?? '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-zinc-500">Evidence root</dt>
-            <dd className="break-all font-mono text-xs">{c.evidenceRoot ?? '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-zinc-500">Loss key</dt>
-            <dd className="break-all font-mono text-xs">{c.lossKey ?? '—'}</dd>
-          </div>
-        </dl>
-      </Panel>
+      </Callout>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel title="Verification checks">
-          <ul className="space-y-2 text-sm">
-            <li>
-              Evidence authenticity: <strong>{c.evidenceAuthenticity}</strong>
-            </li>
-            <li>
-              Coverage determination: <strong>{c.coverageDetermination}</strong>
-            </li>
-            <li>
-              Settlement status: <strong>{settlement.label}</strong>
-            </li>
-            <li>
-              Assessed gross loss{c.syntheticDemo ? ' (synthetic)' : ''}:{' '}
-              {c.verifiedLoss.usdc ?? '—'} USDC
-            </li>
-            <li>Policy deductible: {c.deductible?.usdc ?? '—'} USDC</li>
-            <li>Prior compensation: {c.priorCompensation?.usdc ?? '—'} USDC</li>
-            <li>Coverage limit: {c.lossCap?.usdc ?? '—'} USDC</li>
-            <li>Recoveries: {c.recoveries.usdc ?? 'unknown / REVIEW'}</li>
-            <li>
-              {fixtureBlocked
-                ? 'Illustrative amount'
-                : receipt
-                  ? 'Reimbursed amount'
-                  : 'Proposed settlement amount'}
-              : {c.payable.usdc ?? '—'} USDC
-            </li>
-            {c.status === 'REVIEW' && c.reviewReasonCode ? (
-              <li>Review reason: {c.reviewReasonCode}</li>
-            ) : null}
-            {c.denialReasonCode ? <li>Denial reason: {c.denialReasonCode}</li> : null}
-          </ul>
-        </Panel>
-
-        <Panel title="Evidence manifests">
-          {data.evidenceManifests.length === 0 ? (
-            <p className="text-sm text-zinc-500">No manifests attached.</p>
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-5">
+        <div className="min-w-0 space-y-4">
+          {c.syntheticDemo ? (
+            <ClaimsInvestigation
+              caseId={caseId}
+              role={data.principalRole}
+              status={c.status}
+              verificationRevision={data.verifications?.length ?? 0}
+              onChange={refresh}
+              targets={targets}
+              audit={data.timeline}
+              verificationEvents={data.verifications ?? []}
+              receipt={receipt}
+            />
           ) : (
-            <ul className="space-y-3 text-xs">
-              {data.evidenceManifests.map((m) => (
-                <li
-                  key={m.id}
-                  id={evidenceAnchor('manifest', m.id)}
-                  tabIndex={-1}
-                  className="scroll-mt-4 rounded-md border border-zinc-200 p-3"
-                >
-                  <p className="font-medium">{m.source}</p>
-                  <p>Provenance: {m.provenance}</p>
-                  <p>
-                    {m.syntheticFixture ? 'Synthetic fixture' : 'Recorded evidence'} · Source
-                    reliability: {m.sourceReliability.replaceAll('_', ' ')}
-                  </p>
-                  <p>Verification method: {m.verificationMethod.replaceAll('_', ' ')}</p>
-                  <p>
-                    Recorded <time dateTime={m.createdAt}>{m.createdAt}</time>
-                  </p>
-                  {m.chain && <p>Chain: {m.chain}</p>}
-                  {m.blockHash && <p className="font-mono">Block: {m.blockHash}</p>}
-                  {m.transactionHash && (
-                    <p className="font-mono">Transaction: {m.transactionHash}</p>
-                  )}
-                  <p className="font-mono">Digest: {m.rawEvidenceDigest}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
-
-      <div id="claim-verifier-findings" className="scroll-mt-4">
-        <Panel
-          title={
-            c.syntheticDemo
-              ? 'Deterministic findings · synthetic fixture'
-              : 'Deterministic findings · independent liquidation'
-          }
-        >
-          <p className="text-sm">
-            {c.syntheticDemo
-              ? 'Fixture consistency only. No real-world event or economic loss is independently authenticated.'
-              : 'Submit the signed replay and recovery envelope through the independent verification API. Coverage remains a human determination.'}
-          </p>
-          {!data.verifications?.length && (
-            <p className="mt-2 text-sm text-zinc-600">No verifier record yet.</p>
-          )}
-          {data.verifications?.map((v) => (
-            <article
-              key={v.id}
-              id={evidenceAnchor('verification', v.id)}
-              tabIndex={-1}
-              className="mt-3 scroll-mt-4 space-y-1 rounded border border-zinc-200 p-3 text-xs"
-            >
-              <p className="font-semibold">
-                {data.verificationStates[v.id] === 'stale'
-                  ? 'Stale · earlier evidence context or expired proof'
-                  : data.verificationStates[v.id] === 'failed'
-                    ? 'Verification incomplete or failed'
-                    : data.verificationStates[v.id] === 'current'
-                      ? 'Current verifier record'
-                      : 'Verification freshness unavailable'}
-              </p>
-              <p>
-                {v.executionStatus} · Evidence {v.evidenceSufficiency}
-              </p>
-              <p className="mt-1 break-all font-mono">Verification {v.id}</p>
-              <ClaimEventMetadata actor={v.actor} timestamp={v.createdAt} />
-              <p>
-                Verifier {v.verifierVersion ?? 'unavailable'} ·{' '}
-                {v.independentlyAuthenticated
-                  ? 'Independently authenticated at verification'
-                  : v.authenticity === 'synthetic_fixture'
-                    ? 'Fixture consistency only'
-                    : 'No independent authentication recorded'}
-              </p>
-              {c.syntheticDemo ? (
-                <p className="break-all">
-                  Fixture: {v.fixtureReference} · {v.fixtureDigest}
-                </p>
-              ) : null}
-              <p className="break-all">Context: {v.contextDigest}</p>
-              <ul>
-                {v.findings.map((finding, i) => (
-                  <li key={i}>{finding}</li>
+            <Panel title="Case timeline">
+              <ol className="space-y-2 text-sm">
+                {data.timeline.map((event) => (
+                  <ClaimAuditEvent
+                    key={event.id}
+                    event={event}
+                    receipt={receipt}
+                    targets={targets}
+                  />
                 ))}
-              </ul>
-            </article>
-          ))}
-          {c.syntheticDemo &&
-            ['COLLECTING_EVIDENCE', 'INVESTIGATING', 'REVIEW'].includes(c.status) &&
-            ['claimant', 'reviewer'].includes(data.principalRole ?? '') && (
-              <button
-                type="button"
-                disabled={pending}
-                onClick={verifyFixture}
-                className="mt-2 rounded-md border px-3 py-1.5 text-xs"
-              >
-                Attach and verify synthetic fixture
-              </button>
-            )}
-        </Panel>
-      </div>
+              </ol>
+            </Panel>
+          )}
 
-      {!c.syntheticDemo && (
-        <Panel title="Case timeline">
-          <ol className="space-y-2 text-sm">
-            {data.timeline.map((event) => (
-              <ClaimAuditEvent key={event.id} event={event} receipt={receipt} targets={targets} />
-            ))}
-          </ol>
-        </Panel>
-      )}
-
-      {isReviewer && (
-        <div id="claim-review-actions" className="scroll-mt-4">
-          <Panel title="Reviewer / authority actions">
-            <p className="mb-2 text-xs text-zinc-600">{reviewActionHelp}</p>
-            {approvalId && (
-              <ClaimEvidenceLinks
-                references={[approvalId]}
-                targets={targets}
-                kind="verification"
-                label="Verification for human review"
-              />
-            )}
-            {canReview && (
-              <>
-                <p className="mb-2 text-xs">
-                  {c.syntheticDemo
-                    ? 'Catalog gross economic loss: 1.50 USDC after extinguished debt. Scenario recoveries and prior compensation: zero. Policy deductible and limits still apply.'
-                    : independentLoss
-                      ? `Verified gross loss ${asUsdc(independentLoss.grossLossMicros)} USDC, recoveries ${asUsdc(independentLoss.recoveriesMicros)} USDC, prior compensation ${asUsdc(independentLoss.priorCompensationMicros)} USDC. Policy limits and deductible apply.`
-                      : 'A current independent verification is required for approval.'}
-                </p>
-                <label className="mb-2 flex min-h-11 items-start gap-2 text-sm">
-                  <input
-                    className="mt-1 shrink-0"
-                    type="checkbox"
-                    checked={reviewConfirmed}
-                    onChange={(e) => setReviewConfirmed(e.target.checked)}
-                  />
-                  {c.syntheticDemo
-                    ? 'I reviewed event applicability and resolved all policy exclusions for this synthetic scenario.'
-                    : 'I reviewed event applicability and resolved all policy exclusions for the verified incident.'}
-                </label>
-                <label className="mb-3 block text-sm">
-                  Contractual review rationale
-                  <textarea
-                    value={reviewRationale}
-                    onChange={(e) => setReviewRationale(e.target.value)}
-                    maxLength={4000}
-                    className="block w-full rounded border p-2"
-                  />
-                </label>
-                <div className="mb-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={
-                      pending ||
-                      !canReview ||
-                      !reviewConfirmed ||
-                      !reviewRationale.trim() ||
-                      !approvalId ||
-                      (!c.syntheticDemo && !independentLoss)
-                    }
-                    className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs text-white disabled:opacity-50"
-                    onClick={() =>
-                      run('reviewer', {
-                        action: 'adjudicate',
-                        coverageDetermination: 'covered',
-                        verificationId: approvalId,
-                        contractualReview: {
-                          eventApplies: reviewConfirmed,
-                          exclusionsResolved: reviewConfirmed,
-                          rationale: reviewRationale,
-                        },
-                        verifiedLossUsdc: c.syntheticDemo
-                          ? '1.500000'
-                          : independentLoss
-                            ? asUsdc(independentLoss.grossLossMicros)
-                            : null,
-                        recoveriesUsdc: c.syntheticDemo
-                          ? '0.000000'
-                          : independentLoss
-                            ? asUsdc(independentLoss.recoveriesMicros)
-                            : null,
-                        ...(independentLoss
-                          ? {
-                              priorCompensationUsdc: asUsdc(
-                                independentLoss.priorCompensationMicros,
-                              ),
-                            }
-                          : {}),
-                        requestedUsdc: '1.000000',
-                      })
-                    }
+          <div id="claim-verifier-findings" className="scroll-mt-4">
+            <Panel
+              title={
+                c.syntheticDemo
+                  ? 'Deterministic findings · synthetic fixture'
+                  : 'Deterministic findings · independent liquidation'
+              }
+            >
+              <div className="mb-2 flex flex-wrap gap-2">
+                <TruthBadge
+                  label={c.syntheticDemo ? 'Fixture consistency' : 'Independent verifier'}
+                  tone={c.syntheticDemo ? 'synthetic' : 'ok'}
+                />
+                <TruthBadge label="Not a human decision" tone="human" />
+              </div>
+              <p className="text-sm text-[var(--ink-muted)]">
+                {c.syntheticDemo
+                  ? 'Fixture consistency only. No real-world event or economic loss is independently authenticated.'
+                  : 'Submit the signed replay and recovery envelope through the independent verification API. Coverage remains a human determination.'}
+              </p>
+              {!data.verifications?.length && (
+                <p className="mt-2 text-sm text-[var(--ink-muted)]">No verifier record yet.</p>
+              )}
+              {data.verifications?.map((v) => (
+                <article
+                  key={v.id}
+                  id={evidenceAnchor('verification', v.id)}
+                  tabIndex={-1}
+                  className="mt-3 scroll-mt-4 space-y-1 rounded-[var(--radius-sm)] border border-[var(--line)] p-3 text-xs"
+                >
+                  <div className="flex flex-wrap gap-2">
+                    <TruthBadge
+                      label={
+                        data.verificationStates[v.id] === 'stale'
+                          ? 'Stale'
+                          : data.verificationStates[v.id] === 'failed'
+                            ? 'Failed'
+                            : data.verificationStates[v.id] === 'current'
+                              ? 'Current'
+                              : 'Unknown freshness'
+                      }
+                      tone={
+                        data.verificationStates[v.id] === 'current'
+                          ? 'ok'
+                          : data.verificationStates[v.id] === 'stale'
+                            ? 'warn'
+                            : 'danger'
+                      }
+                    />
+                    <TruthBadge
+                      label={
+                        v.independentlyAuthenticated
+                          ? 'Independently authenticated'
+                          : v.authenticity === 'synthetic_fixture'
+                            ? 'Fixture only'
+                            : 'Unverified'
+                      }
+                      tone={v.independentlyAuthenticated ? 'ok' : 'synthetic'}
+                    />
+                  </div>
+                  <p>
+                    {v.executionStatus} · Evidence {v.evidenceSufficiency}
+                  </p>
+                  <ClaimEventMetadata actor={v.actor} timestamp={v.createdAt} />
+                  <details>
+                    <summary className="cursor-pointer text-xs underline">
+                      Technical verification detail
+                    </summary>
+                    <div className="mt-2 space-y-1 break-all font-mono">
+                      <p>Verification {v.id}</p>
+                      <p>Verifier {v.verifierVersion ?? 'unavailable'}</p>
+                      {c.syntheticDemo ? (
+                        <p>
+                          Fixture: {v.fixtureReference} · {v.fixtureDigest}
+                        </p>
+                      ) : null}
+                      <p>Context: {v.contextDigest}</p>
+                    </div>
+                  </details>
+                  <ul className="list-disc pl-4">
+                    {v.findings.map((finding, i) => (
+                      <li key={i}>{finding}</li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+              {c.syntheticDemo &&
+                ['COLLECTING_EVIDENCE', 'INVESTIGATING', 'REVIEW'].includes(c.status) &&
+                ['claimant', 'reviewer'].includes(data.principalRole ?? '') && (
+                  <Button
+                    className="mt-3"
+                    size="sm"
+                    variant="secondary"
+                    disabled={pending}
+                    onClick={verifyFixture}
                   >
-                    Review and approve up to 1 USDC
-                  </button>
-                  {c.syntheticDemo ? (
-                    <button
-                      type="button"
-                      disabled={pending || !canReview}
-                      className="rounded-md bg-amber-700 px-3 py-1.5 text-xs text-white disabled:opacity-50"
+                    Attach and verify synthetic fixture
+                  </Button>
+                )}
+            </Panel>
+          </div>
+
+          {isReviewer && (
+            <div id="claim-review-actions" className="scroll-mt-4">
+              <Panel title="Reviewer / authority actions">
+                <p className="mb-2 text-xs text-[var(--ink-muted)]">{reviewActionHelp}</p>
+                {approvalId && (
+                  <ClaimEvidenceLinks
+                    references={[approvalId]}
+                    targets={targets}
+                    kind="verification"
+                    label="Verification for human review"
+                  />
+                )}
+                {canReview && (
+                  <>
+                    <p className="mb-2 text-xs text-[var(--ink-secondary)]">
+                      {c.syntheticDemo
+                        ? 'Catalog gross economic loss: 1.50 USDC after extinguished debt. Scenario recoveries and prior compensation: zero. Policy deductible and limits still apply.'
+                        : independentLoss
+                          ? `Verified gross loss ${asUsdc(independentLoss.grossLossMicros)} USDC, recoveries ${asUsdc(independentLoss.recoveriesMicros)} USDC, prior compensation ${asUsdc(independentLoss.priorCompensationMicros)} USDC. Policy limits and deductible apply.`
+                          : 'A current independent verification is required for approval.'}
+                    </p>
+                    <label className="mb-2 flex min-h-10 items-start gap-2 text-sm">
+                      <input
+                        className="mt-1 shrink-0"
+                        type="checkbox"
+                        checked={reviewConfirmed}
+                        onChange={(e) => setReviewConfirmed(e.target.checked)}
+                      />
+                      {c.syntheticDemo
+                        ? 'I reviewed event applicability and resolved all policy exclusions for this synthetic scenario.'
+                        : 'I reviewed event applicability and resolved all policy exclusions for the verified incident.'}
+                    </label>
+                    <label className="mb-3 block text-sm">
+                      Contractual review rationale
+                      <textarea
+                        value={reviewRationale}
+                        onChange={(e) => setReviewRationale(e.target.value)}
+                        maxLength={4000}
+                        className="field-control mt-1 block"
+                      />
+                    </label>
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        disabled={
+                          pending ||
+                          !canReview ||
+                          !reviewConfirmed ||
+                          !reviewRationale.trim() ||
+                          !approvalId ||
+                          (!c.syntheticDemo && !independentLoss)
+                        }
+                        onClick={() =>
+                          run('reviewer', {
+                            action: 'adjudicate',
+                            coverageDetermination: 'covered',
+                            verificationId: approvalId,
+                            contractualReview: {
+                              eventApplies: reviewConfirmed,
+                              exclusionsResolved: reviewConfirmed,
+                              rationale: reviewRationale,
+                            },
+                            verifiedLossUsdc: c.syntheticDemo
+                              ? '1.500000'
+                              : independentLoss
+                                ? asUsdc(independentLoss.grossLossMicros)
+                                : null,
+                            recoveriesUsdc: c.syntheticDemo
+                              ? '0.000000'
+                              : independentLoss
+                                ? asUsdc(independentLoss.recoveriesMicros)
+                                : null,
+                            ...(independentLoss
+                              ? {
+                                  priorCompensationUsdc: asUsdc(
+                                    independentLoss.priorCompensationMicros,
+                                  ),
+                                }
+                              : {}),
+                            requestedUsdc: '1.000000',
+                          })
+                        }
+                      >
+                        Review and approve up to 1 USDC
+                      </Button>
+                      {c.syntheticDemo ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={pending || !canReview}
+                          onClick={() =>
+                            run('reviewer', {
+                              action: 'adjudicate',
+                              coverageDetermination: 'covered',
+                              verificationId: approvalId ?? undefined,
+                              contractualReview: {
+                                eventApplies: reviewConfirmed,
+                                exclusionsResolved: reviewConfirmed,
+                                rationale: reviewRationale,
+                              },
+                              verifiedLossUsdc: '1.500000',
+                              recoveriesUsdc: null,
+                              requestedUsdc: '1.000000',
+                            })
+                          }
+                        >
+                          Force REVIEW (unknown recoveries)
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={pending || !canReview}
+                        onClick={() =>
+                          run('reviewer', {
+                            action: 'adjudicate',
+                            coverageDetermination: 'not_covered',
+                            verifiedLossUsdc: c.syntheticDemo ? '1.500000' : null,
+                            recoveriesUsdc: c.syntheticDemo ? '0.000000' : null,
+                            requestedUsdc: '1.000000',
+                          })
+                        }
+                      >
+                        Deny (not covered)
+                      </Button>
+                      {c.status === 'REVIEW' ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={pending}
+                          onClick={() => run('reviewer', { action: 'reopen_investigation' })}
+                        >
+                          Reopen investigation
+                        </Button>
+                      ) : null}
+                    </div>
+                  </>
+                )}
+                {data.principalRole === 'authority' && (
+                  <>
+                    {!canPrepare && (
+                      <p className="mb-2 text-xs text-[var(--ink-muted)]">
+                        {data.settlementVerificationBlocker
+                          ? settlementBlockerMessage(data.settlementVerificationBlocker)
+                          : settlement.action}
+                      </p>
+                    )}
+                    <Button
+                      size="sm"
+                      disabled={pending || !canPrepare}
                       onClick={() =>
-                        run('reviewer', {
-                          action: 'adjudicate',
-                          coverageDetermination: 'covered',
-                          verificationId: approvalId ?? undefined,
-                          contractualReview: {
-                            eventApplies: reviewConfirmed,
-                            exclusionsResolved: reviewConfirmed,
-                            rationale: reviewRationale,
-                          },
-                          verifiedLossUsdc: '1.500000',
-                          recoveriesUsdc: null,
-                          requestedUsdc: '1.000000',
+                        run('authority', {
+                          action: 'prepare_settlement',
+                          confirmedRecipient: c.payoutTo,
+                          confirmedAmountUsdc: c.payable.usdc,
+                          confirmedLossKey: c.lossKey,
+                          confirmedEvidenceRoot: c.evidenceRoot,
                         })
                       }
                     >
-                      Force REVIEW (unknown recoveries)
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={pending || !canReview}
-                    className="rounded-md bg-rose-800 px-3 py-1.5 text-xs text-white disabled:opacity-50"
-                    onClick={() =>
-                      run('reviewer', {
-                        action: 'adjudicate',
-                        coverageDetermination: 'not_covered',
-                        verifiedLossUsdc: c.syntheticDemo ? '1.500000' : null,
-                        recoveriesUsdc: c.syntheticDemo ? '0.000000' : null,
-                        requestedUsdc: '1.000000',
-                      })
-                    }
-                  >
-                    Deny (not covered)
-                  </button>
-                  {c.status === 'REVIEW' ? (
-                    <button
-                      type="button"
-                      disabled={pending}
-                      className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs disabled:opacity-50"
-                      onClick={() => run('reviewer', { action: 'reopen_investigation' })}
-                    >
-                      Reopen investigation
-                    </button>
-                  ) : null}
-                </div>
-              </>
-            )}
-            {data.principalRole === 'authority' && (
-              <>
-                {!canPrepare && (
-                  <p className="mb-2 text-xs text-zinc-600">
-                    {data.settlementVerificationBlocker
-                      ? settlementBlockerMessage(data.settlementVerificationBlocker)
-                      : settlement.action}
-                  </p>
+                      Prepare settlement (authority session, no broadcast)
+                    </Button>
+                  </>
                 )}
-                <button
-                  type="button"
-                  disabled={pending || !canPrepare}
-                  className="rounded-md bg-sky-800 px-3 py-1.5 text-xs text-white disabled:opacity-50"
-                  onClick={() =>
-                    run('authority', {
-                      action: 'prepare_settlement',
-                      confirmedRecipient: c.payoutTo,
-                      confirmedAmountUsdc: c.payable.usdc,
-                      confirmedLossKey: c.lossKey,
-                      confirmedEvidenceRoot: c.evidenceRoot,
-                    })
-                  }
-                >
-                  Prepare settlement (authority session, no broadcast)
-                </button>
-              </>
+              </Panel>
+            </div>
+          )}
+        </div>
+
+        <aside className="mt-4 space-y-3 lg:mt-0 lg:sticky lg:top-4">
+          <Panel
+            title="Case status"
+            action={
+              <div className="flex flex-wrap gap-1.5">
+                <CaseStatusBadge status={c.status} confirmedReceipt={receipt} />
+                {c.syntheticDemo ? <TruthBadge label="Synthetic" tone="synthetic" /> : null}
+              </div>
+            }
+          >
+            {c.labels.synthetic ? (
+              <p className="mb-3 text-xs text-[var(--synthetic)]">{c.labels.synthetic}</p>
+            ) : null}
+            <div className="space-y-3">
+              <Metric label="Evidence authenticity" value={c.evidenceAuthenticity} />
+              <Metric label="Coverage determination" value={c.coverageDetermination} />
+              <Metric label="Settlement" value={settlement.label} />
+              <Metric
+                label={
+                  fixtureBlocked
+                    ? 'Illustrative payable'
+                    : receipt
+                      ? 'Reimbursed amount'
+                      : 'Proposed payable'
+                }
+                value={`${c.payable.usdc ?? '—'} USDC`}
+                accent
+                hint={
+                  fixtureBlocked
+                    ? 'Not reimbursed in fixture mode'
+                    : receipt
+                      ? 'Matched settlement receipt'
+                      : 'Requires verified settlement receipt'
+                }
+              />
+              <Metric
+                label={`Assessed gross loss${c.syntheticDemo ? ' (synthetic)' : ''}`}
+                value={`${c.verifiedLoss.usdc ?? '—'} USDC`}
+              />
+              <Metric label="Deductible" value={`${c.deductible?.usdc ?? '—'} USDC`} />
+              <Metric label="Coverage limit" value={`${c.lossCap?.usdc ?? '—'} USDC`} />
+              <Metric label="Recoveries" value={`${c.recoveries.usdc ?? 'unknown / REVIEW'} USDC`} />
+            </div>
+          </Panel>
+
+          <Panel title="Linked records">
+            <dl
+              id={evidenceAnchor('case', c.id)}
+              tabIndex={-1}
+              className="scroll-mt-4 space-y-2 text-sm"
+            >
+              <div id={evidenceAnchor('policy', c.policyId)} tabIndex={-1} className="scroll-mt-4">
+                <dt className="text-[0.6875rem] font-semibold tracking-wide text-[var(--ink-muted)] uppercase">
+                  Policy
+                </dt>
+                <dd className="break-all font-mono text-xs">
+                  <Link className="underline" href={`/policies/${c.policyId}`}>
+                    {c.policyId}
+                  </Link>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[0.6875rem] font-semibold tracking-wide text-[var(--ink-muted)] uppercase">
+                  Claim
+                </dt>
+                <dd className="break-all font-mono text-xs">{c.id}</dd>
+              </div>
+              <div
+                id={
+                  data.linkedIncident
+                    ? evidenceAnchor('incident', data.linkedIncident.id)
+                    : undefined
+                }
+                tabIndex={-1}
+                className="scroll-mt-4"
+              >
+                <dt className="text-[0.6875rem] font-semibold tracking-wide text-[var(--ink-muted)] uppercase">
+                  Incident
+                </dt>
+                <dd className="break-all font-mono text-xs">
+                  {data.linkedIncident?.id ?? '—'}
+                  {data.linkedIncident ? (
+                    <>
+                      <br />
+                      <time dateTime={data.linkedIncident.observedAt}>
+                        {data.linkedIncident.observedAt}
+                      </time>
+                    </>
+                  ) : null}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[0.6875rem] font-semibold tracking-wide text-[var(--ink-muted)] uppercase">
+                  Beneficiary
+                </dt>
+                <dd className="break-all font-mono text-xs">{c.payoutTo ?? '—'}</dd>
+              </div>
+            </dl>
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs underline">Technical identifiers</summary>
+              <dl className="mt-2 space-y-2 text-xs">
+                <div>
+                  <dt className="text-[var(--ink-muted)]">Evidence root</dt>
+                  <dd className="break-all font-mono">{c.evidenceRoot ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-[var(--ink-muted)]">Loss key</dt>
+                  <dd className="break-all font-mono">{c.lossKey ?? '—'}</dd>
+                </div>
+                {c.status === 'REVIEW' && c.reviewReasonCode ? (
+                  <div>
+                    <dt className="text-[var(--ink-muted)]">Review reason</dt>
+                    <dd>{c.reviewReasonCode}</dd>
+                  </div>
+                ) : null}
+                {c.denialReasonCode ? (
+                  <div>
+                    <dt className="text-[var(--ink-muted)]">Denial reason</dt>
+                    <dd>{c.denialReasonCode}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            </details>
+          </Panel>
+
+          {data.source?.mode === 'fixture' && (
+            <Panel title="Fixture source">
+              <p className="break-all text-xs font-mono text-[var(--ink-muted)]">
+                {data.source.id}
+              </p>
+              <p className="mt-1 text-xs text-[var(--ink-muted)]">
+                Checkpoint {data.source.checkpoint?.sequence}
+                {data.source.checkpoint
+                  ? ` · expires ${new Date(data.source.checkpoint.validUntil * 1000).toISOString()}`
+                  : ''}
+                . Not Arc confirmations.
+              </p>
+            </Panel>
+          )}
+
+          <Panel title="Evidence manifests">
+            {data.evidenceManifests.length === 0 ? (
+              <p className="text-sm text-[var(--ink-muted)]">No manifests attached.</p>
+            ) : (
+              <ul className="space-y-2 text-xs">
+                {data.evidenceManifests.map((m) => (
+                  <li
+                    key={m.id}
+                    id={evidenceAnchor('manifest', m.id)}
+                    tabIndex={-1}
+                    className="scroll-mt-4 rounded-[var(--radius-sm)] border border-[var(--line)] p-2.5"
+                  >
+                    <p className="font-medium">{m.source}</p>
+                    <p className="text-[var(--ink-muted)]">
+                      {m.syntheticFixture ? 'Synthetic fixture' : 'Recorded evidence'} ·{' '}
+                      {m.sourceReliability.replaceAll('_', ' ')}
+                    </p>
+                    <details>
+                      <summary className="mt-1 cursor-pointer underline">Digest & chain</summary>
+                      <p className="mt-1 break-all font-mono">{m.rawEvidenceDigest}</p>
+                      {m.transactionHash ? (
+                        <p className="break-all font-mono">{m.transactionHash}</p>
+                      ) : null}
+                    </details>
+                  </li>
+                ))}
+              </ul>
             )}
           </Panel>
-        </div>
-      )}
+        </aside>
+      </div>
     </div>
   );
 }

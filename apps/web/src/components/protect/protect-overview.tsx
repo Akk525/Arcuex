@@ -16,22 +16,22 @@ export function ProtectOverview() {
         description={
           fixture
             ? 'Review a synthetic quote or use a seeded policy to rehearse a claim.'
-            : 'Quote coverage, track a policy’s effective window and manage claims.'
+            : 'Quote coverage, track a policy’s effective window and open claims from eligible policies.'
         }
-        action={<ButtonLink href="/coverage">Explore coverage</ButtonLink>}
+        action={<ButtonLink href="/coverage">Obtain coverage</ButtonLink>}
       />
       <div className="grid gap-4 md:grid-cols-2">
         <Panel title="Policy portfolio">
-          <p className="mb-3 text-sm text-[var(--ink-muted)]">
-            See the insured exposure, policy terms and the next action for your purchase or policy.
+          <p className="mb-4 text-sm text-[var(--ink-muted)]">
+            See insured exposure, terms and the next action for each purchase or bound policy.
           </p>
           <ButtonLink href="/policies" variant="secondary">
             Open policies
           </ButtonLink>
         </Panel>
         <Panel title="Claims">
-          <p className="mb-3 text-sm text-[var(--ink-muted)]">
-            Submit from an eligible policy, follow evidence requests and check the decision and
+          <p className="mb-4 text-sm text-[var(--ink-muted)]">
+            Submit from an eligible policy, respond to evidence requests and check decision versus
             payment status.
           </p>
           <ButtonLink href="/claims" variant="secondary">

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { getClaimsInvestigation } from '@arcuex/insurance';
 import { claimsFetch } from '@/lib/claims/claims-api';
 import { Panel } from '@/components/panel';
+import { TruthBadge } from '@/components/ui/truth-badge';
 import { ClaimAuditEvent, type ClaimAuditRecord } from './claim-audit-event';
 import { ClaimEventMetadata, ClaimEvidenceLinks, openClaimRecord } from './claim-evidence-links';
 import { ClaimExaminerReport } from './claim-examiner-report';
@@ -392,13 +393,22 @@ export function ClaimsInvestigation({
   }
 
   return (
-    <Panel title="Investigation · agent, examiner and human">
-      <p className="text-sm text-zinc-600">
-        Review the evidence requests and the case history. The persisted verifier records evidence
-        findings, and a human reviewer makes the coverage decision.
+    <Panel title="Investigation dossier">
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        <TruthBadge label="Human decisions bind" tone="human" />
+        <TruthBadge
+          label="AI advice only"
+          tone="ai"
+          title="Examiner output is advisory and never authorizes payout"
+        />
+        <TruthBadge label="Verified ≠ reimbursed" tone="warn" />
+      </div>
+      <p className="text-sm text-[var(--ink-muted)]">
+        Review evidence requests and case history. The verifier records findings; a human reviewer
+        makes the coverage decision. Approval is not payment.
       </p>
       {error ? (
-        <p role="alert" className="my-2 text-sm text-rose-700">
+        <p role="alert" className="my-2 text-sm text-[var(--danger)]">
           {error}
         </p>
       ) : null}
@@ -432,9 +442,9 @@ export function ClaimsInvestigation({
       ) : (
         <>
           {view.reviewBlockers.length > 0 && (
-            <div className="my-3 rounded border border-amber-200 bg-amber-50 p-3 text-sm">
-              <p className="font-semibold">Before a decision</p>
-              <ul className="list-disc pl-5">
+            <div className="my-3 rounded-[var(--radius-sm)] border border-amber-300/70 bg-[var(--warn-soft)] p-3 text-sm">
+              <p className="font-semibold">Next action · before a decision</p>
+              <ul className="mt-1 list-disc pl-5 text-[var(--ink-secondary)]">
                 {view.reviewBlockers.map((code) => (
                   <li key={code}>{reviewBlockerMessage(code)}</li>
                 ))}
@@ -443,7 +453,7 @@ export function ClaimsInvestigation({
           )}
           {view.chronology ? (
             <section
-              className="my-3 rounded border bg-white p-3 text-sm"
+              className="my-3 rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--surface)] p-3 text-sm"
               aria-label="Server-checked coverage chronology"
             >
               <p className="font-semibold">
@@ -485,15 +495,15 @@ export function ClaimsInvestigation({
           ) : null}
           <section
             aria-label="Outstanding evidence requests"
-            className="my-4 rounded border border-zinc-200 p-3"
+            className="my-4 rounded-[var(--radius-sm)] border border-[var(--line-strong)] bg-[var(--surface-inset)] p-3"
           >
-            <h3 className="text-sm font-semibold">
+            <h3 className="text-sm font-semibold tracking-tight">
               Outstanding evidence requests ({openRequests.length})
             </h3>
             {!openRequests.length && (
-              <p className="mt-1 text-sm text-zinc-600">No open evidence requests.</p>
+              <p className="mt-1 text-sm text-[var(--ink-muted)]">No open evidence requests.</p>
             )}
-            <ul className="divide-y divide-zinc-200">
+            <ul className="divide-y divide-[var(--line)]">
               {openRequests.map((request) => {
                 const proof = entries
                   .filter(

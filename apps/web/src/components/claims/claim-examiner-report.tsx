@@ -3,6 +3,7 @@ import {
   type EvidenceTarget,
 } from '@/lib/claims/investigation-presentation';
 import { ClaimEvidenceLinks } from './claim-evidence-links';
+import { TruthBadge } from '@/components/ui/truth-badge';
 import type { getClaimsInvestigation } from '@arcuex/insurance';
 
 type Entry = ReturnType<typeof getClaimsInvestigation>['entries'][number];
@@ -48,13 +49,19 @@ export function ClaimExaminerReport({
   const p = entry.payload;
   const analysis = p.analysis as Analysis | undefined;
   return (
-    <div className="mt-3 space-y-2">
-      <p className="font-semibold">{examinerExecutionLabel(p.execution, p.provider)}</p>
-      <p className="text-xs text-zinc-600">
+    <div className="mt-3 space-y-2 rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--ai-soft)]/40 p-3">
+      <div className="flex flex-wrap gap-1.5">
+        <TruthBadge label="AI advice" tone="ai" title="Never authorizes payout" />
+        <TruthBadge
+          label={examinerExecutionLabel(p.execution, p.provider)}
+          tone={String(p.execution).includes('live') ? 'live' : 'neutral'}
+        />
+      </div>
+      <p className="text-xs text-[var(--ink-muted)]">
         Model {String(p.model ?? 'unavailable')} · Prompt {String(p.promptVersion ?? 'unavailable')}
       </p>
       {entry.stale && (
-        <p className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-950">
+        <p className="rounded-[var(--radius-sm)] border border-amber-300/70 bg-[var(--warn-soft)] p-2 text-amber-950">
           {open
             ? 'STALE DOSSIER — reassess before adopting a request.'
             : 'Historical assessment from an earlier dossier.'}
