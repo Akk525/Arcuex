@@ -18,7 +18,7 @@ Arcuex is an early-stage infrastructure project exploring programmable financial
 - Foundry `InsurancePool` (deposit / bind / reserve / authorized settle / restricted withdraw)
 - `@arcuex/onchain` ABIs, canonical ids, tx pipeline, SQLite↔chain reconcile helpers
 - `@arcuex/agent-sdk` quote → inspect → accept → prepare approve/bind (no private keys)
-- Agent MCP server (`/api/mcp`, Streamable HTTP + local stdio) over the existing backend routes — [docs](docs/integrations/mcp.md); hosted acceptance not yet performed
+- Agent MCP server (`/api/mcp`, Streamable HTTP + local stdio) over the existing backend routes — [docs](docs/integrations/mcp.md); hosted acceptance passed on isolated Railway test services only ([report](docs/verification/2026-11-20-mcp-hosted-acceptance.md))
 
 The [testnet lifecycle runner](docs/development/arc-testnet-lifecycle.md) validates explicitly selected steps before execution, skips completed steps, and reports transaction receipts separately from process outcome.
 
@@ -215,4 +215,7 @@ TypeScript SDK. Tools call the existing API route handlers in-process, so backen
 unchanged. Wallet-signature tokens are scoped and revocable. Underwriting review, renewal and claim
 reconsideration are reported as unsupported because the backend has no such services. See
 [the MCP integration guide](docs/integrations/mcp.md) and the
-[local verification report](docs/verification/2026-11-20-mcp-server.md).
+[local verification report](docs/verification/2026-11-20-mcp-server.md). The
+[hosted acceptance report](docs/verification/2026-11-20-mcp-hosted-acceptance.md) records real
+remote SDK clients against two isolated, gated Railway test services. Existing staging and Plan A
+were not changed or accepted.

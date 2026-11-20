@@ -1,0 +1,136 @@
+{
+  "mode": "fixture",
+  "base": "https://mcp-fixture-production.up.railway.app",
+  "startedAt": "2026-11-20T10:30:07.430Z",
+  "durationMs": 7351,
+  "stats": {
+    "http429": 0,
+    "toolRateLimited": 0,
+    "requests": 40
+  },
+  "passed": 22,
+  "failed": 0,
+  "results": [
+    {
+      "check": "fixture: seeded agent visible to its owner",
+      "pass": true,
+      "detail": {
+        "agentId": "f4fad009-ac71-4951-9716-d30af388ba1d"
+      }
+    },
+    {
+      "check": "fixture: policy visible to owner/agent signer",
+      "pass": true,
+      "detail": {
+        "policyId": "a9dd927d-c25f-45b3-b66b-8d457315430e"
+      }
+    },
+    {
+      "check": "fixture: claims eligible and labelled fixture rehearsal",
+      "pass": true,
+      "detail": {
+        "sourceMode": "fixture_rehearsal",
+        "canonicality": "fixture_rehearsal_not_canonical"
+      }
+    },
+    {
+      "check": "fixture: quote acceptance / purchase preparation refused",
+      "pass": true
+    },
+    {
+      "check": "claim: filed through MCP",
+      "pass": true,
+      "detail": {
+        "claimId": "8f6b60d6-83d0-4fe6-93db-482426c25d0f",
+        "reasonCode": "CLAIM_COLLECTING_EVIDENCE"
+      }
+    },
+    {
+      "check": "claim: duplicate filing returns the same case",
+      "pass": true
+    },
+    {
+      "check": "tenant: outsider cannot read the claim",
+      "pass": true
+    },
+    {
+      "check": "evidence gap: verification blocker visible",
+      "pass": true,
+      "detail": {
+        "blockers": [
+          "FRESH_PERSISTED_VERIFICATION_REQUIRED"
+        ]
+      }
+    },
+    {
+      "check": "evidence: initial proof recorded with content hash",
+      "pass": true
+    },
+    {
+      "check": "evidence: malformed JSON refused",
+      "pass": true
+    },
+    {
+      "check": "verification: initial run sufficient",
+      "pass": true,
+      "detail": {
+        "reasonCode": "VERIFICATION_COMPLETED_SUFFICIENT"
+      }
+    },
+    {
+      "check": "reviewer: evidence request created via reviewer API",
+      "pass": true,
+      "detail": {
+        "requestId": "f4ef988f-773d-429e-a267-5b72904c4bf0"
+      }
+    },
+    {
+      "check": "evidence request: visible to agent as untrusted data",
+      "pass": true
+    },
+    {
+      "check": "evidence request: answered through MCP",
+      "pass": true
+    },
+    {
+      "check": "verification: stale after new evidence",
+      "pass": true
+    },
+    {
+      "check": "verification: current after re-verification",
+      "pass": true
+    },
+    {
+      "check": "reviewer: request resolved",
+      "pass": true
+    },
+    {
+      "check": "decision: human reviewer approves via existing route",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "caseStatus": "APPROVED"
+      }
+    },
+    {
+      "check": "decision: agent reads APPROVED decided by reviewer",
+      "pass": true
+    },
+    {
+      "check": "settlement: approved but unpaid, never REIMBURSED",
+      "pass": true,
+      "detail": {
+        "stage": "AWAITING_FINANCIAL_AUTHORITY",
+        "gate": "SYNTHETIC_SETTLEMENT_PROHIBITED"
+      }
+    },
+    {
+      "check": "settlement: no payment receipt",
+      "pass": true
+    },
+    {
+      "check": "settlement: agent cannot reach adjudication/settlement tools",
+      "pass": true
+    }
+  ]
+}

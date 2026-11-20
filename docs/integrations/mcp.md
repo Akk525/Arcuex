@@ -3,8 +3,11 @@
 Verified locally on November 20, 2026 against `@modelcontextprotocol/sdk@1.32.2`
 ([MCP specification](https://modelcontextprotocol.io/specification),
 [TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)).
-**Hosted acceptance has not been performed.** Do not treat the remote endpoint as operational on
-any Railway environment until it is recorded.
+**Hosted acceptance passed on two isolated, acceptance-gated Railway test services on November 20,
+2026** ([report](../verification/2026-11-20-mcp-hosted-acceptance.md)). That result covers those
+test services only. Existing staging, Plan A and any future environment are not accepted until the
+same harness passes there. Each deployment's `/api/mcp/health` keeps reporting
+`hostedAcceptance: not_performed`, because the server cannot attest to its own acceptance.
 
 The MCP server lets an MCP-compatible autonomous agent use the same insurance workflows a
 human policyholder uses: registration requests, product discovery, quotes, purchase preparation,
@@ -198,7 +201,50 @@ const t = await (
 ```
 
 Local: `pnpm dev`, then use `http://localhost:3000/api/mcp`, or the stdio command above.
-Behind an acceptance-gated deployment the client must also present the gate header/cookie.
+
+### External (hosted) configuration
+
+The client needs the HTTPS origin of an accepted deployment, a token issued by that deployment, and,
+while the deployment is acceptance-gated, the operator-issued gate header. The token is bound to that
+deployment's database and session epoch, so it does not work on any other environment.
+
+```json
+{
+  "mcpServers": {
+    "arcuex": {
+      "type": "http",
+      "url": "https://<accepted-host>/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${ARCUEX_MCP_TOKEN}",
+        "x-arcuex-acceptance-gate": "${ARCUEX_ACCEPTANCE_GATE_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Token issuance calls (`/api/mcp/auth/challenge`, `/api/mcp/auth/token`) also need the gate header.
+Operational limits come from the existing API boundary:
+
+- **All requests:** 300 per minute per edge-verified client IP.
+- **Mutations:** 60 per minute per IP. Every MCP JSON-RPC POST counts, and so do the internal
+  backend mutations it makes.
+- **Authentication routes:** 20 per minute per IP.
+
+Spoofed `X-Forwarded-For` or `X-Real-IP` values do not create new buckets. A throttled call returns
+HTTP 429 with `Retry-After`, or `PENDING` / `RATE_LIMITED` inside a tool result.
+
+What works on a live Arc Testnet deployment:
+
+- Registration requests with owner confirmation.
+- Delegation-gated quotes, and accepting a quote's terms off-chain.
+- Purchase preparation, which returns unsigned transactions only when the payer wallet holds the
+  premium in testnet USDC. Otherwise it fails closed with `INSUFFICIENT_PREMIUM_BALANCE`.
+- Policy and claim reads.
+
+A claim lifecycle needs a canonically bound policy. The hosted claim acceptance therefore used the
+pinned fixture source (`fixture_rehearsal`). It is synthetic, has a 300-second lease, and is not
+Arc evidence.
 
 ## Tests
 
@@ -207,3 +253,7 @@ over `StreamableHTTPClientTransport` (custom in-process `fetch` into the real ro
 Chain I/O is replaced by the same doubles used by the existing procurement API tests; owner and
 reviewer actions use the existing HTTP routes. See
 [the verification report](../verification/2026-11-20-mcp-server.md).
+
+`apps/web/scripts/mcp-hosted-acceptance.mts live|fixture` runs the same SDK client against a
+deployed HTTPS origin. Secrets are read from files, and the script refuses to write a transcript
+that contains one. See [the hosted acceptance report](../verification/2026-11-20-mcp-hosted-acceptance.md).

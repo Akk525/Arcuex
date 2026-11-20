@@ -1,0 +1,251 @@
+{
+  "mode": "live",
+  "base": "https://mcp-live-production.up.railway.app",
+  "startedAt": "2026-11-20T10:13:40.323Z",
+  "durationMs": 99009,
+  "stats": {
+    "http429": 0,
+    "toolRateLimited": 0,
+    "requests": 168
+  },
+  "passed": 46,
+  "failed": 0,
+  "results": [
+    {
+      "check": "gate: health without acceptance gate refused",
+      "pass": true
+    },
+    {
+      "check": "health reachable through gate",
+      "pass": true,
+      "detail": {
+        "transport": "streamable-http (stateless, JSON responses)",
+        "chainSource": "arc-testnet",
+        "hostedAcceptance": "not_performed",
+        "tokenStore": true
+      }
+    },
+    {
+      "check": "gate: MCP without acceptance gate refused",
+      "pass": true
+    },
+    {
+      "check": "auth: TOKEN_MISSING → 401 + WWW-Authenticate",
+      "pass": true
+    },
+    {
+      "check": "auth: TOKEN_MALFORMED → 401 + WWW-Authenticate",
+      "pass": true
+    },
+    {
+      "check": "auth: TOKEN_INVALID → 401 + WWW-Authenticate",
+      "pass": true
+    },
+    {
+      "check": "protected-resource metadata names the hosted resource",
+      "pass": true,
+      "detail": {
+        "resource": "https://mcp-live-production.up.railway.app/api/mcp"
+      }
+    },
+    {
+      "check": "issuance: forged wallet signature refused",
+      "pass": true
+    },
+    {
+      "check": "issuance: unknown scope refused",
+      "pass": true
+    },
+    {
+      "check": "discovery: 53 tools with input and output schemas",
+      "pass": true,
+      "detail": {
+        "count": 53
+      }
+    },
+    {
+      "check": "discovery: no adjudication, settlement, signing or delegation-grant tools",
+      "pass": true
+    },
+    {
+      "check": "invocation: identity is the signing wallet",
+      "pass": true,
+      "detail": {
+        "sourceMode": "arc_testnet"
+      }
+    },
+    {
+      "check": "scope: read-only token cannot request registration",
+      "pass": true
+    },
+    {
+      "check": "scope: read-only token cannot quote",
+      "pass": true
+    },
+    {
+      "check": "registration: agent request is ACTION_REQUIRED for the owner",
+      "pass": true,
+      "detail": {
+        "requestId": "0x8fab7a2c3738562dd57af977ede429b61ab7935458eb1ee92c7a1c6cc6726e08",
+        "endpoint": "POST /api/procurement/agents"
+      }
+    },
+    {
+      "check": "registration: owner confirms via POST /api/procurement/agents",
+      "pass": true,
+      "detail": {
+        "agentId": "f5e698c8-c244-412c-bf44-a64722562783"
+      }
+    },
+    {
+      "check": "registration: status REGISTERED after owner confirmation",
+      "pass": true
+    },
+    {
+      "check": "registration: same position claimed for a different owner refused",
+      "pass": true
+    },
+    {
+      "check": "binding: agentId argument cannot widen a bound token",
+      "pass": true
+    },
+    {
+      "check": "products: synthetic, not independently underwritten",
+      "pass": true,
+      "detail": {
+        "code": "ARC_ORACLE_LIQUIDATION_DEMO_V1",
+        "sourceMode": "synthetic_arc_testnet"
+      }
+    },
+    {
+      "check": "approval: quote without owner delegation is DELEGATION_REQUIRED",
+      "pass": true
+    },
+    {
+      "check": "approval: delegation request does not grant authority",
+      "pass": true
+    },
+    {
+      "check": "approval: owner-created delegation active",
+      "pass": true,
+      "detail": {
+        "delegationId": "15bab12c-c4b5-4dec-aca0-7ba9fbfa3bfd"
+      }
+    },
+    {
+      "check": "cap: limit above delegation refused",
+      "pass": true
+    },
+    {
+      "check": "quote: issued with canonical digest",
+      "pass": true,
+      "detail": {
+        "quoteId": "6bcc916f-bca6-4707-b1d1-0836441f778d",
+        "premiumMicros": "10000"
+      }
+    },
+    {
+      "check": "quote: wrong digest not accepted",
+      "pass": true
+    },
+    {
+      "check": "quote: accepted off-chain, not bound",
+      "pass": true,
+      "detail": {
+        "reasonCode": "ACCEPTED_OFFCHAIN"
+      }
+    },
+    {
+      "check": "purchase: unsigned authorization for the agent wallet, or a fail-closed live preflight refusal",
+      "pass": true,
+      "detail": {
+        "status": "FAILED",
+        "reasonCode": "INSUFFICIENT_PREMIUM_BALANCE",
+        "message": "Payer needs enough testnet USDC for the premium",
+        "transactionReturned": false
+      }
+    },
+    {
+      "check": "purchase: no signature or private key material returned",
+      "pass": true
+    },
+    {
+      "check": "purchase: policy not reported bound",
+      "pass": true
+    },
+    {
+      "check": "receipt: fabricated bind hash not accepted as canonical",
+      "pass": true
+    },
+    {
+      "check": "tenant: outsider cannot read the agent",
+      "pass": true
+    },
+    {
+      "check": "tenant: outsider cannot read the quote",
+      "pass": true
+    },
+    {
+      "check": "tenant: outsider cannot bind to a foreign agent",
+      "pass": true
+    },
+    {
+      "check": "tenant: outsider cannot read the delegation",
+      "pass": true
+    },
+    {
+      "check": "delegation: short-lived and revocable delegations created",
+      "pass": true
+    },
+    {
+      "check": "delegation: expired delegation refused",
+      "pass": true
+    },
+    {
+      "check": "delegation: revoked delegation refused",
+      "pass": true
+    },
+    {
+      "check": "delegation: quote under revoked delegation refused",
+      "pass": true
+    },
+    {
+      "check": "passthrough: MCP bearer is not a backend credential",
+      "pass": true,
+      "detail": {
+        "status": 401
+      }
+    },
+    {
+      "check": "blocked: arcuex_request_claim_reconsideration",
+      "pass": true
+    },
+    {
+      "check": "blocked: arcuex_submit_underwriting_application",
+      "pass": true
+    },
+    {
+      "check": "blocked: arcuex_request_policy_renewal",
+      "pass": true
+    },
+    {
+      "check": "rate: repeated MCP calls hit the per-IP limiter with 429 + Retry-After despite spoofed X-Forwarded-For/X-Real-IP",
+      "pass": true,
+      "detail": {
+        "statuses": {
+          "200": 49,
+          "429": 41
+        },
+        "earlierBackoffs": 0
+      }
+    },
+    {
+      "check": "revocation: revoke endpoint accepted",
+      "pass": true
+    },
+    {
+      "check": "revocation: revoked token → 401 TOKEN_REVOKED",
+      "pass": true
+    }
+  ]
+}
