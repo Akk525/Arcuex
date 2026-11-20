@@ -1,0 +1,47 @@
+{
+  "policyId": "4e6295fe-a4d4-4df1-8cf2-41e039548a95",
+  "source": "synthetic fixture",
+  "results": [
+    {
+      "shot": "s01-mission-control-desktop",
+      "overflow": 0,
+      "found": true
+    },
+    {
+      "shot": "s02-coverage-product-agent-desktop",
+      "overflow": 0,
+      "found": true
+    },
+    {
+      "shot": "s03-policies-desktop",
+      "overflow": 0,
+      "found": true
+    },
+    {
+      "shot": "s04-policy-record-desktop",
+      "overflow": 0,
+      "found": false
+    },
+    {
+      "shot": "s04-policy-record-mobile",
+      "overflow": 0,
+      "found": false
+    },
+    {
+      "shot": "s05-claims-desktop",
+      "overflow": 0,
+      "found": true
+    },
+    {
+      "shot": "s06-historical-replay-desktop",
+      "overflow": 0,
+      "found": true
+    },
+    {
+      "shot": "s06-historical-replay-mobile",
+      "overflow": 0,
+      "found": true
+    }
+  ],
+  "consoleErrors": []
+}
