@@ -1,5 +1,8 @@
-import { ProductStage } from '@/components/marketing/product-stage';
+import { FinalCta } from '@/components/marketing/final-cta';
+import { HowItWorks } from '@/components/marketing/how-it-works';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
+import { ProductStage } from '@/components/marketing/product-stage';
+import { TrustSection } from '@/components/marketing/trust-section';
 import { ButtonLink } from '@/components/ui/button';
 
 export function HomePage() {
@@ -34,38 +37,15 @@ export function HomePage() {
         </section>
 
         <section id="how-it-works" className="marketing-section border-t border-[var(--line)]">
-          <div className="mx-auto max-w-6xl px-5 sm:px-8" data-section-status="placeholder">
-            <h2 className="marketing-display text-2xl text-[var(--ink)] sm:text-3xl">
-              How it works
-            </h2>
-            <p className="mt-3 max-w-[62ch] text-sm leading-relaxed text-[var(--ink-muted)]">
-              Placeholder. Procurement, evidence exchange, and human review will be explained here.
-            </p>
-          </div>
+          <HowItWorks />
         </section>
 
         <section id="trust" className="marketing-section border-t border-[var(--line)]">
-          <div className="mx-auto max-w-6xl px-5 sm:px-8" data-section-status="placeholder">
-            <h2 className="marketing-display text-2xl text-[var(--ink)] sm:text-3xl">
-              Trust and infrastructure
-            </h2>
-            <p className="mt-3 max-w-[62ch] text-sm leading-relaxed text-[var(--ink-muted)]">
-              Placeholder. Arc Testnet, wallet approval, and the synthetic-ledger boundary will be
-              stated here.
-            </p>
-          </div>
+          <TrustSection />
         </section>
 
         <section id="get-started" className="marketing-section border-t border-[var(--line)]">
-          <div className="mx-auto max-w-6xl px-5 sm:px-8" data-section-status="placeholder">
-            <h2 className="marketing-display text-2xl text-[var(--ink)] sm:text-3xl">
-              Get started
-            </h2>
-            <p className="mt-3 max-w-[62ch] text-sm leading-relaxed text-[var(--ink-muted)]">
-              Placeholder. The closing conversion will repeat the coverage, agent, and dashboard
-              paths.
-            </p>
-          </div>
+          <FinalCta />
         </section>
       </main>
     </MarketingShell>
