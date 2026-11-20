@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 import { withApiSecurity } from '@/lib/server/api-security';
 import { ALL_MCP_SCOPES } from '@/lib/mcp/scopes';
+import { canonicalSigningOrigin } from '@/lib/server/request-boundary';
+import { getRuntimeConfig } from '@/lib/server/runtime-config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /** RFC 9728 protected-resource metadata. No OAuth authorization server is deployed. */
 export const GET = withApiSecurity(async (request: Request) => {
-  const origin = new URL(request.url).origin;
+  // Behind the Railway edge request.url is the container address; advertise the public origin.
+  const origin = canonicalSigningOrigin(request, getRuntimeConfig());
   return NextResponse.json({
     resource: `${origin}/api/mcp`,
     scopes_supported: ALL_MCP_SCOPES,

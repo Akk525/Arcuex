@@ -6,9 +6,11 @@ import { createArcuexMcpServer } from './server';
 import { authenticateMcpToken, readBearer } from './tokens';
 import { ALL_MCP_SCOPES } from './scopes';
 import { getRepo } from '@/lib/server/db';
+import { canonicalSigningOrigin } from '@/lib/server/request-boundary';
+import { getRuntimeConfig } from '@/lib/server/runtime-config';
 
 export function resourceMetadataUrl(request: Request) {
-  return `${new URL(request.url).origin}/.well-known/oauth-protected-resource/api/mcp`;
+  return `${canonicalSigningOrigin(request, getRuntimeConfig())}/.well-known/oauth-protected-resource/api/mcp`;
 }
 
 function unauthorized(request: Request, reasonCode: string, message: string) {
