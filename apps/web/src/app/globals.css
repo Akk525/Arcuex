@@ -348,9 +348,30 @@ textarea.field-control {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
 }
+.product-stage-morph {
+  animation: product-stage-in 280ms ease;
+}
+@keyframes product-stage-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.product-stage-fallback {
+  display: none;
+}
 @media (prefers-reduced-motion: reduce) {
   .product-stage-morph {
+    animation: none !important;
     transition: none !important;
+  }
+  .product-stage-scrub {
+    display: none !important;
+  }
+  .product-stage-fallback {
+    display: block !important;
   }
 }
 

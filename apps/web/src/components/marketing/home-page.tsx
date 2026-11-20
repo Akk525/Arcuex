@@ -1,5 +1,6 @@
-import { ButtonLink } from '@/components/ui/button';
+import { ProductStage } from '@/components/marketing/product-stage';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
+import { ButtonLink } from '@/components/ui/button';
 
 export function HomePage() {
   return (
@@ -28,21 +29,8 @@ export function HomePage() {
           </div>
         </section>
 
-        <section id="product-stage" className="marketing-section border-t border-[var(--line)]">
-          <div className="mx-auto max-w-6xl px-5 sm:px-8">
-            <div
-              className="product-stage min-h-64 px-6 py-8 sm:px-10 sm:py-12"
-              data-section-status="placeholder"
-            >
-              <h2 className="marketing-display text-2xl text-[var(--ink)] sm:text-3xl">
-                Product stage
-              </h2>
-              <p className="mt-3 max-w-[62ch] text-sm leading-relaxed text-[var(--ink-muted)]">
-                Placeholder. The scroll-driven coverage stage will occupy this frame. It does not
-                change with scroll yet.
-              </p>
-            </div>
-          </div>
+        <section id="product-stage" className="scroll-mt-24 border-t border-[var(--line)]">
+          <ProductStage />
         </section>
 
         <section id="how-it-works" className="marketing-section border-t border-[var(--line)]">
