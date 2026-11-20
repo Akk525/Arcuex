@@ -216,6 +216,9 @@ The [backend integration contract](docs/integrations/backend-integration-v1.md) 
 
 ### Agent MCP server
 
+**Live public app (website, API and MCP in one container):** <https://arcuex-production.up.railway.app>.
+See [the public deployment record](docs/deployments/public-judges.md).
+
 `/api/mcp` exposes the policyholder workflows to MCP-compatible agents through the official
 TypeScript SDK. Tools call the existing API route handlers in-process, so backend authorization is
 unchanged. Wallet-signature tokens are scoped and revocable.
