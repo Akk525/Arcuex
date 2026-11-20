@@ -1,5 +1,5 @@
 import type { PublicClient, Hex } from 'viem';
-import { readOnchainPolicy, toPolicyIdBytes32 } from '@arcuex/onchain';
+import { ARC_CONFIRMATION_DEPTH, readOnchainPolicy, toPolicyIdBytes32 } from '@arcuex/onchain';
 import {
   hasProcurementBindAuthority,
   ProcurementError,
@@ -17,28 +17,45 @@ export async function confirmProcurement(
   const policy = service.inspect(actor, policyId);
   if (typeof txHash !== 'string' || !/^0x[0-9a-f]{64}$/i.test(txHash))
     throw new ProcurementError('INVALID_TX', 'A bind transaction hash is required');
-  if (policy.bindTx) {
-    if (policy.bindTx.toLowerCase() !== txHash.toLowerCase())
-      throw new ProcurementError(
-        'ALREADY_BOUND',
-        'Policy already confirmed with another transaction',
-        409,
-      );
-    return policy;
-  }
+  const hash = txHash.toLowerCase() as Hex;
+  if (policy.bindTx && policy.bindTx.toLowerCase() !== hash)
+    throw new ProcurementError(
+      'ALREADY_BOUND',
+      'Policy already confirmed with another transaction',
+      409,
+    );
   if ((await client.getChainId()) !== 5042002)
     throw new ProcurementError('WRONG_NETWORK', 'RPC must be Arc Testnet', 503);
-  const hash = txHash as Hex;
-  const [receipt, tx, chainPolicy] = await Promise.all([
+  const [receipt, tx, head] = await Promise.all([
     client.getTransactionReceipt({ hash }),
     client.getTransaction({ hash }),
-    readOnchainPolicy(client, service.pool, toPolicyIdBytes32(policy.terms.policyId)),
+    client.getBlockNumber({ cacheTime: 0 }),
   ]);
-  const block = await client.getBlock({ blockHash: receipt.blockHash });
+  if (head < receipt.blockNumber + ARC_CONFIRMATION_DEPTH)
+    throw new ProcurementError(
+      'UNCONFIRMED',
+      'Bind receipt is awaiting two Arc descendant blocks',
+      409,
+    );
+  const [block, chainPolicy] = await Promise.all([
+    client.getBlock({ blockNumber: receipt.blockNumber }),
+    readOnchainPolicy(
+      client,
+      service.pool,
+      toPolicyIdBytes32(policy.terms.policyId),
+      receipt.blockNumber,
+    ),
+  ]);
   const expected = service.transactions(policy)[1]!;
   const t = policy.terms;
   const match =
     receipt.status === 'success' &&
+    block.hash === receipt.blockHash &&
+    tx.hash === receipt.transactionHash &&
+    tx.blockNumber === receipt.blockNumber &&
+    tx.blockHash === receipt.blockHash &&
+    receipt.to?.toLowerCase() === service.pool.toLowerCase() &&
+    receipt.from.toLowerCase() === policy.payer &&
     tx.to?.toLowerCase() === service.pool.toLowerCase() &&
     tx.from.toLowerCase() === policy.payer &&
     tx.input === expected.data &&
@@ -67,6 +84,9 @@ export async function confirmProcurement(
       'The payer lacked authority at the bind block',
       409,
     );
+  const currentBlock = await client.getBlock({ blockNumber: receipt.blockNumber });
+  if (currentBlock.hash !== receipt.blockHash)
+    throw new ProcurementError('CHAIN_REORGANIZED', 'Bind block is no longer canonical', 409);
   service.store.confirm(t.policyId, hash.toLowerCase(), Number(block.timestamp));
   return service.inspect(actor, t.policyId);
 }

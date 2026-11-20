@@ -171,23 +171,36 @@ describe('authenticated procurement', () => {
       false,
     ];
     let status = 'reverted',
-      blockTime = BigInt(now + 10);
+      blockTime = BigInt(now + 10),
+      head = 11n,
+      canonicalHash = '0xblock';
     const client = {
       getChainId: async () => 5042002,
+      getBlockNumber: async () => head,
       getTransactionReceipt: async () => ({
         status,
         blockHash: '0xblock',
+        blockNumber: 10n,
+        from: who,
+        to: pool,
         transactionHash: txHash,
       }),
       getTransaction: async () => ({
+        hash: txHash,
+        blockNumber: 10n,
+        blockHash: '0xblock',
         to: pool,
         from: who,
         input: service.transactions(p)[1]!.data,
         value: 0n,
       }),
-      getBlock: async () => ({ timestamp: blockTime }),
+      getBlock: async () => ({ hash: canonicalHash, timestamp: blockTime }),
       readContract: async () => row,
     } as unknown as PublicClient;
+    await expect(
+      confirmProcurement(service, client, who, p.terms.policyId, txHash),
+    ).rejects.toThrow('awaiting two');
+    head++;
     await expect(
       confirmProcurement(service, client, who, p.terms.policyId, txHash),
     ).rejects.toThrow('differs');
@@ -207,6 +220,10 @@ describe('authenticated procurement', () => {
     expect(await confirmProcurement(service, client, who, p.terms.policyId, txHash)).toEqual(
       confirmed,
     );
+    canonicalHash = '0xother';
+    await expect(
+      confirmProcurement(service, client, who, p.terms.policyId, txHash),
+    ).rejects.toThrow('differs');
     expect(service.store.get('quote', q.terms.quoteId)).toEqual(q);
   });
 });

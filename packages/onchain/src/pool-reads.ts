@@ -1,10 +1,8 @@
-import {
-  type Address,
-  type PublicClient,
-  type Hex,
-} from 'viem';
+import { type Address, type PublicClient, type Hex } from 'viem';
 import { insurancePoolAbi } from './abi/insurance-pool';
 import { OnchainError } from './errors';
+
+export const ARC_CONFIRMATION_DEPTH = 2n;
 
 export type OnchainPolicy = {
   termsHash: Hex;
@@ -36,10 +34,7 @@ export function requirePoolAddress(address: Address | null | undefined): Address
   return address;
 }
 
-export async function readPoolSnapshot(
-  client: PublicClient,
-  pool: Address,
-): Promise<PoolSnapshot> {
+export async function readPoolSnapshot(client: PublicClient, pool: Address): Promise<PoolSnapshot> {
   const [totalAssets, totalReserved, totalShares, availableCapital, claimsAuthority, usdc] =
     await Promise.all([
       client.readContract({ address: pool, abi: insurancePoolAbi, functionName: 'totalAssets' }),
@@ -87,10 +82,12 @@ export async function readOnchainPolicy(
   client: PublicClient,
   pool: Address,
   policyId: Hex,
+  blockNumber?: bigint,
 ): Promise<OnchainPolicy> {
   const row = await client.readContract({
     address: pool,
     abi: insurancePoolAbi,
+    blockNumber,
     functionName: 'policies',
     args: [policyId],
   });
@@ -114,10 +111,12 @@ export async function isClaimSettled(
   client: PublicClient,
   pool: Address,
   claimId: Hex,
+  blockNumber?: bigint,
 ): Promise<boolean> {
   return client.readContract({
     address: pool,
     abi: insurancePoolAbi,
+    blockNumber,
     functionName: 'settledClaims',
     args: [claimId],
   });
@@ -135,10 +134,12 @@ export async function readLossAccounting(
   client: PublicClient,
   pool: Address,
   lossKey: Hex,
+  blockNumber?: bigint,
 ): Promise<OnchainLossAccounting> {
   const row = await client.readContract({
     address: pool,
     abi: insurancePoolAbi,
+    blockNumber,
     functionName: 'losses',
     args: [lossKey],
   });

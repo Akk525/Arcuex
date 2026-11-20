@@ -17,12 +17,12 @@ import { getRepo, getDb } from '@/lib/server/db';
 import { ProcurementService, ProcurementError, check, text } from '@/lib/server/procurement';
 import { readFixture } from './fixture-source';
 import {
-  preflight,
   preflightPayment,
   readProcurementCapacity,
   transactions,
   verifyReceipt,
   verifyApproval,
+  verifyIndependentProductRuntime,
   reconcile,
   txHash,
   procurementPool,
@@ -38,10 +38,19 @@ export async function handle(request: Request, path: string) {
       undefined,
       profile,
     );
-    if (request.method === 'GET' && path === 'products')
+    if (request.method === 'GET' && path === 'products') {
+      let independentIssuable = false;
+      if (profile) {
+        try {
+          await verifyIndependentProductRuntime(profile);
+          independentIssuable = true;
+        } catch {
+          // A configured profile alone does not make a protocol issuable.
+        }
+      }
       return NextResponse.json(
         {
-          products: PROCUREMENT_OFFERINGS.filter((p) => p.synthetic || profile),
+          products: PROCUREMENT_OFFERINGS.filter((p) => p.synthetic || independentIssuable),
           chainId: 5042002,
           pool: procurementPool,
           paymentMode:
@@ -51,6 +60,7 @@ export async function handle(request: Request, path: string) {
         },
         { headers: { 'Cache-Control': 'no-store' } },
       );
+    }
     if (request.method === 'GET' && path === 'capacity') {
       let capacity: ProcurementCapacity = {
         status: runtime.chainSource === 'fixture' ? 'offline' : 'unavailable',
@@ -156,8 +166,23 @@ export async function handle(request: Request, path: string) {
       else if (path === 'delegations/revoke')
         result = svc.revoke(principal, text(b.id, 'Delegation ID'));
       else if (path === 'authority') result = svc.authority(principal, b.delegationId);
-      else if (path === 'quotes') result = svc.quote(principal, b);
-      else if (path === 'accept') {
+      else if (path === 'quotes') {
+        const quote = svc.quote(principal, b);
+        if (quote.terms.independentProfile)
+          await verifyIndependentProductRuntime(quote.terms.independentProfile);
+        let capacityStatus: 'offline' | 'verified' | 'unavailable' | 'insufficient' =
+          runtime.chainSource === 'fixture' ? 'offline' : 'unavailable';
+        if (runtime.chainSource === 'arc-testnet') {
+          try {
+            const capacity = await readProcurementCapacity();
+            capacityStatus =
+              capacity >= BigInt(quote.terms.limitMicros) ? 'verified' : 'insufficient';
+          } catch {
+            // An immutable quote can be retained during an RPC outage. Payment still needs preflight.
+          }
+        }
+        result = { ...quote, capacityStatus };
+      } else if (path === 'accept') {
         const policy = svc.accept(principal, b);
         result = { policy, state: 'accepted_offchain' };
       } else if (path === 'payment') {
@@ -177,7 +202,7 @@ export async function handle(request: Request, path: string) {
         };
       } else if (path === 'procure') {
         const accepted = svc.accept(principal, b);
-        if (accepted.state !== 'confirmed') await preflight(accepted);
+        if (accepted.state !== 'confirmed') await preflightPayment(accepted, 'approve');
         const policy = svc.authorizedPayment(principal, accepted.terms.policyId, b.acceptedDigest);
         result = {
           policy,

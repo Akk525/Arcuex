@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { openDatabase, ProcurementStore } from '@arcuex/persistence';
 import { ProcurementService } from '@arcuex/agent-sdk';
-import { toPolicyIdBytes32 } from '@arcuex/onchain';
+import { encodeAbiParameters, encodeEventTopics } from 'viem';
+import { insurancePoolAbi, toPolicyIdBytes32 } from '@arcuex/onchain';
 import {
   verifyBindEvent,
   transactions,
   preflightPayment,
   verifyApproval,
+  verifyReceipt,
   type procurementClient,
 } from './procurement-chain';
 const owner = '0x1111111111111111111111111111111111111111';
@@ -99,12 +101,28 @@ it('verifies exact approval receipts and rejects altered approval calldata or pa
   const { p } = fixture();
   const expected = transactions(p)[0]!;
   const hash = `0x${'ab'.repeat(32)}` as const;
-  let tx = { from: owner, to: expected.to, input: expected.data, value: 0n };
+  let tx = {
+    hash,
+    blockHash: hash,
+    blockNumber: 10n,
+    from: owner,
+    to: expected.to,
+    input: expected.data,
+    value: 0n,
+  };
   const client = {
     getChainId: async () => 5042002,
-    getTransactionReceipt: async () => ({ status: 'success', blockHash: hash }),
+    getBlockNumber: async () => 12n,
+    getTransactionReceipt: async () => ({
+      status: 'success',
+      transactionHash: hash,
+      blockHash: hash,
+      blockNumber: 10n,
+      from: owner,
+      to: expected.to,
+    }),
     getTransaction: async () => tx,
-    getBlock: async () => ({ timestamp: 1800000001n }),
+    getBlock: async () => ({ hash, timestamp: 1800000001n }),
   } as unknown as ReturnType<typeof procurementClient>;
   expect(await verifyApproval(p, hash, client)).toBe(1800000001);
   tx = { ...tx, input: '0x00' };
@@ -119,11 +137,17 @@ it('checks fresh chain capacity, duplicate binding, payer balance, and allowance
   let payerBalance = 99999n;
   let allowance = 0n;
   let bound = false;
+  let simulateBind = true;
   let timestamp = BigInt(p.terms.quoteExpiresAt - 1);
   const client = {
     getChainId: async () => 5042002,
     getCode: async () => '0x6000',
-    getBlock: async () => ({ timestamp }),
+    call: async () => {
+      if (!simulateBind) throw new Error('reverted');
+      return {};
+    },
+    getBlockNumber: async () => 12n,
+    getBlock: async () => ({ number: 10n, hash: p.digest, timestamp }),
     readContract: async ({ functionName }: { functionName: string }) => {
       switch (functionName) {
         case 'usdc':
@@ -147,6 +171,9 @@ it('checks fresh chain capacity, duplicate binding, payer balance, and allowance
   await expect(preflightPayment(p, 'bind', client)).rejects.toThrow('Approve the premium');
   allowance = 100000n;
   await expect(preflightPayment(p, 'bind', client)).resolves.toBeUndefined();
+  simulateBind = false;
+  await expect(preflightPayment(p, 'bind', client)).rejects.toThrow('did not pass Arc simulation');
+  simulateBind = true;
   timestamp++;
   await expect(preflightPayment(p, 'bind', client)).rejects.toThrow('Quote expired on Arc');
   timestamp--;
@@ -156,4 +183,56 @@ it('checks fresh chain capacity, duplicate binding, payer balance, and allowance
   );
   bound = true;
   await expect(preflightPayment(p, 'bind', client)).rejects.toThrow('already bound');
+});
+
+it('validates canonical bind receipts and refuses reverted, immature, or orphaned binds', async () => {
+  const { p, args, service } = fixture();
+  const hash = `0x${'55'.repeat(32)}` as const;
+  const blockHash = `0x${'aa'.repeat(32)}` as const;
+  const blockNumber = 10n;
+  let head = 11n;
+  let reverted = false;
+  let chainHash = blockHash as `0x${string}`;
+  const log = {
+    address: pool,
+    removed: false,
+    blockNumber,
+    blockHash,
+    transactionHash: hash,
+    topics: encodeEventTopics({ abi: insurancePoolAbi, eventName: 'PolicyBound', args }),
+    data: encodeAbiParameters(
+      [
+        { type: 'bytes32' },
+        { type: 'uint256' },
+        { type: 'uint256' },
+        { type: 'uint64' },
+        { type: 'uint64' },
+      ],
+      [args.termsHash, args.premium, args.limit, args.coverageStart, args.coverageEnd],
+    ),
+  };
+  const client = {
+    getChainId: async () => 5042002,
+    getBlockNumber: async () => head,
+    getBlock: async () => ({ blockNumber, hash: chainHash, timestamp: 1800000001n }),
+    getTransactionReceipt: async () => ({
+      transactionHash: hash,
+      status: reverted ? 'reverted' : 'success',
+      to: pool,
+      from: owner,
+      blockNumber,
+      blockHash,
+      logs: [log],
+    }),
+  } as unknown as ReturnType<typeof procurementClient>;
+  await expect(verifyReceipt(p, hash, client)).rejects.toThrow('awaiting two');
+  head++;
+  reverted = true;
+  await expect(verifyReceipt(p, hash, client)).rejects.toThrow('Successful bind');
+  reverted = false;
+  chainHash = hash;
+  await expect(verifyReceipt(p, hash, client)).rejects.toThrow('no longer canonical');
+  expect(service.store.policy(p.terms.policyId)?.state).toBe('prepared');
+  chainHash = blockHash;
+  await expect(verifyReceipt(p, hash, client)).resolves.toBe(1800000001);
 });

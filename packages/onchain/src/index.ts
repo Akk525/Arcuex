@@ -29,6 +29,7 @@ export {
 } from './ids';
 export { OnchainError } from './errors';
 export {
+  ARC_CONFIRMATION_DEPTH,
   requirePoolAddress,
   readPoolSnapshot,
   readOnchainPolicy,

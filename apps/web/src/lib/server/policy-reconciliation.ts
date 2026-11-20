@@ -9,6 +9,7 @@ import { ProcurementStore, type SqliteDb } from '@arcuex/persistence';
 import { hasProcurementBindAuthority, procurementDigest } from '@arcuex/agent-sdk';
 import { decodePoolLog, insurancePoolAbi, toPolicyIdBytes32 } from '@arcuex/onchain';
 import { procurementClient, procurementPool, verifyBindEvent } from './procurement-chain';
+import { ARC_CONFIRMATION_DEPTH } from './arc-confirmation';
 import { getRuntimeConfig } from './runtime-config';
 
 export const reconciliationScope = `5042002:${procurementPool.toLowerCase()}`;
@@ -122,11 +123,16 @@ export async function reconcilePolicyBinds(
   fromBlock: bigint,
   toBlock: bigint,
   client = procurementClient(),
-  confirmations = 2n,
+  confirmations = ARC_CONFIRMATION_DEPTH,
 ) {
   if (getRuntimeConfig().chainSource === 'fixture')
     throw new Error('Live indexer disabled for fixture source');
-  if (fromBlock < 0n || toBlock < fromBlock || toBlock - fromBlock > 2000n || confirmations < 1n)
+  if (
+    fromBlock < 0n ||
+    toBlock < fromBlock ||
+    toBlock - fromBlock > 2000n ||
+    confirmations < ARC_CONFIRMATION_DEPTH
+  )
     throw new Error('Invalid reconciliation range');
   const store = new ProcurementStore(db);
   const runId = randomUUID();
@@ -140,7 +146,7 @@ export async function reconcilePolicyBinds(
   )();
   try {
     if ((await client.getChainId()) !== 5042002) throw new Error('CHAIN_MISMATCH');
-    const head = await client.getBlockNumber();
+    const head = await client.getBlockNumber({ cacheTime: 0 });
     if (toBlock + confirmations > head) throw new Error('UNCONFIRMED_RANGE');
     const anchor = await client.getBlock({ blockNumber: toBlock });
     if (!anchor.hash) throw new Error('MISSING_BLOCK');
