@@ -18,6 +18,7 @@ const MIGRATIONS = [
   '010_policy_reconciliation.sql',
   '011_claim_verifications.sql',
   '012_claim_investigation.sql',
+  '013_mcp_access_tokens.sql',
 ] as const;
 
 export function migrate(db: SqliteDb, migrationDirectory?: string): void {

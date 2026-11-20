@@ -18,6 +18,7 @@ Arcuex is an early-stage infrastructure project exploring programmable financial
 - Foundry `InsurancePool` (deposit / bind / reserve / authorized settle / restricted withdraw)
 - `@arcuex/onchain` ABIs, canonical ids, tx pipeline, SQLite↔chain reconcile helpers
 - `@arcuex/agent-sdk` quote → inspect → accept → prepare approve/bind (no private keys)
+- Agent MCP server (`/api/mcp`, Streamable HTTP + local stdio) over the existing backend routes — [docs](docs/integrations/mcp.md); hosted acceptance passed on isolated Railway test services only ([report](docs/verification/2026-11-20-mcp-hosted-acceptance.md))
 
 The [testnet lifecycle runner](docs/development/arc-testnet-lifecycle.md) validates explicitly selected steps before execution, skips completed steps, and reports transaction receipts separately from process outcome.
 
@@ -104,6 +105,7 @@ Do not expose the service publicly until those checklists pass.
 - [docs/architecture/decisions/002-policy-agnostic-insurance-core.md](docs/architecture/decisions/002-policy-agnostic-insurance-core.md)
 - [docs/architecture/trust-boundaries.md](docs/architecture/trust-boundaries.md)
 - [docs/integrations/quicknode.md](docs/integrations/quicknode.md)
+- [docs/integrations/mcp.md](docs/integrations/mcp.md)
 - [Premium frontend and backend v1 local acceptance](docs/verification/2026-11-19-premium-backend-v1.md)
 - [AGENTS.md](AGENTS.md)
 
@@ -211,3 +213,15 @@ decision or payment. The OpenAI key belongs only in the separate worker environm
 The [backend readiness report](docs/verification/2026-11-19-backend-live-readiness.md) records the current Arc procurement, independent evidence and reimbursement gates. The [isolated backend runbook](docs/deployments/backend-isolated.md) describes the separate hosted candidate configuration.
 
 The [backend integration contract](docs/integrations/backend-integration-v1.md) specifies staged procurement, controlled settlement authorization, and reorg-aware payment reads. [Synthetic JSON response examples](docs/integrations/backend-integration-v1.json) are available for frontend integration.
+
+### Agent MCP server
+
+`/api/mcp` exposes the policyholder workflows to MCP-compatible agents through the official
+TypeScript SDK. Tools call the existing API route handlers in-process, so backend authorization is
+unchanged. Wallet-signature tokens are scoped and revocable. Underwriting review, renewal and claim
+reconsideration are reported as unsupported because the backend has no such services. See
+[the MCP integration guide](docs/integrations/mcp.md) and the
+[local verification report](docs/verification/2026-11-20-mcp-server.md). The
+[hosted acceptance report](docs/verification/2026-11-20-mcp-hosted-acceptance.md) records real
+remote SDK clients against two isolated, gated Railway test services. Existing staging and Plan A
+were not changed or accepted.

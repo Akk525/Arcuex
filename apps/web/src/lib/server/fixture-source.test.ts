@@ -41,6 +41,13 @@ function fixture() {
   return { db, config, ...seeded };
 }
 describe('pinned fixture source isolation and recovery', () => {
+  it('normalizes a checksummed owner so wallet sessions can see the seeded policy', () => {
+    const db = openDatabase();
+    const checksummed = '0x1129c8790966d953845867e3971B43Ff7FDD1094';
+    const seeded = seedFixture(db, { id, owner: checksummed, at });
+    expect(seeded.snapshot.policy.terms.owner).toBe(checksummed.toLowerCase());
+    expect(() => seedFixture(openDatabase(), { id, owner: '', at })).toThrow(/owner/);
+  });
   it('requires a complete separate hosted identity and keeps HTTPS, gate and secure cookies enforced', () => {
     const hosted = {
       ...environment('/data', 'aa'.repeat(32)),
@@ -62,10 +69,10 @@ describe('pinned fixture source isolation and recovery', () => {
       /RAILWAY_VOLUME_ID/,
     );
   });
-  it('uses thirteen unchanged default migrations; pins provenance and a fixed checkpoint', () => {
+  it('uses the unchanged default migrations plus additive MCP token storage; pins provenance and a fixed checkpoint', () => {
     const f = fixture();
     try {
-      expect(f.db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(14);
+      expect(f.db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(15);
       expect(readFixture(f.db, f.config, at).source).toEqual({
         mode: 'fixture',
         id,
@@ -102,7 +109,7 @@ describe('pinned fixture source isolation and recovery', () => {
         expect(() =>
           probe.prepare("UPDATE launch_runtime_state SET value='changed'").run(),
         ).toThrow(/readonly/);
-        expect(probe.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(14);
+        expect(probe.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(15);
       } finally {
         probe.close();
       }

@@ -39,6 +39,8 @@ credentials into Git, reports, shell arguments or Docker context.
    `011_claim_verifications.sql` (append-only verification records); it has only been applied to
    isolated local/test databases. The competing preserved `011_policy_indexer.sql` is excluded.
    Validate the actual deployed backup against this additive migration before any authorized upgrade.
+   The MCP branch adds additive default migration `013_mcp_access_tokens.sql` (token registry
+   referencing `claims_sessions`); validate it against the deployed backup as well.
    Product registry tables are opt-in and must not be
    initialized in production as a side effect of deploying this source.
 4. After explicit approval, use the documented Docker upload path in
