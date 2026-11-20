@@ -1,47 +1,49 @@
+import { Broadcast, Fingerprint, HandPalm, Tag } from '@phosphor-icons/react/ssr';
+
 const POINTS = [
   {
+    icon: Broadcast,
     title: 'Arc Testnet',
-    body: 'Connectivity and settlement paths target Arc Testnet today. There is no mainnet insurance issuance in this product surface.',
+    body: 'Connectivity and settlement target Arc Testnet (chain 5042002) today. There is no mainnet insurance issuance.',
   },
   {
-    title: 'Injected wallets',
-    body: 'Browser wallets connect through injected providers. Arcuex never collects or transmits private keys or seed phrases.',
+    icon: Fingerprint,
+    title: 'Your wallet, your keys',
+    body: 'Browser wallets connect through injected providers. Arcuex never collects, stores or transmits private keys or seed phrases.',
   },
   {
+    icon: HandPalm,
     title: 'Explicit approval',
-    body: 'On-chain transfers require a user-confirmed wallet approval. Nothing is broadcast from a background click.',
+    body: 'Every on-chain transfer waits for you to confirm it in your wallet. Nothing is broadcast from a background action.',
   },
   {
-    title: 'Truth labels',
-    body: 'Synthetic ledger data is demo underwriting, not a financial-event proof. QuickNode provides RPC infrastructure — RPC usage alone is not a Streams integration claim.',
+    icon: Tag,
+    title: 'Literal labels',
+    body: 'Synthetic underwriting is labeled synthetic and is not proof of a financial event. QuickNode serves RPC reads; that alone is not a Streams integration.',
   },
 ] as const;
 
 export function TrustSection() {
   return (
-    <div className="mx-auto max-w-6xl px-5 sm:px-8">
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:gap-16">
+    <section id="trust" className="marketing-band scroll-mt-16 border-t border-[var(--line)] bg-white">
+      <div className="marketing-wrap grid gap-12 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20">
         <div>
-          <h2 className="marketing-display text-2xl text-[var(--ink)] sm:text-3xl">
-            Trust and infrastructure
-          </h2>
-          <p className="mt-3 max-w-[36ch] text-sm leading-relaxed text-[var(--ink-muted)] sm:text-base">
-            Institutional controls first. Labels stay literal so demo and live paths cannot be
-            confused.
+          <h2 className="section-title max-w-[12ch] text-[var(--ink)]">Built to be checked, not trusted.</h2>
+          <p className="marketing-lede mt-5 max-w-[40ch]">
+            The controls are part of the product. Demo and live paths are always labeled, so
+            nobody mistakes one for the other.
           </p>
         </div>
-        <ul className="grid gap-0 sm:grid-cols-2">
-          {POINTS.map((point) => (
-            <li
-              key={point.title}
-              className="border-t border-[var(--line)] py-5 sm:odd:pr-6 sm:even:border-l sm:even:pl-6"
-            >
-              <h3 className="text-sm font-semibold text-[var(--ink)]">{point.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-[var(--ink-secondary)]">{point.body}</p>
+        <ul className="grid gap-x-10 gap-y-10 sm:grid-cols-2">
+          {POINTS.map(({ icon: Icon, title, body }) => (
+            <li key={title} className="border-t border-[var(--line-strong)] pt-6">
+              <Icon size={22} weight="duotone" className="text-[var(--accent-signal)]" aria-hidden="true" />
+              <h3 className="mt-4 font-display text-[1.0625rem] font-semibold tracking-[-0.015em] text-[var(--ink)]">{title}</h3>
+              <p className="mt-2 text-[0.9375rem] leading-relaxed text-[var(--ink-secondary)]">{body}</p>
             </li>
           ))}
         </ul>
       </div>
-    </div>
+    </section>
   );
 }

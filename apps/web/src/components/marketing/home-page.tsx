@@ -1,52 +1,34 @@
+import { Capabilities } from '@/components/marketing/capabilities';
+import { DeveloperSection } from '@/components/marketing/developer-section';
 import { FinalCta } from '@/components/marketing/final-cta';
-import { HowItWorks } from '@/components/marketing/how-it-works';
+import { MarketingHero } from '@/components/marketing/marketing-hero';
 import { MarketingShell } from '@/components/marketing/marketing-shell';
+import { OversightSection } from '@/components/marketing/oversight-section';
 import { ProductStage } from '@/components/marketing/product-stage';
 import { TrustSection } from '@/components/marketing/trust-section';
-import { ButtonLink } from '@/components/ui/button';
 
 export function HomePage() {
   return (
     <MarketingShell>
-      <main>
-        <section id="hero" className="marketing-section">
-          <div className="mx-auto grid w-full max-w-6xl items-end gap-8 px-5 sm:px-8 lg:grid-cols-[minmax(11rem,16rem)_minmax(0,1fr)] lg:gap-14">
-            <p className="marketing-display text-[clamp(3.25rem,12vw,4.75rem)] text-[var(--ink)]">
-              Arcuex
-            </p>
-            <div className="min-w-0 max-w-[40rem] border-l border-[var(--line-strong)] pl-5 sm:pl-8">
-              <h1 className="marketing-display max-w-full text-[clamp(1.875rem,7.2vw,3.25rem)] text-[var(--ink)]">
-                Insurance infrastructure for autonomous agents.
-              </h1>
-              <p className="mt-5 max-w-[62ch] text-base leading-relaxed text-[var(--ink-secondary)] sm:text-lg">
-                A path from procurement and delegated authority, through evidence-backed claims and
-                human adjudication, to settlement on Arc Testnet.
-              </p>
-              <div className="mt-7 flex flex-wrap gap-3">
-                <ButtonLink href="/coverage">Explore coverage</ButtonLink>
-                <ButtonLink href="/agent" variant="secondary">
-                  Connect an agent
-                </ButtonLink>
-              </div>
-            </div>
-          </div>
-        </section>
+      <main id="main-content">
+        <MarketingHero />
+        <Capabilities />
 
-        <section id="product-stage" className="scroll-mt-24 border-t border-[var(--line)]">
+        <section id="how-it-works" className="scroll-mt-16 border-t border-[var(--line)] bg-white pt-[clamp(4.5rem,10vw,8.5rem)] pb-[clamp(3rem,6vw,5rem)]">
+          <div className="marketing-wrap mb-12 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-end lg:gap-16">
+            <h2 className="section-title max-w-[15ch] text-[var(--ink)]">From quote to settlement, step by step.</h2>
+            <p className="marketing-lede lg:pb-1.5">
+              The same claim follows one path: priced terms, a bound policy, an evidence exchange,
+              a human decision and, only with a confirmed receipt, payment.
+            </p>
+          </div>
           <ProductStage />
         </section>
 
-        <section id="how-it-works" className="marketing-section border-t border-[var(--line)]">
-          <HowItWorks />
-        </section>
-
-        <section id="trust" className="marketing-section border-t border-[var(--line)]">
-          <TrustSection />
-        </section>
-
-        <section id="get-started" className="marketing-section border-t border-[var(--line)]">
-          <FinalCta />
-        </section>
+        <OversightSection />
+        <DeveloperSection />
+        <TrustSection />
+        <FinalCta />
       </main>
     </MarketingShell>
   );

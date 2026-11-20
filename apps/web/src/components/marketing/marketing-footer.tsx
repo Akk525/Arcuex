@@ -1,32 +1,65 @@
 import Link from 'next/link';
+import { MarketingMark } from '@/components/marketing/marketing-mark';
 
-const links = [
-  { href: '/coverage', label: 'Coverage' },
-  { href: '/agent', label: 'Agents' },
-  { href: '/dashboard', label: 'Dashboard' },
+const COLUMNS = [
+  {
+    title: 'Product',
+    links: [
+      { href: '/coverage', label: 'Coverage' },
+      { href: '/policies', label: 'Policies' },
+      { href: '/claims', label: 'Claims' },
+      { href: '/dashboard', label: 'Dashboard' },
+    ],
+  },
+  {
+    title: 'Developers',
+    links: [
+      { href: '/integrations', label: 'Integrations' },
+      { href: '/agent', label: 'Agents' },
+      { href: '/#developers', label: 'SDK' },
+    ],
+  },
+  {
+    title: 'Trust',
+    links: [
+      { href: '/#oversight', label: 'Human oversight' },
+      { href: '/#trust', label: 'Security model' },
+    ],
+  },
 ] as const;
 
 export function MarketingFooter() {
   return (
-    <footer className="border-t border-[var(--line-strong)] bg-[var(--paper)]">
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-10 sm:px-8 md:flex-row md:items-end md:justify-between">
-        <div className="max-w-sm">
-          <p className="text-base font-semibold tracking-tight text-[var(--ink)]">Arcuex</p>
-          <p className="mt-2 text-sm leading-relaxed text-[var(--ink-muted)]">
-            Synthetic underwriting on Arc Testnet. Every on-chain transfer waits for an explicit
-            wallet approval.
+    <footer className="border-t border-[var(--line)] bg-white">
+      <div className="marketing-wrap grid gap-10 py-14 md:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,0.6fr))]">
+        <div className="max-w-xs">
+          <Link href="/" className="inline-flex items-center gap-2 font-display text-[var(--ink)]" aria-label="Arcuex home">
+            <MarketingMark className="h-[22px] w-[22px]" />
+            <span className="text-[13px] font-bold tracking-[0.16em]">ARCUEX</span>
+          </Link>
+          <p className="mt-4 text-sm leading-relaxed text-[var(--ink-muted)]">
+            Insurance infrastructure for autonomous agents. Synthetic underwriting on Arc Testnet;
+            every on-chain transfer waits for your wallet approval.
           </p>
         </div>
-        <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[var(--ink-secondary)]">
-          {links.map((item) => (
-            <li key={item.href}>
-              <Link href={item.href} className="hover:text-[var(--ink)]">
-                {item.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-        <p className="font-mono text-xs text-[var(--ink-muted)]">Arc Testnet, chain 5042002</p>
+        {COLUMNS.map((col) => (
+          <div key={col.title}>
+            <h2 className="text-[0.8125rem] font-semibold text-[var(--ink)]">{col.title}</h2>
+            <ul className="mt-3 grid gap-2">
+              {col.links.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href} className="text-sm text-[var(--ink-muted)] transition-colors hover:text-[var(--accent)]">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <div className="marketing-wrap flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] py-5 text-xs text-[var(--ink-muted)]">
+        <span>Arcuex testnet build. Not a licensed insurance product.</span>
+        <span className="font-mono">Arc Testnet, chain 5042002</span>
       </div>
     </footer>
   );

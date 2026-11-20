@@ -5,7 +5,7 @@ import { MarketingNav } from '@/components/marketing/marketing-nav';
 export function MarketingShell({ children }: { children: ReactNode }) {
   return (
     <div className="marketing-shell">
-      <a href="#hero" className="skip-link">
+      <a href="#main-content" className="skip-link">
         Skip to content
       </a>
       <MarketingNav />

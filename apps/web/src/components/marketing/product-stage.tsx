@@ -3,6 +3,7 @@
 import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { StatusBadge } from '@/components/status-badge';
 import { TruthBadge } from '@/components/ui/truth-badge';
+import { MarketingMark } from '@/components/marketing/marketing-mark';
 import {
   PRODUCT_STAGE_CHAPTERS,
   chapterIndexForProgress,
@@ -50,28 +51,32 @@ export function ProductStage() {
 
   return (
     <>
-      <div className="product-stage-fallback mx-auto w-full max-w-6xl px-5 py-[clamp(3rem,8vw,6rem)] sm:px-8">
+      <div className="product-stage-fallback marketing-wrap">
         <ChapterTabs baseId={baseId} index={index} onSelect={setIndex} />
         <div
           id={`${baseId}-panel`}
           role="tabpanel"
           aria-labelledby={`${baseId}-tab-${active.id}`}
-          className="mt-8 grid gap-8 lg:grid-cols-2 lg:items-start lg:gap-16"
+          className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-center lg:gap-16"
         >
-          <StageFrame>
-            <Vignette kind={active.vignette} />
-          </StageFrame>
+          <div className="product-stage-canvas">
+            <StageFrame chapter={active}>
+              <Vignette kind={active.vignette} />
+            </StageFrame>
+          </div>
           <ChapterCopy chapter={active} index={index} />
         </div>
       </div>
 
       <div className="product-stage-scrub">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-5 py-[clamp(3rem,8vw,6rem)] sm:px-8 lg:hidden">
+        <div className="marketing-wrap flex flex-col gap-14 lg:hidden">
           {PRODUCT_STAGE_CHAPTERS.map((chapter, chapterIndex) => (
             <article key={chapter.id} className="grid gap-6">
-              <StageFrame>
-                <Vignette kind={chapter.vignette} />
-              </StageFrame>
+              <div className="product-stage-canvas">
+                <StageFrame chapter={chapter}>
+                  <Vignette kind={chapter.vignette} />
+                </StageFrame>
+              </div>
               <ChapterCopy chapter={chapter} index={chapterIndex} />
             </article>
           ))}
@@ -79,47 +84,68 @@ export function ProductStage() {
 
         <div
           id="product-stage-scrub"
-          className="mx-auto hidden w-full max-w-6xl px-5 sm:px-8 lg:grid lg:h-[300vh] lg:grid-cols-2 lg:gap-x-16"
+          className="marketing-wrap hidden lg:grid lg:h-[260vh] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-x-16"
         >
           <div>
-            <div className="h-24" aria-hidden />
-            <div className="sticky top-24 self-start">
-              <StageFrame>
-                <div key={active.vignette} className="product-stage-morph">
-                  <Vignette kind={active.vignette} />
-                </div>
-              </StageFrame>
+            <div className="sticky top-[max(5.5rem,calc(50vh-17rem))] self-start">
+              <div className="product-stage-canvas">
+                <StageFrame chapter={active}>
+                  <div key={active.vignette} className="product-stage-morph">
+                    <Vignette kind={active.vignette} />
+                  </div>
+                </StageFrame>
+              </div>
             </div>
           </div>
           <div>
-            <div className="h-24" aria-hidden />
-            <div className="sticky top-24">
-              <ol aria-label="Coverage lifecycle" className="flex max-w-[38rem] flex-col">
+            <div className="sticky top-[max(5.5rem,calc(50vh-13rem))]">
+              <ol aria-label="Coverage lifecycle" className="relative flex max-w-[34rem] flex-col">
+                <span aria-hidden="true" className="absolute top-4 bottom-4 left-[0.9375rem] w-px bg-[var(--line-strong)]" />
+                <span
+                  aria-hidden="true"
+                  className="absolute top-4 left-[0.9375rem] w-px bg-[var(--accent-signal)] transition-[height] duration-300"
+                  style={{ height: `calc((100% - 2rem) * ${index / (chapterCount - 1)})` }}
+                />
                 {PRODUCT_STAGE_CHAPTERS.map((chapter, chapterIndex) => {
                   const shown = chapterIndex === index;
+                  const done = chapterIndex < index;
                   return (
                     <li
                       key={chapter.id}
                       aria-current={shown ? 'step' : undefined}
-                      className={`border-l py-3 pl-5 ${
-                        shown ? 'border-[var(--accent)]' : 'border-[var(--line)]'
-                      }`}
+                      className="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4 py-3"
                     >
-                      <h2
-                        className={`text-lg font-semibold tracking-tight ${
-                          shown ? 'text-[var(--ink)]' : 'text-[var(--ink-muted)]'
+                      <span
+                        className={`relative z-10 grid h-8 w-8 place-items-center rounded-full text-xs font-semibold tabular-nums transition-colors duration-200 ${
+                          shown
+                            ? 'bg-[var(--accent)] text-white ring-4 ring-[var(--accent-soft)]'
+                            : done
+                              ? 'bg-[var(--accent-signal)] text-white'
+                              : 'bg-white text-[var(--ink-muted)] ring-1 ring-[var(--line-strong)]'
                         }`}
                       >
-                        <span className="mr-3 font-mono text-sm tabular text-[var(--ink-muted)]">
-                          {String(chapterIndex + 1).padStart(2, '0')}
-                        </span>
-                        {chapter.title}
-                      </h2>
-                      {shown ? (
-                        <p className="mt-3 max-w-[48ch] text-base leading-relaxed text-[var(--ink-secondary)]">
-                          {chapter.body}
+                        {chapterIndex + 1}
+                      </span>
+                      <div className="pt-1">
+                        <h3
+                          className={`font-display text-xl font-semibold tracking-[-0.02em] transition-colors duration-200 ${
+                            shown ? 'text-[var(--ink)]' : 'text-[var(--ink-faint)]'
+                          }`}
+                        >
+                          {chapter.title}
+                        </h3>
+                        <p
+                          className={`grid transition-[grid-template-rows,opacity] duration-300 ${
+                            shown ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                          }`}
+                        >
+                          <span className="overflow-hidden">
+                            <span className="block max-w-[44ch] pt-2 text-base leading-relaxed text-[var(--ink-secondary)]">
+                              {chapter.body}
+                            </span>
+                          </span>
                         </p>
-                      ) : null}
+                      </div>
                     </li>
                   );
                 })}
@@ -187,9 +213,7 @@ function ChapterTabs({
                 : 'border-transparent text-[var(--ink-secondary)]'
             }`}
           >
-            <span className="font-mono text-xs tabular text-[var(--ink-muted)]">
-              {String(chapterIndex + 1).padStart(2, '0')}
-            </span>
+            <span className="text-xs font-semibold tabular-nums text-[var(--ink-muted)]">{chapterIndex + 1}</span>
             <span className="text-sm font-medium">{chapter.title}</span>
           </button>
         );
@@ -201,31 +225,42 @@ function ChapterTabs({
 function ChapterCopy({ chapter, index }: { chapter: ProductStageChapter; index: number }) {
   return (
     <div>
-      <p className="font-mono text-sm tabular text-[var(--ink-muted)]">
-        {String(index + 1).padStart(2, '0')}
+      <p className="grid h-8 w-8 place-items-center rounded-full bg-[var(--accent)] text-xs font-semibold text-white tabular-nums">
+        {index + 1}
       </p>
-      <h2 className="marketing-display mt-3 text-[clamp(1.75rem,3vw,2.5rem)] text-[var(--ink)]">
+      <h3 className="marketing-display mt-4 text-[clamp(1.5rem,3vw,2rem)] text-[var(--ink)]">
         {chapter.title}
-      </h2>
-      <p className="mt-4 max-w-[48ch] text-base leading-relaxed text-[var(--ink-secondary)] sm:text-lg">
+      </h3>
+      <p className="mt-3 max-w-[48ch] text-base leading-relaxed text-[var(--ink-secondary)] sm:text-lg">
         {chapter.body}
       </p>
     </div>
   );
 }
 
-function StageFrame({ children }: { children: ReactNode }) {
+const STAGE_LOCATION: Record<ProductStageVignette, string> = {
+  procure: 'Protect / Buy coverage',
+  bind: 'Build / Agents',
+  evidence: 'Claims / Investigation',
+  review: 'Ops / Review queue',
+  settlement: 'Claims / Decision',
+};
+
+function StageFrame({ chapter, children }: { chapter: ProductStageChapter; children: ReactNode }) {
   return (
     <div className="product-stage">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-3 sm:px-5">
-        <p className="font-mono text-[0.6875rem] text-[var(--ink-muted)]">AX-DEMO</p>
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] bg-[#fbfcfc] px-4 py-2.5 sm:px-5">
+        <span className="flex min-w-0 items-center gap-2.5">
+          <MarketingMark className="h-4 w-4 shrink-0" />
+          <span className="truncate text-xs text-[var(--ink-muted)]">{STAGE_LOCATION[chapter.vignette]}</span>
+        </span>
         <TruthBadge
-          label="Synthetic demo UI"
+          label="Synthetic demo"
           tone="synthetic"
           title="Illustrative composition. Not a live policy, claim, or payment."
         />
       </div>
-      <div className="px-4 py-4 sm:px-5 sm:py-5">{children}</div>
+      <div className="px-4 py-5 sm:px-6 sm:py-6">{children}</div>
     </div>
   );
 }
@@ -247,7 +282,7 @@ function Vignette({ kind }: { kind: ProductStageVignette }) {
 
 function ProcureVignette() {
   return (
-    <div className="flex min-h-[22rem] flex-col">
+    <div className="flex min-h-[20rem] flex-col">
       <VignetteHeading id="Q-1842" title="Off-chain quote" badge="Priced" tone="pending" />
       <dl className="mt-4">
         <Row label="Product" value="Agent liability" />
@@ -265,7 +300,7 @@ function ProcureVignette() {
 
 function BindVignette() {
   return (
-    <div className="flex min-h-[22rem] flex-col">
+    <div className="flex min-h-[20rem] flex-col">
       <VignetteHeading id="DEL-2201" title="Delegated checkout" badge="Wallet pending" tone="pending" />
       <dl className="mt-4">
         <Row label="Agent" value="ops-07" mono />
@@ -288,7 +323,7 @@ function EvidenceVignette() {
     { id: 'EV-09.3', name: 'Incident disclosure', state: 'Missing', tone: 'warn' as const },
   ];
   return (
-    <div className="flex min-h-[22rem] flex-col">
+    <div className="flex min-h-[20rem] flex-col">
       <VignetteHeading id="CLM-4418" title="Evidence request" badge="Exchange open" tone="pending" />
       <dl className="mt-4">
         <Row label="Asked of" value="agent ops-07" mono />
@@ -314,7 +349,7 @@ function EvidenceVignette() {
 
 function ReviewVignette() {
   return (
-    <div className="flex min-h-[22rem] flex-col">
+    <div className="flex min-h-[20rem] flex-col">
       <VignetteHeading id="CLM-4418" title="Adjudication queue" badge="Awaiting human" tone="pending" />
       <dl className="mt-4">
         <Row label="Reviewer" value="Unassigned" />
@@ -333,7 +368,7 @@ function ReviewVignette() {
 
 function SettlementVignette() {
   return (
-    <div className="flex min-h-[22rem] flex-col">
+    <div className="flex min-h-[20rem] flex-col">
       <VignetteHeading id="CLM-4418" title="Settlement record" badge="Not paid" tone="warn" />
       <dl className="mt-4">
         <Row label="Decision" value="Approved" />
