@@ -200,3 +200,5 @@ action. A shared shell shows the current route and environment across Protect, B
 OpenAI analysis runs in a separate bounded worker and never authenticates evidence or authorizes a
 decision or payment. The OpenAI key belongs only in the separate worker environment. See
 [workflow, authority boundaries and acceptance](docs/claims-investigation.md).
+
+The [backend readiness report](docs/verification/2026-11-19-backend-live-readiness.md) records the current Arc procurement, independent evidence and reimbursement gates. The [isolated backend runbook](docs/deployments/backend-isolated.md) describes the separate hosted candidate configuration.

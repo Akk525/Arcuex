@@ -116,7 +116,7 @@ export function seedFixture(
     db.exec(
       "CREATE TRIGGER fixture_source_no_update BEFORE UPDATE ON candidate_fixture_source BEGIN SELECT RAISE(ABORT,'fixture source immutable'); END; CREATE TRIGGER fixture_source_no_delete BEFORE DELETE ON candidate_fixture_source BEGIN SELECT RAISE(ABORT,'fixture source immutable'); END;",
     );
-    db.prepare('INSERT INTO launch_runtime_state VALUES (?,?)').run(
+    db.prepare('INSERT OR IGNORE INTO launch_runtime_state VALUES (?,?)').run(
       sourceKey,
       `fixture:${input.id}:${digest}`,
     );
@@ -206,6 +206,8 @@ export function assertDatabaseSource(db: SqliteDb, c: RuntimeConfig) {
     throw new Error('Fixture database cannot become live');
   if (!row)
     db.transaction(() =>
-      db.prepare('INSERT INTO launch_runtime_state VALUES (?,?)').run(sourceKey, 'arc-testnet'),
+      db
+        .prepare('INSERT OR IGNORE INTO launch_runtime_state VALUES (?,?)')
+        .run(sourceKey, 'arc-testnet'),
     )();
 }

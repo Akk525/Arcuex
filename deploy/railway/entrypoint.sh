@@ -2,6 +2,11 @@
 # Railway volume bootstrap. Never prints secret values.
 set -euo pipefail
 
+# Docker may invoke this entrypoint before the platform's start command.
+if [[ "${ARCUEX_BACKEND_ISOLATED:-}" == 1 ]]; then
+  bash /app/deploy/backend/start-isolated.sh --check
+fi
+
 DATA_DIR="${ARCUEX_DATA_DIR:-/data}"
 DB_PATH="${ARCUE_X_SQLITE_PATH:-$DATA_DIR/arcuex.sqlite}"
 ID_FILE="$DATA_DIR/.arcuex-volume-id"

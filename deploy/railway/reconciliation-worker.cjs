@@ -13,6 +13,7 @@ const cursor = dir + '/cursor.json', health = dir + '/health.json';
 let state = fs.existsSync(cursor) ? validateState(JSON.parse(fs.readFileSync(cursor, 'utf8')), config) : { version: 1, chainId: 5042002, pool: config.pool, startBlock, confirmations: 2, nextBlock: startBlock, backfillComplete: false, lastSuccessfulAt: 0, consecutiveFailures: 0, healthy: false };
 let stopping = false, child;
 function suspend() {
+  if (!fs.existsSync(process.env.ARCUE_X_SQLITE_PATH)) return; // No persisted eligibility on first boot.
   const Database = require(path.join(root, 'apps/web/node_modules/better-sqlite3'));
   const db = new Database(process.env.ARCUE_X_SQLITE_PATH, { fileMustExist: true, timeout: 5000 });
   try { db.transaction(() => { if (db.prepare("SELECT name FROM sqlite_master WHERE name='policy_reconciliation_scopes'").get()) db.prepare('UPDATE policy_reconciliation_scopes SET healthy=0 WHERE scope=?').run('5042002:' + config.pool); })(); } finally { db.close(); }
@@ -25,7 +26,7 @@ async function rpc(method) {
 }
 function reconcile(range) {
   return new Promise((resolve, reject) => {
-    child = spawn('pnpm', ['--filter', '@arcuex/onchain', 'exec', 'tsx', '../../apps/web/scripts/reconcile-policy-binds.mts', range.from.toString(), range.to.toString()], { cwd: root, env: process.env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    child = spawn('pnpm', ['--filter', '@arcuex/onchain', 'exec', 'node', '--import', 'tsx', '../../apps/web/scripts/reconcile-policy-binds.mts', range.from.toString(), range.to.toString()], { cwd: root, env: process.env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
     let output = ''; child.stdout.on('data', b => { if (output.length < 16000) output += b.toString(); }); child.stderr.resume();
     const timer = setTimeout(() => { try { process.kill(-child.pid, 'SIGKILL'); } catch {} }, 120000);
     child.on('error', () => { clearTimeout(timer); child = null; reject(new Error('Reconciliation process failed')); });
@@ -44,7 +45,7 @@ function reconcile(range) {
         const result = await reconcile(range);
         state = commitSuccess(state, range, head, Math.floor(Date.now() / 1000));
         atomicJson(cursor, state); atomicJson(health, state);
-        console.log(JSON.stringify({ event: 'policy-reconciliation', healthy: true, backfillComplete: state.backfillComplete, nextBlock: state.nextBlock, observed: result.observed, orphaned: result.orphaned }));
+        console.log(JSON.stringify({ event: 'policy-reconciliation', healthy: true, backfillComplete: state.backfillComplete, nextBlock: state.nextBlock, observed: result.observed, orphaned: result.orphaned, orphanedSettlements: result.orphanedSettlements }));
         if (!range.complete) wait = 100;
       }
     } catch {

@@ -41,6 +41,8 @@ export function migrate(db: SqliteDb, migrationDirectory?: string): void {
     if (applied.has(id)) continue;
     const sql = readFileSync(join(migrationDirectory ?? join(here, 'migrations'), id), 'utf8');
     const run = db.transaction(() => {
+      // The web process and worker may initialize the same volume concurrently.
+      if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
       if (
         id === '007_procurement_claims_integration.sql' &&
         (db.pragma('foreign_key_check') as unknown[]).length
@@ -61,7 +63,7 @@ export function migrate(db: SqliteDb, migrationDirectory?: string): void {
     const rebuild = id === '007_procurement_claims_integration.sql';
     if (rebuild) db.pragma('foreign_keys = OFF');
     try {
-      run();
+      run.immediate();
     } finally {
       if (rebuild) db.pragma('foreign_keys = ON');
     }
