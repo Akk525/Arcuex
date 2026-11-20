@@ -41,7 +41,7 @@ import {
 import { reconcileSettlementAnchors } from './settlement-reconciliation';
 import { prepareClaimsTransaction } from './claims-chain';
 import { POST as verifyHttp } from '@/app/api/claims/cases/[id]/verification/route';
-import { POST as mutateHttp } from '@/app/api/claims/cases/[id]/route';
+import { GET as readHttp, POST as mutateHttp } from '@/app/api/claims/cases/[id]/route';
 
 const testClient = vi.hoisted(() => vi.fn());
 vi.mock(import('./procurement-chain'), async (importOriginal) => ({
@@ -624,6 +624,7 @@ it('reconciles exact payments across a SQLite restart and reopens an orphan with
     const pending = await prepared.json();
     expect(prepared.status, JSON.stringify(pending)).toBe(200);
     expect(pending.case.status).toBe('SETTLEMENT_PENDING');
+    expect(pending.preparedTransaction).toBeUndefined();
     expect((await (await post(authorization)).json()).case.settlementPrepId).toBe(
       pending.case.settlementPrepId,
     );
@@ -649,6 +650,11 @@ it('reconciles exact payments across a SQLite restart and reopens an orphan with
     let timestamp = validTimestamp;
     let canonicalHash = paymentBlock;
     let head = 31n;
+    let nonce = 7;
+    let paymentNonce = 8;
+    let changeCaseDuringPreflight = false;
+    let pendingNonce = nonce;
+    let tipTimestamp = BigInt(Math.floor(Date.now() / 1000));
     let includeTransfer = true;
     let settled = false;
     const metadata = {
@@ -683,10 +689,23 @@ it('reconciles exact payments across a SQLite restart and reopens an orphan with
     const client = {
       ...f.reads,
       getBlockNumber: async () => head,
+      call: async () => {
+        if (changeCaseDuringPreflight) {
+          db.prepare('UPDATE claims_cases SET row_version=row_version+1 WHERE id=?').run(
+            approved.id,
+          );
+          changeCaseDuringPreflight = false;
+        }
+        return {};
+      },
+      getTransactionCount: async (input: { blockTag?: string }) =>
+        input.blockTag === 'pending' ? pendingNonce : nonce,
       getBlock: async (input?: { blockNumber?: bigint }) =>
         input?.blockNumber === 30n
           ? { hash: canonicalHash, number: 30n, timestamp }
-          : f.reads.getBlock(input),
+          : input?.blockNumber === undefined || input.blockNumber === head
+            ? { hash, number: head, timestamp: tipTimestamp }
+            : f.reads.getBlock(input),
       getTransactionReceipt: async ({ hash }: { hash: string }) => ({
         ...metadata,
         transactionHash: hash,
@@ -702,11 +721,12 @@ it('reconciles exact payments across a SQLite restart and reopens an orphan with
         from: authority,
         to: procurementPool,
         input: unsigned.data,
+        nonce: hash === revertedHash ? 7 : paymentNonce,
         value: 0n,
       }),
       readContract: async ({ functionName }: { functionName: string }) => {
         if (functionName === 'settledClaims') return settled;
-        if (functionName === 'losses') return [policyId, lossCap, amount, true];
+        if (functionName === 'losses') return [policyId, lossCap, settled ? amount : 0n, settled];
         if (functionName === 'policies') {
           const p = policy.terms;
           return [
@@ -717,8 +737,8 @@ it('reconciles exact payments across a SQLite restart and reopens an orphan with
             BigInt(p.premiumMicros),
             BigInt(p.effectiveAt),
             BigInt(p.expiresAt),
-            0n,
-            amount,
+            settled ? 0n : amount,
+            settled ? amount : 0n,
             true,
             false,
           ];
@@ -727,6 +747,39 @@ it('reconciles exact payments across a SQLite restart and reopens an orphan with
       },
     } as unknown as PublicClient;
     testClient.mockReturnValue(client);
+    const signing = {
+      ...authorization,
+      action: 'authorize_settlement_signing',
+      settlementPrepId: pending.case.settlementPrepId,
+      signerAddress: authority,
+    };
+    expect((await post({ ...signing, signerAddress: owner })).status).toBe(409);
+    tipTimestamp = BigInt(Math.ceil(v.validUntilMs! / 1000));
+    expect((await post(signing)).status).toBe(409);
+    tipTimestamp = BigInt(Math.floor(Date.now() / 1000));
+    pendingNonce++;
+    expect((await post(signing)).status).toBe(409);
+    pendingNonce--;
+    const expiredClock = vi.spyOn(Date, 'now').mockReturnValue(v.validUntilMs!);
+    expect((await post(signing)).status).toBe(409);
+    expiredClock.mockRestore();
+    testClient.mockReturnValue(client);
+    changeCaseDuringPreflight = true;
+    expect((await post(signing)).status).toBe(409);
+    // Both requests reach the signing check; only one can reserve the account and nonce.
+    const signingResponses = await Promise.all([post(signing), post(signing)]);
+    const signingBodies = await Promise.all(
+      signingResponses.map((response) => response.clone().text()),
+    );
+    expect(
+      signingResponses.map((response) => response.status).sort(),
+      signingBodies.join(' '),
+    ).toEqual([200, 409]);
+    const grant = await signingResponses.find((response) => response.ok)!.json();
+    expect(grant).toMatchObject({
+      chainId: 5042002,
+      preparedTransaction: { account: authority, data: unsigned.data, nonce: 7 },
+    });
     const markPaid = { action: 'mark_paid', receiptRef: paymentHash };
     expect((await post(markPaid)).status).toBe(409);
     head = 32n;
@@ -739,6 +792,17 @@ it('reconciles exact payments across a SQLite restart and reopens an orphan with
         .filter((event) => event.reasonCode === 'SETTLEMENT_REVERTED'),
     ).toHaveLength(1);
     expect(repo.sumCommittedForPolicy(approved.policyId, 'another-case')).toBe(amount);
+    const renewed = await (await post(authorization)).json();
+    expect(renewed.case.settlementPrepId).not.toBe(signing.settlementPrepId);
+    nonce = 8;
+    pendingNonce = 8;
+    canonicalHash = bindHash;
+    expect(
+      (await post({ ...signing, settlementPrepId: renewed.case.settlementPrepId })).status,
+    ).toBe(409);
+    canonicalHash = paymentBlock;
+    const retryGrant = await post({ ...signing, settlementPrepId: renewed.case.settlementPrepId });
+    expect(retryGrant.status, await retryGrant.clone().text()).toBe(200);
     settled = true;
     includeTransfer = false;
     expect((await post(markPaid)).status).toBe(409);
@@ -746,6 +810,9 @@ it('reconciles exact payments across a SQLite restart and reopens an orphan with
     timestamp = BigInt(Math.ceil(v.validUntilMs! / 1000));
     expect((await post(markPaid)).status).toBe(409);
     timestamp = validTimestamp;
+    paymentNonce = 9;
+    expect((await post(markPaid)).status).toBe(409);
+    paymentNonce = 8;
     expect((await post(markPaid)).status).toBe(200);
     expect((await post(markPaid)).status).toBe(200);
     expect(
@@ -755,6 +822,18 @@ it('reconciles exact payments across a SQLite restart and reopens an orphan with
     ).toHaveLength(1);
     expect(await reconcileSettlementAnchors(db, client)).toBe(0);
     canonicalHash = bindHash;
+    const projected = await readHttp(
+      new Request(`http://localhost:3000/api/claims/cases/${approved.id}`, {
+        headers: { authorization: `Bearer ${token}` },
+      }),
+      { params: Promise.resolve({ id: approved.id }) },
+    );
+    expect(await projected.json()).toMatchObject({
+      case: { status: 'SETTLEMENT_PENDING' },
+      paymentFinality: 'reorged',
+      confirmedSettlementReceipt: null,
+    });
+    expect(repo.getClaimsCase(approved.id)?.status).toBe('PAID');
     expect(await reconcileSettlementAnchors(db, client)).toBe(1);
     expect(await reconcileSettlementAnchors(db, client)).toBe(0);
     expect(repo.getClaimsCase(approved.id)?.status).toBe('SETTLEMENT_PENDING');

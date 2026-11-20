@@ -218,6 +218,7 @@ describe('shared read APIs', () => {
       {
         caseId,
         state: 'Payment unconfirmed',
+        paymentFinality: 'not_paid',
         receiptRef: null,
         explorerUrl: null,
       },

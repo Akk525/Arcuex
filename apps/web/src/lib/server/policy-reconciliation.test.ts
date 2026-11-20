@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 import { encodeAbiParameters, encodeEventTopics } from 'viem';
 import { requestCoverageQuote } from '@arcuex/insurance';
@@ -9,7 +12,7 @@ import { reconcilePolicyBinds, reconciliationRows } from './policy-reconciliatio
 const owner = `0x${'11'.repeat(20)}` as const;
 const hash = `0x${'ab'.repeat(32)}` as const;
 const tx = `0x${'cd'.repeat(32)}` as const;
-function fixture(omit?: string, partialExposure = false) {
+function fixture(omit?: string, partialExposure = false, path = ':memory:') {
   const db = openDatabase(),
     store = new ProcurementStore(db);
   const now = Math.floor(Date.now() / 1000);
@@ -88,7 +91,7 @@ function fixture(omit?: string, partialExposure = false) {
       false,
     ]),
   };
-  const target = openDatabase();
+  const target = openDatabase(path);
   const records = db.prepare('SELECT * FROM procurement_records').all() as Array<{
     kind: string;
     id: string;
@@ -275,4 +278,59 @@ describe('canonical policy reconciliation', () => {
     expect(() => f.db.prepare("UPDATE procurement_policies SET payload='{}'").run()).toThrow();
     f.db.close();
   });
+});
+
+it('fences two indexer scans and retries a temporary RPC failure across a database reopen', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'arcuex-concurrent-scan-'));
+  const path = join(dir, 'ledger.sqlite');
+  const f = fixture(undefined, false, path);
+  const second = openDatabase(path);
+  try {
+    let start!: () => void;
+    let unblock!: () => void;
+    const started = new Promise<void>((resolve) => {
+      start = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      unblock = resolve;
+    });
+    f.client.getLogs.mockImplementationOnce(async () => {
+      start();
+      await blocked;
+      return [f.log];
+    });
+    const competing = f.run();
+    const rejected = expect(competing).rejects.toThrow('grants no eligibility');
+    await started;
+    const client = f.client as unknown as ReturnType<typeof procurementClient>;
+    try {
+      f.client.getLogs.mockResolvedValueOnce([f.log, f.log]);
+      await reconcilePolicyBinds(second, 10n, 10n, client);
+    } finally {
+      unblock();
+    }
+    await rejected;
+    expect(f.store.claimsEligible(f.p.terms.policyId)).toBe(true);
+    f.client.getLogs.mockRejectedValueOnce(new Error('temporary RPC failure'));
+    await expect(reconcilePolicyBinds(second, 10n, 10n, client)).rejects.toThrow(
+      'grants no eligibility',
+    );
+    expect(f.store.claimsEligible(f.p.terms.policyId)).toBe(false);
+    f.db.close();
+    second.close();
+    const restarted = openDatabase(path);
+    try {
+      const store = new ProcurementStore(restarted);
+      expect(store.claimsEligible(f.p.terms.policyId)).toBe(false);
+      await reconcilePolicyBinds(restarted, 10n, 10n, client);
+      expect(store.claimsEligible(f.p.terms.policyId)).toBe(true);
+      expect(reconciliationRows(restarted)).toHaveLength(1);
+    } finally {
+      restarted.close();
+    }
+  } finally {
+    if (f.db.open) f.db.close();
+    if (second.open) second.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

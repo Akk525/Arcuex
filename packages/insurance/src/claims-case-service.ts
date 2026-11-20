@@ -922,6 +922,7 @@ export function authorizeSettlementPreparation(
     return persistTransition(repo, current, next, actor, 'SETTLEMENT_PREPARED', {
       binding,
       settlementPrepId: input.settlementPrepId,
+      ...(independentPolicy ? { signingProtocol: 1 } : {}),
       notice: current.syntheticDemo
         ? 'SYNTHETIC DEMO settlement prep only — not independently verified real-world loss. No broadcast.'
         : 'Settlement prepared; broadcast requires separate explicit authorization.',
@@ -971,6 +972,7 @@ export function markClaimsCaseSettlementFailed(
     reasonCode: string;
     detail?: string;
     receiptRef?: string;
+    anchor?: { blockNumber: string; blockHash: string };
     expectedVersion?: number;
   },
   principal: ClaimsPrincipal,
@@ -993,6 +995,7 @@ export function markClaimsCaseSettlementFailed(
     return persistTransition(repo, current, next, actor, input.reasonCode, {
       detail: input.detail ?? null,
       receiptRef: input.receiptRef,
+      anchor: input.anchor,
     }).case;
   });
 }

@@ -202,3 +202,5 @@ decision or payment. The OpenAI key belongs only in the separate worker environm
 [workflow, authority boundaries and acceptance](docs/claims-investigation.md).
 
 The [backend readiness report](docs/verification/2026-11-19-backend-live-readiness.md) records the current Arc procurement, independent evidence and reimbursement gates. The [isolated backend runbook](docs/deployments/backend-isolated.md) describes the separate hosted candidate configuration.
+
+The [backend integration contract](docs/integrations/backend-integration-v1.md) specifies staged procurement, controlled settlement authorization, and reorg-aware payment reads. [Synthetic JSON response examples](docs/integrations/backend-integration-v1.json) are available for frontend integration.

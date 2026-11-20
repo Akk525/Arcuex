@@ -20,12 +20,7 @@ import {
 import { sendPreparedTx, type TxResult } from './tx';
 import { connectArcTestnetAdapter, type TestnetAdapterSnapshot } from './testnet-adapter';
 import { decodePoolLogs } from './events';
-import {
-  isClaimSettled,
-  readLossAccounting,
-  readOnchainPolicy,
-  readPoolSnapshot,
-} from './pool-reads';
+import { readPoolSnapshot } from './pool-reads';
 
 export type LifecycleRunnerOptions = {
   manifestPath?: string;
@@ -105,7 +100,6 @@ function resolveRoles(
   wallets: {
     lp: WalletClient | null;
     policyholder: WalletClient | null;
-    claimsAuthority: WalletClient | null;
   };
 } {
   const needsDeployer =
@@ -123,9 +117,6 @@ function resolveRoles(
     selected.has('bind_policy') || selected.has('policyholder_approve')
       ? readPrivateKey(env, 'POLICYHOLDER_PRIVATE_KEY')
       : null;
-  const caPk = selected.has('settle_claim')
-    ? readPrivateKey(env, 'CLAIMS_AUTHORITY_PRIVATE_KEY')
-    : null;
 
   const lpUseDeployer = env.LIFECYCLE_LP_USE_DEPLOYER === '1';
   const policyholderUseDeployer = env.LIFECYCLE_POLICYHOLDER_USE_DEPLOYER === '1';
@@ -138,7 +129,6 @@ function resolveRoles(
   const rpc = adapter.rpcUrl;
   const lpWallet = lpWalletPk ? walletFor(rpc, lpWalletPk) : null;
   const phWallet = phWalletPk ? walletFor(rpc, phWalletPk) : null;
-  const caWallet = caPk ? walletFor(rpc, caPk) : null;
 
   const beneficiary =
     beneficiaryOverride ||
@@ -149,7 +139,7 @@ function resolveRoles(
   const roles: LifecycleRoles = {
     lp: (lpWallet?.account as Account | undefined)?.address ?? null,
     policyholder: (phWallet?.account as Account | undefined)?.address ?? null,
-    claimsAuthority: (caWallet?.account as Account | undefined)?.address ?? adapter.claimsAuthority,
+    claimsAuthority: adapter.claimsAuthority,
     beneficiary: beneficiary ?? null,
     feeRecipient: adapter.feeRecipient,
   };
@@ -159,7 +149,7 @@ function resolveRoles(
     keys: {
       lpKey: Boolean(lpPk),
       policyholderKey: Boolean(phPk),
-      claimsAuthorityKey: Boolean(caPk),
+      claimsAuthorityKey: false,
       lpUseDeployer,
       policyholderUseDeployer,
     },
@@ -167,7 +157,6 @@ function resolveRoles(
     wallets: {
       lp: lpWallet,
       policyholder: phWallet,
-      claimsAuthority: caWallet,
     },
   };
 }
@@ -216,15 +205,16 @@ export async function runTestnetLifecycle(
   }
 
   const walletForStep = (role: string) =>
-    role === 'lp'
-      ? wallets.lp
-      : role === 'policyholder'
-        ? wallets.policyholder
-        : role === 'claimsAuthority'
-          ? wallets.claimsAuthority
-          : null;
+    role === 'lp' ? wallets.lp : role === 'policyholder' ? wallets.policyholder : null;
   // Complete authorization and preparation validation before the first send.
   for (const step of plan.steps.filter((s) => s.selected && s.status !== 'SATISFIED')) {
+    if (step.id === 'settle_claim') {
+      const message = 'settle_claim: use the controlled external settlement authority';
+      step.blockers.push(message);
+      step.status = 'BLOCKED';
+      plan.blockers.push(message);
+      continue;
+    }
     const wallet = walletForStep(step.role);
     if (
       !wallet?.account ||
@@ -270,11 +260,6 @@ export async function runTestnetLifecycle(
       record.reason = decodePoolLogs(receipt.logs)
         .map((d) => d.event.eventName)
         .join(',');
-      if (
-        step.id === 'settle_claim' &&
-        !(await isClaimSettled(client, adapter.pool, plan.claim.claimId))
-      )
-        throw new Error('settledClaims verification failed');
     } catch (error) {
       if (error instanceof OnchainError && error.code === 'TX_REVERTED') record.status = 'reverted';
       // Preserve every known hash even if receipt waiting / post-send reads fail.
@@ -295,19 +280,6 @@ export async function runTestnetLifecycle(
     const mismatches: string[] = [];
     if (pool.usdcBalance < pool.totalAssets) mismatches.push('USDC < totalAssets');
     if (pool.totalAssets < pool.totalReserved) mismatches.push('underfunded');
-
-    const settleDone = executions.some((e) => e.stepId === 'settle_claim' && !e.skipped && e.tx);
-    if (settleDone) {
-      const policy = await readOnchainPolicy(client, adapter.pool, plan.policyId);
-      const loss = await readLossAccounting(client, adapter.pool, plan.claim.lossKey);
-      if (!policy.bound) mismatches.push('policy not bound after lifecycle');
-      if (policy.paidOut < plan.amounts.payoutMicros) {
-        mismatches.push('policy.paidOut < planned payout');
-      }
-      if (!loss.exists || loss.paid < plan.amounts.payoutMicros) {
-        mismatches.push('loss accounting missing or underpaid');
-      }
-    }
 
     return {
       outcome: mismatches.length ? 'runtime_failure' : 'success',

@@ -1,15 +1,19 @@
+import {
+  recordSigningAuthorization,
+  requireSigningAuthorization,
+} from '@/lib/server/settlement-signing';
 import { randomUUID } from 'node:crypto';
 import {
   projectReviewReadiness,
   settlementVerificationBlocker,
 } from '@/lib/server/claims-review-projection';
 import {
-  confirmedClaimReceipt,
+  projectSettlementFinality,
   isFixtureSettlementBlocked,
   recordedSettlement,
 } from '@/lib/server/claims-settlement-projection';
 import { recheckIndependentEvidence } from '@/lib/server/independent-evidence';
-import { assertCanonicalBlock } from '@/lib/server/arc-confirmation';
+import { assertCanonicalBlock, confirmedReceipt } from '@/lib/server/arc-confirmation';
 import { withApiSecurity } from '@/lib/server/api-security';
 import {
   prepareClaimsTransaction,
@@ -22,6 +26,7 @@ import type { AdjudicateInput } from '@arcuex/insurance';
 import { parseUsdcDecimal } from '@arcuex/domain';
 import {
   adjudicateClaimsCase,
+  claimsActorId,
   CLAIM_FIXTURE,
   listClaimVerifications,
   canAccessClaimsPolicy,
@@ -58,6 +63,7 @@ async function GETHandler(request: Request, ctx: Ctx) {
   const manifests = repo.listEvidenceManifests(id);
   const verifications = listClaimVerifications(repo, id, auth.principal);
   const chainSource = getRuntimeConfig().chainSource;
+  const payment = await projectSettlementFinality(getDb(), chainSource, c);
   return NextResponse.json({
     dataClass: 'claims_case',
     source:
@@ -67,8 +73,12 @@ async function GETHandler(request: Request, ctx: Ctx) {
     ...(c.syntheticDemo ? { fixtureCatalog: CLAIM_FIXTURE } : {}),
     linkedIncident: c.incidentId ? repo.getIncident(c.incidentId) : null,
     principalRole: auth.principal.role,
-    case: serializeClaimsCase(c),
-    confirmedSettlementReceipt: confirmedClaimReceipt(getDb(), chainSource, c),
+    case: serializeClaimsCase(
+      c.status === 'PAID' && !payment.confirmedSettlementReceipt
+        ? { ...c, status: 'SETTLEMENT_PENDING' }
+        : c,
+    ),
+    ...payment,
     timeline,
     evidenceManifests: manifests,
     verifications,
@@ -118,6 +128,8 @@ async function POSTHandler(request: Request, ctx: Ctx) {
     confirmedAmountUsdc?: string;
     confirmedLossKey?: string;
     confirmedEvidenceRoot?: string;
+    settlementPrepId?: string;
+    signerAddress?: string;
     receiptRef?: string;
     reasonCode?: string;
     detail?: string;
@@ -200,7 +212,8 @@ async function POSTHandler(request: Request, ctx: Ctx) {
       return NextResponse.json({ dataClass: 'claims_case', case: serializeClaimsCase(next) });
     }
 
-    if (body.action === 'prepare_settlement') {
+    if (body.action === 'prepare_settlement' || body.action === 'authorize_settlement_signing') {
+      const signing = body.action === 'authorize_settlement_signing';
       const auth = authenticateClaimsRequest(request, ['authority']);
       if (!auth.ok) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -230,7 +243,7 @@ async function POSTHandler(request: Request, ctx: Ctx) {
       const current = getClaimsCase(repo, id);
       if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       if (
-        getRuntimeConfig().enforced &&
+        (getRuntimeConfig().enforced || signing) &&
         (isFixtureSettlementBlocked(getRuntimeConfig().chainSource, current) ||
           repo.getProcurementPolicy(current.policyId)?.terms.synthetic !== false)
       )
@@ -238,22 +251,28 @@ async function POSTHandler(request: Request, ctx: Ctx) {
           { error: 'An independently verified Arc policy is required' },
           { status: 409 },
         );
+      if (
+        signing &&
+        (current.status !== 'SETTLEMENT_PENDING' ||
+          !current.settlementPrepId ||
+          current.settlementPrepId !== body.settlementPrepId ||
+          !/^0x[0-9a-fA-F]{40}$/.test(body.signerAddress ?? ''))
+      )
+        return NextResponse.json(
+          { error: 'Current pending preparation and signer address required' },
+          { status: 409 },
+        );
+      const policy = repo.getProcurementPolicy(current.policyId);
       let preparedTransaction;
       let signBefore: string | undefined;
-      if (
-        !current.syntheticDemo &&
-        repo.getProcurementPolicy(current.policyId)?.terms.synthetic === false
-      ) {
+      let verificationId: string | undefined;
+      if (!current.syntheticDemo && policy?.terms.synthetic === false) {
         try {
           const binding = JSON.parse(current.adjudicationBindingJson ?? '{}') as {
             verificationId?: string;
           };
-          const verification = await recheckIndependentEvidence(
-            repo,
-            current,
-            binding.verificationId,
-          );
-          const policy = repo.getProcurementPolicy(current.policyId)!;
+          verificationId = binding.verificationId;
+          const verification = await recheckIndependentEvidence(repo, current, verificationId);
           signBefore = new Date(
             Math.min(verification.validUntilMs!, policy.terms.expiresAt * 1000),
           ).toISOString();
@@ -264,12 +283,35 @@ async function POSTHandler(request: Request, ctx: Ctx) {
           );
         }
       }
-      if (repo.getProcurementPolicy(current.policyId)) {
+      if (policy) {
         try {
-          const policy = repo.getProcurementPolicy(current.policyId)!;
-          const chain = await reconcile(policy, procurementClient());
+          const client = procurementClient();
+          if (signing) {
+            const previous = getDb()
+              .prepare(
+                `SELECT payload_json FROM claims_case_events WHERE case_id=? AND reason_code='SETTLEMENT_REVERTED'
+                ORDER BY rowid DESC LIMIT 1`,
+              )
+              .get(id) as { payload_json: string } | undefined;
+            if (previous) {
+              const { receiptRef, anchor } = JSON.parse(previous.payload_json);
+              const { receipt } = await confirmedReceipt(client, txHash(receiptRef));
+              if (
+                receipt.status !== 'reverted' ||
+                receipt.blockHash !== anchor?.blockHash ||
+                receipt.blockNumber.toString() !== anchor?.blockNumber
+              )
+                throw new Error('Earlier settlement failure is no longer canonical');
+            }
+          }
+          const chain = await reconcile(policy, client);
           if (!chain.matches) throw new Error();
-          preparedTransaction = await prepareClaimsTransaction(current);
+          preparedTransaction = await prepareClaimsTransaction(
+            current,
+            client,
+            signing ? Date.parse(signBefore!) : undefined,
+          );
+          if (signing) await recheckIndependentEvidence(repo, current, verificationId, client);
         } catch {
           return NextResponse.json(
             {
@@ -280,25 +322,61 @@ async function POSTHandler(request: Request, ctx: Ctx) {
           );
         }
       }
-      const next = authorizeSettlementPreparation(
-        repo,
-        {
-          caseId: id,
-          confirmedRecipient: body.confirmedRecipient,
-          confirmedAmountMicros: parseUsdcDecimal(body.confirmedAmountUsdc),
-          confirmedLossKey: body.confirmedLossKey,
-          confirmedEvidenceRoot: body.confirmedEvidenceRoot,
-          settlementPrepId: randomUUID(),
-          expectedVersion: current.rowVersion,
-        },
-        auth.principal,
-      );
+      const validatePreparation = () =>
+        authorizeSettlementPreparation(
+          repo,
+          {
+            caseId: id,
+            confirmedRecipient: body.confirmedRecipient!,
+            confirmedAmountMicros: parseUsdcDecimal(body.confirmedAmountUsdc!),
+            confirmedLossKey: body.confirmedLossKey!,
+            confirmedEvidenceRoot: body.confirmedEvidenceRoot!,
+            settlementPrepId: randomUUID(),
+            expectedVersion: current.rowVersion,
+          },
+          auth.principal,
+        );
+      if (signing) {
+        try {
+          if (
+            !preparedTransaction ||
+            preparedTransaction.nonce === undefined ||
+            !signBefore ||
+            preparedTransaction.account.toLowerCase() !== body.signerAddress?.toLowerCase()
+          )
+            throw new Error('Signer must match current Arc claims authority');
+          const signingAuthorization = recordSigningAuthorization(
+            getDb(),
+            current.settlementPrepId!,
+            preparedTransaction.account,
+            preparedTransaction.nonce,
+            signBefore,
+            claimsActorId(auth.principal),
+            validatePreparation,
+          );
+          return NextResponse.json({
+            dataClass: 'claims_case',
+            case: serializeClaimsCase(current),
+            chainId: 5042002,
+            preparedTransaction,
+            signBefore,
+            signingAuthorization,
+          });
+        } catch {
+          return NextResponse.json(
+            {
+              error:
+                'Signing refused: authority, deadline, source records or receipt state could not be verified',
+            },
+            { status: 409 },
+          );
+        }
+      }
       return NextResponse.json({
         dataClass: 'claims_case',
-        case: serializeClaimsCase(next),
-        preparedTransaction,
+        case: serializeClaimsCase(validatePreparation()),
         signBefore,
-        notice: 'Settlement prepared only. No on-chain broadcast from this endpoint.',
+        notice: 'Settlement prepared. The authority must request fresh signing authorization.',
       });
     }
 
@@ -342,6 +420,14 @@ async function POSTHandler(request: Request, ctx: Ctx) {
           });
         }
         assertAttemptAfterPreparation(current.settlementPrepId, id, proof.timestamp);
+        requireSigningAuthorization(
+          getDb(),
+          current,
+          proof.account,
+          proof.nonce,
+          proof.timestamp,
+          true,
+        );
         const { verificationId } = JSON.parse(current.adjudicationBindingJson ?? '{}') as {
           verificationId?: string;
         };
@@ -378,7 +464,11 @@ async function POSTHandler(request: Request, ctx: Ctx) {
       if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       try {
         const hash = txHash(body.receiptRef);
-        const timestamp = await verifyFailedSettlement(current, hash);
+        const { timestamp, account, nonce, blockNumber, blockHash } = await verifyFailedSettlement(
+          current,
+          hash,
+        );
+        requireSigningAuthorization(getDb(), current, account, nonce, timestamp, false);
         if (current.status === 'SETTLEMENT_FAILED') {
           const previous = getDb()
             .prepare(
@@ -399,6 +489,7 @@ async function POSTHandler(request: Request, ctx: Ctx) {
             caseId: id,
             reasonCode: 'SETTLEMENT_REVERTED',
             receiptRef: hash,
+            anchor: { blockNumber, blockHash },
             expectedVersion: current.rowVersion,
           },
           auth.principal,

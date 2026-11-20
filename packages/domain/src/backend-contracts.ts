@@ -46,6 +46,7 @@ export type PolicyLifecycle = {
   settlements: Array<{
     caseId: string;
     state: string;
+    paymentFinality?: 'not_paid' | 'unverified' | 'confirmed' | 'reorged';
     receiptRef: string | null;
     explorerUrl: string | null;
   }>;

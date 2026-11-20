@@ -8,6 +8,7 @@ import {
   type Transport,
   type WalletClient,
   encodeFunctionData,
+  toFunctionSelector,
   erc20Abi,
 } from 'viem';
 import { ARC_MIN_MAX_FEE_PER_GAS } from '@arcuex/chain';
@@ -184,5 +185,15 @@ export async function sendPreparedTx(
   prepared: PreparedTx,
   onBroadcast?: (hash: Hash) => void,
 ): Promise<TxResult> {
+  if (
+    prepared.data.slice(0, 10).toLowerCase() ===
+    toFunctionSelector(
+      insurancePoolAbi.find((entry) => entry.type === 'function' && entry.name === 'settleClaim')!,
+    )
+  )
+    throw new OnchainError(
+      'VALIDATION',
+      'Settlement submission belongs to the controlled external authority',
+    );
   return sendPrepared(publicClient, walletClient, prepared, onBroadcast);
 }

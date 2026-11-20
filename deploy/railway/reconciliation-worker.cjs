@@ -4,17 +4,19 @@
 const fs = require('node:fs'), path = require('node:path'), { spawn } = require('node:child_process');
 const { validateState, planRange, commitSuccess, atomicJson } = require('./reconciliation-state.cjs');
 const root = path.resolve(__dirname, '../..');
+const Database = require(path.join(root, 'apps/web/node_modules/better-sqlite3'));
+const { acquireIndexerLock } = require('./reconciliation-lock.cjs');
 const manifest = require('../../docs/deployments/arc-testnet-insurance-pool.json');
 const startBlock = process.env.ARCUEX_RECONCILIATION_START_BLOCK;
 if (process.env.ARCUEX_CHAIN_ID !== '5042002' || !/^\d+$/.test(startBlock || '') || process.env.ARCUE_X_POOL_ADDRESS?.toLowerCase() !== manifest.insurancePool.toLowerCase() || !process.env.ARCUE_X_SQLITE_PATH?.startsWith('/data/')) throw new Error('Invalid operational indexer configuration');
 const config = { pool: manifest.insurancePool.toLowerCase(), startBlock };
 const dir = '/data/reconciliation'; fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+const releaseIndexerLock = acquireIndexerLock(Database, dir + '/worker-lock.sqlite');
 const cursor = dir + '/cursor.json', health = dir + '/health.json';
 let state = fs.existsSync(cursor) ? validateState(JSON.parse(fs.readFileSync(cursor, 'utf8')), config) : { version: 1, chainId: 5042002, pool: config.pool, startBlock, confirmations: 2, nextBlock: startBlock, backfillComplete: false, lastSuccessfulAt: 0, consecutiveFailures: 0, healthy: false };
 let stopping = false, child;
 function suspend() {
   if (!fs.existsSync(process.env.ARCUE_X_SQLITE_PATH)) return; // No persisted eligibility on first boot.
-  const Database = require(path.join(root, 'apps/web/node_modules/better-sqlite3'));
   const db = new Database(process.env.ARCUE_X_SQLITE_PATH, { fileMustExist: true, timeout: 5000 });
   try { db.transaction(() => { if (db.prepare("SELECT name FROM sqlite_master WHERE name='policy_reconciliation_scopes'").get()) db.prepare('UPDATE policy_reconciliation_scopes SET healthy=0 WHERE scope=?').run('5042002:' + config.pool); })(); } finally { db.close(); }
 }
@@ -57,4 +59,5 @@ function reconcile(range) {
     for (let elapsed = 0; elapsed < wait && !stopping; elapsed += 500) await new Promise(r => setTimeout(r, Math.min(500, wait - elapsed)));
   }
   suspend();
+  releaseIndexerLock();
 })().catch(() => { try { suspend(); } catch {} console.error('policy-reconciliation: worker stopped; eligibility suspended'); process.exit(1); });

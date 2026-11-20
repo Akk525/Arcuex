@@ -176,7 +176,7 @@ describe('fixture API source and financial boundaries', () => {
         c,
       )?.status,
     ).toBe(401);
-    const response = readPolicies(
+    const response = await readPolicies(
       new Request('http://localhost/api/policies', {
         headers: { cookie: 'arcuex_claims_sid=foreign-environment-session' },
       }),

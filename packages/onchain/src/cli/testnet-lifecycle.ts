@@ -41,7 +41,7 @@ function parseArgs(argv: string[]) {
 function printHelp() {
   console.log(`Arcuex Arc Testnet lifecycle
 
-Default is dry-run (no broadcasts).
+Default is dry-run (no broadcasts). Live settlement is disabled in this CLI.
 
   pnpm --filter @arcuex/onchain lifecycle:preflight
   pnpm --filter @arcuex/onchain lifecycle:preflight -- --mode=live --confirm=lp_approve
@@ -52,7 +52,6 @@ Env (never commit):
   DEPLOYER_PRIVATE_KEY (optional; only if LIFECYCLE_*_USE_DEPLOYER=1)
   LP_PRIVATE_KEY / LIFECYCLE_LP_USE_DEPLOYER=1
   POLICYHOLDER_PRIVATE_KEY / LIFECYCLE_POLICYHOLDER_USE_DEPLOYER=1
-  CLAIMS_AUTHORITY_PRIVATE_KEY (must match on-chain claimsAuthority)
   BENEFICIARY_ADDRESS
   CLAIMS_AUTHORITY / FEE_RECIPIENT (address cross-checks)
 `);

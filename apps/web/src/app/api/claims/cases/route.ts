@@ -1,5 +1,5 @@
 import { projectClaimTriage, workbenchStatuses } from '@/lib/server/claims-review-projection';
-import { confirmedClaimReceipt } from '@/lib/server/claims-settlement-projection';
+import { projectSettlementFinality } from '@/lib/server/claims-settlement-projection';
 import { getRuntimeConfig } from '@/lib/server/runtime-config';
 import { withApiSecurity } from '@/lib/server/api-security';
 import {
@@ -35,20 +35,27 @@ async function GETHandler(request: Request) {
   const repo = getRepo();
   const chainSource = getRuntimeConfig().chainSource;
   const db = getDb();
-  const cases = listClaimsCases(repo, { limit: 500, status })
-    .filter((c) => canAccessClaimsPolicy(repo, auth.principal, c.policyId))
+  const visible = listClaimsCases(repo, { limit: 500, status })
+    .filter((claim) => canAccessClaimsPolicy(repo, auth.principal, claim.policyId))
     .filter((claim) => !workbench || workbenchStatuses.has(claim.status))
-    .slice(0, 50)
-    .map((claim) => ({
-      ...serializeClaimsCase(claim),
-      ...(workbench
-        ? {
-            triage: projectClaimTriage(repo, claim, auth.principal.role, chainSource === 'fixture'),
-          }
-        : {}),
-      confirmedSettlementReceipt: confirmedClaimReceipt(db, chainSource, claim),
-    }))
-    .filter((claim) => status !== 'PAID' || claim.confirmedSettlementReceipt);
+    .slice(0, 50);
+  const projected = await Promise.all(
+    visible.map(async (claim) => {
+      const payment = await projectSettlementFinality(db, chainSource, claim);
+      const current =
+        claim.status === 'PAID' && !payment.confirmedSettlementReceipt
+          ? { ...claim, status: 'SETTLEMENT_PENDING' as const }
+          : claim;
+      return {
+        ...serializeClaimsCase(current),
+        ...(workbench && {
+          triage: projectClaimTriage(repo, current, auth.principal.role, chainSource === 'fixture'),
+        }),
+        ...payment,
+      };
+    }),
+  );
+  const cases = projected.filter((claim) => status !== 'PAID' || claim.confirmedSettlementReceipt);
   return NextResponse.json({
     dataClass: 'claims_case',
     notice:

@@ -18,3 +18,5 @@ Use the existing SQLite backup script to create a consistent snapshot and checks
 The off-chain ledger and evidence records are held in the candidate volume. The independent parties must retain the replay and accounting artifacts referenced by signed digests. The evidence verifier records those digests, signatures and extracted facts. Artifact retrieval and retention from an external source require an appointed operator and provider.
 
 See the [backend readiness report](../verification/2026-11-19-backend-live-readiness.md) for the deployment gate and frontend contract.
+
+The integration candidate records signing authorizations in the existing case event journal. The indexer uses a separate SQLite cursor lock under `/data/reconciliation`. Preserve the journal during recovery and reconcile the external authority's outstanding nonces before lifting a recovery hold. See the [integration handoff](../integrations/backend-integration-v1.md).

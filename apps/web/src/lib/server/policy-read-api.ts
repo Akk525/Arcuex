@@ -1,4 +1,4 @@
-import { confirmedClaimReceipt } from './claims-settlement-projection';
+import { projectSettlementFinality } from './claims-settlement-projection';
 import { NextResponse } from 'next/server';
 import { explorerTxUrl } from '@arcuex/chain';
 import { sameIndependentLiquidationProfile, type PolicyLifecycle } from '@arcuex/domain';
@@ -17,7 +17,7 @@ import { procurementPool } from './procurement-chain';
 import { getRuntimeConfig } from './runtime-config';
 import { readFixture } from './fixture-source';
 const headers = { 'Cache-Control': 'no-store', Vary: 'Cookie, Authorization' };
-export function readPolicies(request: Request, policyId?: string) {
+export async function readPolicies(request: Request, policyId?: string) {
   const auth = authenticateClaimsRequest(request, ['claimant', 'reviewer', 'authority', 'system']);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status, headers });
   const db = getDb(),
@@ -91,7 +91,7 @@ export function readPolicies(request: Request, policyId?: string) {
     id: string;
     status: string;
     synthetic_demo: number;
-    evidence_authenticity: Parameters<typeof confirmedClaimReceipt>[2]['evidenceAuthenticity'];
+    evidence_authenticity: Parameters<typeof projectSettlementFinality>[2]['evidenceAuthenticity'];
   }>;
   const body: PolicyLifecycle = {
     version: 1,
@@ -135,20 +135,24 @@ export function readPolicies(request: Request, policyId?: string) {
             logIndex: evidence.logIndex,
           }
         : null,
-    settlements: settlements.map((s) => {
-      const receiptRef = confirmedClaimReceipt(db, config.chainSource, {
-        id: s.id,
-        status: s.status as Parameters<typeof confirmedClaimReceipt>[2]['status'],
-        syntheticDemo: s.synthetic_demo === 1,
-        evidenceAuthenticity: s.evidence_authenticity,
-      });
-      return {
-        caseId: s.id,
-        state: s.status === 'PAID' && !receiptRef ? 'Payment unconfirmed' : s.status,
-        receiptRef,
-        explorerUrl: receiptRef ? explorerTxUrl(receiptRef as `0x${string}`) : null,
-      };
-    }),
+    settlements: await Promise.all(
+      settlements.map(async (s) => {
+        const { confirmedSettlementReceipt: receiptRef, paymentFinality } =
+          await projectSettlementFinality(db, config.chainSource, {
+            id: s.id,
+            status: s.status as Parameters<typeof projectSettlementFinality>[2]['status'],
+            syntheticDemo: s.synthetic_demo === 1,
+            evidenceAuthenticity: s.evidence_authenticity,
+          });
+        return {
+          caseId: s.id,
+          state: s.status === 'PAID' && !receiptRef ? 'Payment unconfirmed' : s.status,
+          receiptRef,
+          paymentFinality,
+          explorerUrl: receiptRef ? explorerTxUrl(receiptRef as `0x${string}`) : null,
+        };
+      }),
+    ),
     notice: fixture
       ? 'SYNTHETIC FIXTURE: policy, reservation and checkpoint are rehearsal data, not Arc confirmations. No live financial operations.'
       : policy.terms.synthetic

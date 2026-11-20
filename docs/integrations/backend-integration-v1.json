@@ -1,0 +1,252 @@
+{
+  "version": 1,
+  "chainId": 5042002,
+  "descendantBlocksRequired": 2,
+  "exampleData": "SYNTHETIC EXAMPLES ONLY. Addresses, hashes and identities are placeholders and confer no authorization. Response projections are partial and signing calldata is omitted.",
+  "states": {
+    "productPaymentMode": ["fixture_offline", "arc_testnet_preflight_required"],
+    "quoteCapacity": ["offline", "verified", "unavailable", "insufficient"],
+    "paymentStage": ["approve", "bind"],
+    "policy": ["prepared", "reconciliation_pending", "confirmed", "expired", "fixture_ready"],
+    "policyLink": ["VERIFIED_LINKED", "ONCHAIN_UNLINKED", "INCOMPLETE", "ORPHANED"],
+    "delegation": ["active", "expired", "revoked", "unavailable"],
+    "decision": ["unknown", "covered", "not_covered", "review_required"],
+    "paymentFinality": ["not_paid", "unverified", "confirmed", "reorged"]
+  },
+  "signingAuthorization": {
+    "path": "/api/claims/cases/{id}",
+    "method": "POST",
+    "action": "authorize_settlement_signing",
+    "role": "authority",
+    "requestExample": {
+      "action": "authorize_settlement_signing",
+      "settlementPrepId": "55555555-5555-4555-8555-555555555555",
+      "signerAddress": "0x2222222222222222222222222222222222222222",
+      "confirmedRecipient": "0x1111111111111111111111111111111111111111",
+      "confirmedAmountUsdc": "1",
+      "confirmedLossKey": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "confirmedEvidenceRoot": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    "requiredPreparedTransactionFields": ["account", "nonce", "to", "data"],
+    "nativeValue": "0",
+    "deadline": "exclusive ISO-8601 UTC, validate before signing and submission",
+    "retry": "Existing authorization holds its account and nonce until its receipt is resolved. A canonical confirmed revert requires fresh preparation."
+  },
+  "examples": {
+    "catalogFixture": {
+      "method": "GET",
+      "path": "/api/procurement/products",
+      "status": 200,
+      "responseProjection": {
+        "chainId": 5042002,
+        "pool": "0x3333333333333333333333333333333333333333",
+        "paymentMode": "fixture_offline",
+        "products": [
+          {
+            "code": "ARC_ORACLE_LIQUIDATION_DEMO_V1",
+            "version": 1,
+            "synthetic": true
+          }
+        ]
+      }
+    },
+    "quote": {
+      "method": "POST",
+      "path": "/api/procurement/quotes",
+      "status": 200,
+      "responseProjection": {
+        "terms": {
+          "quoteId": "11111111-1111-4111-8111-111111111111",
+          "policyId": "22222222-2222-4222-8222-222222222222",
+          "version": 1,
+          "productCode": "ARC_ORACLE_LIQUIDATION_INDEPENDENT_V1",
+          "synthetic": false,
+          "limitMicros": "1000000",
+          "premiumMicros": "10000",
+          "quoteExpiresAt": 1794456600
+        },
+        "digest": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "capacityStatus": "verified"
+      }
+    },
+    "accept": {
+      "method": "POST",
+      "path": "/api/procurement/accept",
+      "status": 200,
+      "responseProjection": {
+        "state": "accepted_offchain",
+        "policy": {
+          "terms": {
+            "policyId": "22222222-2222-4222-8222-222222222222"
+          },
+          "digest": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "state": "prepared",
+          "payer": "0x1111111111111111111111111111111111111111",
+          "bindTx": null
+        }
+      }
+    },
+    "paymentAlreadyConfirmed": {
+      "method": "POST",
+      "path": "/api/procurement/payment",
+      "status": 200,
+      "responseProjection": {
+        "policy": {
+          "terms": {
+            "policyId": "22222222-2222-4222-8222-222222222222"
+          },
+          "state": "confirmed"
+        },
+        "transaction": null,
+        "stage": "bind",
+        "chainId": 5042002
+      }
+    },
+    "fixturePaymentBlocked": {
+      "method": "POST",
+      "path": "/api/procurement/payment",
+      "status": 400,
+      "responseProjection": {
+        "code": "FIXTURE_FINANCIAL_DISABLED",
+        "error": "Financial preparation and receipt confirmation disabled in fixture mode"
+      }
+    },
+    "activePolicy": {
+      "method": "GET",
+      "path": "/api/policies/{policyId}/lifecycle",
+      "status": 200,
+      "responseProjection": {
+        "policyId": "22222222-2222-4222-8222-222222222222",
+        "state": "confirmed",
+        "claimsEligible": true,
+        "completeness": "VERIFIED_LINKED",
+        "confirmation": {
+          "transactionHash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "blockNumber": "100",
+          "logIndex": 0
+        }
+      }
+    },
+    "delegation": {
+      "method": "POST",
+      "path": "/api/procurement/authority",
+      "status": 200,
+      "responseProjection": {
+        "validity": "active",
+        "enforcement": "backend-only",
+        "reservedPremiumMicros": "10000",
+        "remainingPremiumMicros": "50000",
+        "revoked": false,
+        "expired": false,
+        "limitation": null
+      }
+    },
+    "verification": {
+      "method": "POST",
+      "path": "/api/claims/cases/{id}/verification",
+      "status": 200,
+      "responseProjection": {
+        "dataClass": "independent_liquidation_verification",
+        "verification": {
+          "id": "44444444-4444-4444-8444-444444444444",
+          "caseId": "33333333-3333-4333-8333-333333333333",
+          "executionStatus": "completed",
+          "evidenceSufficiency": "sufficient",
+          "authenticity": "verified_independent",
+          "validUntilMs": 1795153200000
+        }
+      }
+    },
+    "humanApproval": {
+      "method": "POST",
+      "path": "/api/claims/cases/{id}",
+      "action": "adjudicate",
+      "status": 200,
+      "responseProjection": {
+        "dataClass": "claims_case",
+        "case": {
+          "id": "33333333-3333-4333-8333-333333333333",
+          "policyId": "22222222-2222-4222-8222-222222222222",
+          "status": "APPROVED",
+          "coverageDetermination": "covered",
+          "payable": {
+            "micros": "1000000",
+            "usdc": "1"
+          }
+        }
+      }
+    },
+    "prepareSettlement": {
+      "method": "POST",
+      "path": "/api/claims/cases/{id}",
+      "action": "prepare_settlement",
+      "status": 200,
+      "responseProjection": {
+        "dataClass": "claims_case",
+        "case": {
+          "id": "33333333-3333-4333-8333-333333333333",
+          "policyId": "22222222-2222-4222-8222-222222222222",
+          "status": "SETTLEMENT_PENDING",
+          "settlementPrepId": "55555555-5555-4555-8555-555555555555"
+        },
+        "signBefore": "2026-11-20T05:40:00.000Z"
+      }
+    },
+    "oneTimeSigningAuthorization": {
+      "method": "POST",
+      "path": "/api/claims/cases/{id}",
+      "action": "authorize_settlement_signing",
+      "status": 200,
+      "responseProjection": {
+        "dataClass": "claims_case",
+        "case": {
+          "id": "33333333-3333-4333-8333-333333333333",
+          "settlementPrepId": "55555555-5555-4555-8555-555555555555",
+          "status": "SETTLEMENT_PENDING"
+        },
+        "chainId": 5042002,
+        "preparedTransaction": {
+          "account": "0x2222222222222222222222222222222222222222",
+          "nonce": 7,
+          "to": "0x3333333333333333333333333333333333333333"
+        },
+        "signBefore": "2026-11-20T05:40:00.000Z",
+        "signingAuthorization": {
+          "settlementPrepId": "55555555-5555-4555-8555-555555555555",
+          "account": "0x2222222222222222222222222222222222222222",
+          "nonce": 7,
+          "authorizedAt": "2026-11-20T05:39:00.000Z",
+          "signBefore": "2026-11-20T05:40:00.000Z"
+        }
+      }
+    },
+    "confirmedPayment": {
+      "method": "GET",
+      "path": "/api/claims/cases/{id}",
+      "status": 200,
+      "responseProjection": {
+        "case": {
+          "id": "33333333-3333-4333-8333-333333333333",
+          "policyId": "22222222-2222-4222-8222-222222222222",
+          "status": "PAID"
+        },
+        "paymentFinality": "confirmed",
+        "confirmedSettlementReceipt": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    },
+    "reorgedPayment": {
+      "method": "GET",
+      "path": "/api/claims/cases/{id}",
+      "status": 200,
+      "responseProjection": {
+        "case": {
+          "id": "33333333-3333-4333-8333-333333333333",
+          "policyId": "22222222-2222-4222-8222-222222222222",
+          "status": "SETTLEMENT_PENDING"
+        },
+        "paymentFinality": "reorged",
+        "confirmedSettlementReceipt": null
+      }
+    }
+  }
+}

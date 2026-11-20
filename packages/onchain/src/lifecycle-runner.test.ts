@@ -105,16 +105,16 @@ const env = {
   CLAIMS_AUTHORITY_PRIVATE_KEY: key,
   BENEFICIARY_ADDRESS: signer,
 };
-it('settles selected bound policy without unrelated signers or balances', async () => {
+it('blocks a live settlement even when the former authority credential is provided', async () => {
   balance = 0n;
   const result = await runTestnetLifecycle({
     mode: 'live',
     confirmStepIds: ['settle_claim'],
     env: { CLAIMS_AUTHORITY_PRIVATE_KEY: key },
   });
-  expect(result.outcome).toBe('success');
-  expect(sendPreparedTx).toHaveBeenCalledTimes(1);
-  expect(result.executions[0]).toMatchObject({ hash, status: 'success' });
+  expect(result.outcome).toBe('preflight_blocked');
+  expect(result.plan.blockers.join(' ')).toContain('controlled external settlement authority');
+  expect(sendPreparedTx).not.toHaveBeenCalled();
 });
 it('checks a later selected blocker before any earlier send', async () => {
   const result = await runTestnetLifecycle({
@@ -155,23 +155,16 @@ it('preflights and executes first run in order', async () => {
   bound = false;
   const result = await runTestnetLifecycle({
     mode: 'live',
-    confirmStepIds: [
-      'lp_approve',
-      'lp_deposit',
-      'policyholder_approve',
-      'bind_policy',
-      'settle_claim',
-    ],
+    confirmStepIds: ['lp_approve', 'lp_deposit', 'policyholder_approve', 'bind_policy'],
     env,
   });
   expect(result.outcome).toBe('success');
-  expect(sendPreparedTx).toHaveBeenCalledTimes(5);
+  expect(sendPreparedTx).toHaveBeenCalledTimes(4);
   expect(result.executions.map((e) => e.stepId)).toEqual([
     'lp_approve',
     'lp_deposit',
     'policyholder_approve',
     'bind_policy',
-    'settle_claim',
   ]);
   expect(result.executions.every((e) => e.status === 'success')).toBe(true);
 });
@@ -196,7 +189,7 @@ it.each(['TX_TIMEOUT', 'TX_REVERTED'] as const)(
     });
     const result = await runTestnetLifecycle({
       mode: 'live',
-      confirmStepIds: ['lp_approve', 'settle_claim'],
+      confirmStepIds: ['lp_approve', 'lp_deposit'],
       env,
     });
     expect(result.outcome).toBe('runtime_failure');
@@ -233,7 +226,7 @@ it('validates the actual authority signer before any selected send', async () =>
 it('keeps successful transaction status when a later receipt read fails', async () => {
   const { client } = await connectArcTestnetAdapter();
   vi.mocked(client.getTransactionReceipt).mockRejectedValueOnce(new Error('RPC unavailable'));
-  const result = await runTestnetLifecycle({ mode: 'live', confirmStepIds: ['settle_claim'], env });
+  const result = await runTestnetLifecycle({ mode: 'live', confirmStepIds: ['lp_approve'], env });
   expect(result.outcome).toBe('runtime_failure');
   expect(result.executions[0]).toMatchObject({
     hash,

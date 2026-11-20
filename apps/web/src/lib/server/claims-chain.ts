@@ -5,6 +5,7 @@ import {
   isClaimSettled,
   readLossAccounting,
   prepareSettleClaim,
+  type PreparedTx,
   toPolicyIdBytes32,
   toClaimIdBytes32,
 } from '@arcuex/onchain';
@@ -25,7 +26,8 @@ import { getRuntimeConfig } from './runtime-config';
 export async function prepareClaimsTransaction(
   c: ClaimsCase,
   client: PublicClient = procurementClient(),
-) {
+  signingDeadlineMs?: number,
+): Promise<PreparedTx & { nonce?: number }> {
   check(getRuntimeConfig().chainSource !== 'fixture', 'Fixture source cannot authorize settlement');
   const anchor = await confirmedBlock(client);
   check(
@@ -78,6 +80,58 @@ export async function prepareClaimsTransaction(
     payoutTo: c.payoutTo as `0x${string}`,
   });
   const { account, to, data } = transaction;
+  if (signingDeadlineMs !== undefined) {
+    const tip = await client.getBlock();
+    check(tip.hash && tip.number !== null && tip.number >= anchor.number, 'Arc tip unavailable');
+    const [currentAuthority, currentPolicy, currentSettled, pendingSettled, nonce, pendingNonce] =
+      await Promise.all([
+        client.readContract({
+          address: procurementPool,
+          abi: insurancePoolAbi,
+          functionName: 'claimsAuthority',
+          blockNumber: tip.number,
+        }),
+        readOnchainPolicy(client, procurementPool, toPolicyIdBytes32(c.policyId), tip.number),
+        isClaimSettled(client, procurementPool, toClaimIdBytes32(c.claimId ?? c.id), tip.number),
+        client.readContract({
+          address: procurementPool,
+          abi: insurancePoolAbi,
+          functionName: 'settledClaims',
+          args: [toClaimIdBytes32(c.claimId ?? c.id)],
+          blockTag: 'pending',
+        }),
+        client.getTransactionCount({ address: account, blockNumber: tip.number }),
+        client.getTransactionCount({ address: account, blockTag: 'pending' }),
+      ]);
+    await client.call({ account, to, data, blockNumber: tip.number });
+    await assertCanonicalBlock(client, tip.number, tip.hash);
+    await assertCanonicalBlock(client, anchor.number, anchor.hash);
+    check(currentAuthority.toLowerCase() === account.toLowerCase(), 'Arc claims authority changed');
+    check(
+      Number.isSafeInteger(nonce) && nonce >= 0 && nonce === pendingNonce,
+      'Arc authority has unresolved pending transactions',
+    );
+    check(
+      currentPolicy.bound &&
+        !currentPolicy.cancelled &&
+        currentPolicy.termsHash === policy.termsHash &&
+        currentPolicy.beneficiary.toLowerCase() === c.payoutTo.toLowerCase() &&
+        currentPolicy.coverageStart === policy.coverageStart &&
+        currentPolicy.coverageEnd === policy.coverageEnd &&
+        currentPolicy.limit - currentPolicy.paidOut >= c.payableMicros &&
+        currentPolicy.reserved >= c.payableMicros,
+      'Arc policy changed or capacity unavailable',
+    );
+    check(!currentSettled && !pendingSettled, 'Settlement is already recorded or pending on Arc');
+    check(
+      tip.timestamp >= policy.coverageStart &&
+        tip.timestamp <= policy.coverageEnd &&
+        tip.timestamp * 1000n < BigInt(signingDeadlineMs) &&
+        Date.now() < signingDeadlineMs,
+      'Settlement signing deadline expired or coverage window closed',
+    );
+    return { ...transaction, nonce };
+  }
   await client.call({ account, to, data });
   return transaction;
 }
@@ -98,7 +152,7 @@ export async function verifyClaimsSettlement(
   hash: Hash,
   client: PublicClient = procurementClient(),
 ) {
-  const { receipt, block } = await readSettlementAttempt(c, hash, client);
+  const { receipt, block, nonce } = await readSettlementAttempt(c, hash, client);
   check(receipt.status === 'success', 'Successful pool settlement receipt required');
   const policyId = toPolicyIdBytes32(c.policyId);
   const claimId = toClaimIdBytes32(c.claimId ?? c.id);
@@ -164,6 +218,8 @@ export async function verifyClaimsSettlement(
     blockHash: receipt.blockHash,
     timestamp: Number(block.timestamp),
     termsHash: policy.termsHash,
+    account: receipt.from,
+    nonce,
   };
 }
 
@@ -213,7 +269,7 @@ export async function readSettlementAttempt(
     'Receipt is not the exact settlement attempt from the designated authority',
   );
   await assertCanonicalBlock(client, receipt.blockNumber, receipt.blockHash);
-  return { receipt, block };
+  return { receipt, block, nonce: tx.nonce };
 }
 
 export async function verifyFailedSettlement(
@@ -221,7 +277,7 @@ export async function verifyFailedSettlement(
   hash: Hash,
   client: PublicClient = procurementClient(),
 ) {
-  const { receipt, block } = await readSettlementAttempt(c, hash, client);
+  const { receipt, block, nonce } = await readSettlementAttempt(c, hash, client);
   check(receipt.status === 'reverted', 'Confirmed reverted settlement required');
   await assertArcChain(client);
   check(
@@ -229,5 +285,11 @@ export async function verifyFailedSettlement(
     'Claim has another successful settlement awaiting reconciliation',
   );
   await assertCanonicalBlock(client, receipt.blockNumber, receipt.blockHash);
-  return Number(block.timestamp);
+  return {
+    timestamp: Number(block.timestamp),
+    account: receipt.from,
+    nonce,
+    blockNumber: receipt.blockNumber.toString(),
+    blockHash: receipt.blockHash,
+  };
 }

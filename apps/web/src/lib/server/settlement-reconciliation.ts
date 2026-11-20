@@ -30,11 +30,13 @@ export async function reconcileSettlementAnchors(
     if (head < blockNumber + ARC_CONFIRMATION_DEPTH)
       throw new Error('Settlement anchor depth unavailable');
     const block = await client.getBlock({ blockNumber });
-    if (!block.hash) throw new Error('Settlement anchor unavailable');
+    if (!block.hash || block.number !== blockNumber)
+      throw new Error('Settlement anchor unavailable');
     if (block.hash !== anchor.blockHash) {
       // A second observation avoids changing state on an inconsistent, single RPC reply.
       const rechecked = await client.getBlock({ blockNumber });
-      if (rechecked.hash !== block.hash) throw new Error('Inconsistent Arc settlement anchor');
+      if (rechecked.hash !== block.hash || rechecked.number !== blockNumber)
+        throw new Error('Inconsistent Arc settlement anchor');
       if (
         reopenOrphanedSettlement(repo, {
           caseId: row.id,

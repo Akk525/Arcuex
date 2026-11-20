@@ -24,7 +24,7 @@
 
 - No on-chain “submit claim” or evidence verification — by design; authority is the trust boundary.
 - No separate premium payment function — premium is part of `bindPolicy`.
-- Redeploy **not** required for the planned 5 / 2 / 1 USDC flow if signers and gas are funded.
+- The current contract can settle through the controlled external authority. The historical lifecycle runner supports settlement rehearsal only.
 
 ## Planned amounts (integer micros)
 
@@ -41,7 +41,7 @@
 | ---------------- | ------------------------------ | -------------------------------------------------------------------------- |
 | LP               | Approve + deposit              | `LP_PRIVATE_KEY` or `LIFECYCLE_LP_USE_DEPLOYER=1`                          |
 | Policyholder     | Approve premium + `bindPolicy` | `POLICYHOLDER_PRIVATE_KEY` or `LIFECYCLE_POLICYHOLDER_USE_DEPLOYER=1`      |
-| Claims authority | `settleClaim`                  | `CLAIMS_AUTHORITY_PRIVATE_KEY` (must match on-chain; **not** auto-derived) |
+| Claims authority | `settleClaim`                  | External signer isolated from this CLI and backend |
 | Beneficiary      | Receive payout                 | `BENEFICIARY_ADDRESS` (defaults to deployer address if unset)              |
 
 Never commit `.env`. Never print private keys.
@@ -64,14 +64,13 @@ FEE_RECIPIENT=0x…
 DEPLOYER_PRIVATE_KEY=0x…          # optional helper
 LIFECYCLE_LP_USE_DEPLOYER=1
 LIFECYCLE_POLICYHOLDER_USE_DEPLOYER=1
-CLAIMS_AUTHORITY_PRIVATE_KEY=0x…  # required for settle; fund with native gas
 BENEFICIARY_ADDRESS=0x…
 ```
 
 Fund:
 
 1. LP + policyholder: ≥ 5.1 test USDC ERC-20 + native gas
-2. Claims authority: **native gas** (settle fails at 0 balance)
+2. External claims authority: native gas for separately approved settlement.
 3. Faucet: https://faucet.circle.com
 
 ## Dry-run / preflight (default — no broadcast)
@@ -98,7 +97,9 @@ After preflight is clean:
 pnpm --filter @arcuex/onchain lifecycle:preflight -- --mode=live --confirm=lp_approve
 ```
 
-Then, one confirmation at a time: `lp_deposit` → `policyholder_approve` → `bind_policy` → `settle_claim`.
+Then, one confirmation at a time: `lp_deposit` → `policyholder_approve` → `bind_policy`.
+
+For settlement, follow the [controlled authority handoff](../integrations/backend-integration-v1.md).
 
 ## Tests
 

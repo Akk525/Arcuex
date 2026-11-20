@@ -1,4 +1,4 @@
-import {withApiSecurity} from '@/lib/server/api-security';
+import { withApiSecurity } from '@/lib/server/api-security';
 import { NextResponse } from 'next/server';
 import { authenticateClaimsRequest } from '@/lib/server/claims-auth';
 import { HISTORIC_TESTNET_SETTLEMENT } from '@/lib/claims/historic-settlement';
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 async function GETHandler(request: Request) {
   const auth = authenticateClaimsRequest(request, ['claimant', 'reviewer', 'authority', 'system']);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  return NextResponse.json(HISTORIC_TESTNET_SETTLEMENT);
+  return NextResponse.json({ ...HISTORIC_TESTNET_SETTLEMENT, paymentFinality: 'unverified' });
 }
 
-export const GET=withApiSecurity(GETHandler);
+export const GET = withApiSecurity(GETHandler);
