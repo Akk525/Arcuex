@@ -89,7 +89,7 @@ function HeroStage() {
 
 function HeroCards() {
   return (
-    <figure className="hero-cards font-sans" aria-label="Arcuex product preview: a synthetic policy and a claim that is approved but not reimbursed">
+    <figure className="hero-cards font-sans" aria-label="Illustrative product preview: a synthetic policy and a claim that is approved but not reimbursed">
       <article className="hero-card hero-card-coverage">
         <header className="flex items-center justify-between gap-3 border-b border-black/6 px-4 py-2.5">
           <span className="flex items-center gap-1.5 font-display text-[10px] font-bold tracking-[0.14em] text-[#16303a]">
@@ -153,7 +153,13 @@ function HeroCards() {
             </span>
             <span className="mt-0.5 block pl-6 text-[11px] text-[#667581]">Agent task failure during a research run</span>
           </span>
-          <span className="rounded-md bg-[#f1f4f4] px-1.5 py-1 font-mono text-[10px] text-[#4b5a64]">CLAIM-00124</span>
+          <span className="flex shrink-0 flex-col items-end gap-1">
+            <span className="rounded-md bg-[#f1f4f4] px-1.5 py-1 font-mono text-[10px] text-[#4b5a64]">CLAIM-00124</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#fbf3e2] px-2 py-0.5 text-[10px] font-semibold text-[#8a5a00]">
+              <Flask size={11} aria-hidden="true" />
+              Illustration
+            </span>
+          </span>
         </header>
         <ol className="relative mx-4 mt-3 mb-4 grid gap-2.5 border-t border-black/6 pt-3">
           <span className="absolute top-6 bottom-4 left-[7px] w-px bg-[#d5dedb]" aria-hidden="true" />
@@ -178,6 +184,9 @@ function HeroCards() {
           Approval is not payment. Reimbursement needs a confirmed settlement receipt.
         </p>
       </article>
+      <figcaption className="hero-caption text-[11.5px] leading-snug">
+        Illustrative synthetic example. No claim was filed and no funds moved.
+      </figcaption>
     </figure>
   );
 }

@@ -136,4 +136,37 @@ describe('buildDashboardOverview', () => {
       'Approved — payment not confirmed',
     );
   });
+
+  it('passes persisted claim labels through and never invents one', () => {
+    const overview = buildDashboardOverview(
+      emptyAuthenticated({
+        claims: [
+          {
+            id: '55555555-5555-4555-8555-555555555555',
+            status: 'DRAFT',
+            reason: 'Draft claim needs submission',
+            href: '/claims/55555555-5555-4555-8555-555555555555',
+            hasConfirmedSettlement: false,
+            title: 'Research agent compute exposure',
+            filedAt: '2026-11-19T10:24:00.000Z',
+            synthetic: true,
+          },
+          {
+            id: '66666666-6666-4666-8666-666666666666',
+            status: 'COLLECTING_EVIDENCE',
+            reason: 'Evidence collection in progress',
+            href: '/claims/66666666-6666-4666-8666-666666666666',
+            hasConfirmedSettlement: false,
+          },
+        ],
+      }),
+    );
+    expect(overview.claimsNeedingAttention[0]).toMatchObject({
+      title: 'Research agent compute exposure',
+      filedAt: '2026-11-19T10:24:00.000Z',
+      synthetic: true,
+    });
+    expect(overview.claimsNeedingAttention[1]?.title).toBeNull();
+    expect(overview.claimsNeedingAttention[1]?.filedAt).toBeNull();
+  });
 });

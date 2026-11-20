@@ -62,7 +62,7 @@ const CHRONOLOGY = [
 function Dossier() {
   return (
     <figure
-      aria-label="Example claim dossier, synthetic"
+      aria-label="Illustrative claim dossier, synthetic"
       className="overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow-lg)]"
     >
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-5 py-4">
@@ -70,7 +70,7 @@ function Dossier() {
           <p className="text-xs text-[var(--ink-muted)]">Claims / CLAIM-00124</p>
           <p className="mt-0.5 font-display text-lg font-semibold tracking-[-0.02em] text-[var(--ink)]">Research agent execution failure</p>
         </div>
-        <TruthBadge label="Synthetic demo" tone="synthetic" />
+        <TruthBadge label="Illustration" tone="synthetic" title="Synthetic example for explanation. No claim was filed and no funds moved." />
       </header>
       <div className="grid sm:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <ol className="relative px-5 py-5">

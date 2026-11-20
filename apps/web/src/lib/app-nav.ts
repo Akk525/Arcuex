@@ -61,12 +61,21 @@ export function appNavGroups(opsSession: boolean): readonly AppNavGroup[] {
   return opsSession ? [HOME, PROTECT, CLAIMS, BUILD, OPS] : [HOME, PROTECT, CLAIMS, BUILD];
 }
 
-/** Longest href that equals the path or is a path-segment prefix of it. */
+const matches = (pathname: string, href: string) =>
+  pathname === href || pathname.startsWith(`${href}/`);
+
+/**
+ * Longest href that equals the path or is a path-segment prefix of it.
+ * Routes owned by a restricted (Ops) item that is not in `groups` highlight
+ * nothing, so a hidden reviewer route never lights up a visible parent.
+ */
 export function activeNavHref(pathname: string, groups: readonly AppNavGroup[]): string | null {
+  const visible = new Set(groups.flatMap((g) => g.items.map((i) => i.href)));
+  if (OPS.items.some((item) => !visible.has(item.href) && matches(pathname, item.href))) return null;
   let best: string | null = null;
   for (const group of groups) {
     for (const { href } of group.items) {
-      if (pathname === href || pathname.startsWith(`${href}/`)) {
+      if (matches(pathname, href)) {
         if (!best || href.length > best.length) best = href;
       }
     }

@@ -26,6 +26,9 @@ export type DashboardOverviewInput = {
     reason: string;
     href: string;
     hasConfirmedSettlement: boolean;
+    title?: string | null;
+    filedAt?: string | null;
+    synthetic?: boolean;
   }>;
   evidenceRequests: Array<{
     caseId: string;
@@ -129,6 +132,9 @@ export function buildDashboardOverview(input: DashboardOverviewInput): Dashboard
       status: claim.status,
       reason,
       href: claim.href,
+      title: claim.title ?? null,
+      filedAt: claim.filedAt ?? null,
+      synthetic: claim.synthetic,
     });
   }
 

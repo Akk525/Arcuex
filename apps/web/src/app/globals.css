@@ -787,6 +787,18 @@ textarea.field-control {
   padding-bottom: 3rem;
 }
 
+.hero-caption {
+  color: rgba(230, 243, 242, 0.85);
+  padding-inline: 0.25rem;
+}
+
+@media (min-width: 1024px) {
+  .hero-caption {
+    margin-right: 6%;
+    text-align: right;
+  }
+}
+
 .hero-card {
   border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 1rem;

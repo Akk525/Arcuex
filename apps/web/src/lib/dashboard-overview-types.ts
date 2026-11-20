@@ -27,6 +27,11 @@ export type DashboardOverview = {
     status: string;
     reason: string;
     href: string;
+    /** Human label from persisted data (covered exposure); null when none is recorded. */
+    title?: string | null;
+    /** Case creation time as persisted. */
+    filedAt?: string | null;
+    synthetic?: boolean;
   }>;
   evidenceRequests: Array<{
     caseId: string;

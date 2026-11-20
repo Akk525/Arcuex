@@ -26,10 +26,13 @@ describe('app navigation', () => {
     expect(activeNavHref('/', appNavGroups(true))).toBeNull();
   });
 
-  it('does not highlight reviewer routes for non-ops sessions', () => {
-    // Falls back to the generic claims entry rather than a hidden item.
-    expect(activeNavHref('/claims/review', appNavGroups(false))).toBe('/claims');
+  it('highlights nothing on restricted routes for non-ops sessions', () => {
+    // The reviewer item is hidden, so no visible item may claim the route.
+    expect(activeNavHref('/claims/review', appNavGroups(false))).toBeNull();
+    expect(activeNavHref('/claims/review/anything', appNavGroups(false))).toBeNull();
     expect(activeNavHref('/capital', appNavGroups(false))).toBeNull();
+    // Ordinary claim routes are unaffected.
+    expect(activeNavHref('/claims/abc-123', appNavGroups(false))).toBe('/claims');
   });
 
   it('maps hrefs to owning workspaces', () => {

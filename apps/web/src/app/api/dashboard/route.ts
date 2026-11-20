@@ -126,8 +126,13 @@ async function GETHandler(request: Request) {
       evidenceRequests.push({ caseId: claim.id, id: req.id, href });
     }
     const receipt = confirmedClaimReceipt(db, chainSource, claim);
+    // Label from what is persisted: the covered exposure the claim was filed against.
+    const exposure = repo.listExposures(claim.policyId).find((e) => e.id === claim.exposureId);
     claims.push({
       id: claim.id,
+      title: exposure?.description?.trim() || null,
+      filedAt: claim.createdAt,
+      synthetic: claim.syntheticDemo,
       status: claim.status,
       reason:
         claim.status === 'COLLECTING_EVIDENCE'

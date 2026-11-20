@@ -9,6 +9,15 @@ import { shortHash } from '@/lib/format';
 
 const claimRef = (id: string) => `Claim ${id.slice(0, 8)}`;
 
+const filedFormat = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+/** Persisted exposure description when recorded; otherwise the short claim reference. */
+function claimLabel(item: DashboardOverview['claimsNeedingAttention'][number]) {
+  const name = item.title?.trim() || claimRef(item.id);
+  const filed = item.filedAt && !Number.isNaN(Date.parse(item.filedAt)) ? `filed ${filedFormat.format(Date.parse(item.filedAt))}` : null;
+  return filed ? `${name}, ${filed}` : name;
+}
+
 export function AttentionRail({
   claims,
   evidence,
@@ -49,8 +58,8 @@ export function AttentionRail({
                 title={requests > 0 ? 'Claim evidence requested' : item.reason}
                 meta={
                   requests > 0
-                    ? `${claimRef(item.id)}, ${requests} open ${requests === 1 ? 'request' : 'requests'}`
-                    : claimRef(item.id)
+                    ? `${claimLabel(item)}, ${requests} open ${requests === 1 ? 'request' : 'requests'}`
+                    : claimLabel(item)
                 }
                 status={
                   <StatusBadge
