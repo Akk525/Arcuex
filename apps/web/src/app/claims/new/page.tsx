@@ -20,7 +20,9 @@ export default async function NewClaimPage({
         Claims
       </Link>
       <PageHeader
-        title="File a claim"
+        appearance="light"
+        serif
+        title="New Claim"
         description="Tell us which policy covered the agent and what happened. Filing opens an investigation; a human reviewer decides coverage."
       />
       <SubmitClaimForm initialPolicyId={policyId} />

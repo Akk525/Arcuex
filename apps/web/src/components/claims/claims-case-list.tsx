@@ -8,6 +8,10 @@ import {
   ChatCircleText,
   FileMagnifyingGlass,
   MagnifyingGlass,
+  Info,
+  ShieldCheck,
+  Stack,
+  Coins,
 } from '@phosphor-icons/react';
 import { CaseStatusBadge } from '@/components/claims/case-status-badge';
 import { StatusBadge } from '@/components/status-badge';
@@ -23,6 +27,7 @@ import { claimantStep, claimTitle, type ClaimCategory } from '@/lib/claims/claim
 import { hasArcReceiptHash } from '@/lib/claims/settlement-presentation';
 import { AuthRequired } from '@/components/ui/auth-required';
 import { Button, ButtonLink } from '@/components/ui/button';
+import { StatContent } from '@/components/ui/stat-content';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatClaimTime } from './claim-evidence-links';
 
@@ -167,7 +172,8 @@ export function ClaimsCaseList({ ops = false }: { ops?: boolean }) {
     );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
+      <div className={`grid gap-4 ${!ops && attention.length > 0 ? 'xl:grid-cols-2' : ''}`}>
       {!ops && attention.length > 0 && (
         <section
           aria-labelledby="claims-attention"
@@ -216,29 +222,39 @@ export function ClaimsCaseList({ ops = false }: { ops?: boolean }) {
         </section>
       )}
 
+      <section aria-labelledby="reimbursement-guide" className="arc-panel p-4 sm:p-5">
+        <h2 id="reimbursement-guide" className="flex items-center gap-2 font-semibold text-[var(--ink)]">
+          <Info size={20} className="text-[var(--accent-signal)]" aria-hidden="true" />
+          When reimbursement is confirmed
+        </h2>
+        <p className="mt-1 text-sm text-[var(--ink-muted)]">Approved coverage becomes a reimbursement after a verified Arc settlement receipt records the funds transfer.</p>
+        <ol className="mt-4 grid grid-cols-3 gap-2 text-center text-xs font-semibold text-[var(--ink-secondary)]">
+          {[
+            { label: 'Human approval', icon: ShieldCheck },
+            { label: 'Settlement receipt', icon: Stack },
+            { label: 'Funds reimbursed', icon: Coins },
+          ].map(({ label, icon: Icon }) => (
+            <li key={label} className="flex min-w-0 flex-col items-center gap-1">
+              <span className="arc-stat-icon"><Icon size={16} aria-hidden="true" /></span>
+              {label}
+            </li>
+          ))}
+        </ol>
+      </section>
+      </div>
+
       <section aria-labelledby="claims-list" className="space-y-3">
         <h2 id="claims-list" className="sr-only">
           All claims
         </h2>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div
-            role="group"
-            aria-label="Filter claims"
-            className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 lg:pb-0"
-          >
-            {FILTERS.filter((f) => f.id === 'all' || counts[f.id] > 0).map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                aria-pressed={filter === f.id}
-                onClick={() => setFilter(f.id)}
-                className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-medium text-[var(--ink-secondary)] transition-colors hover:bg-[var(--surface-inset)] hover:text-[var(--ink)] aria-pressed:bg-[var(--ink)] aria-pressed:text-white"
-              >
-                {f.label}
-                <span className="tabular-nums opacity-60">{counts[f.id]}</span>
-              </button>
-            ))}
-          </div>
+        <div role="group" aria-label="Filter claims" className="grid grid-cols-2 gap-2 xl:grid-cols-5">
+          {FILTERS.filter((f) => f.id === 'all' || counts[f.id] > 0 || f.id === filter).map((f) => (
+            <button key={f.id} type="button" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)} className="arc-stat">
+              <StatContent icon={<FileMagnifyingGlass size={16} />} label={f.label} count={counts[f.id]} />
+            </button>
+          ))}
+        </div>
+        <div className="flex justify-end">
           <div className="flex items-center gap-2">
             <label className="relative block min-w-0 flex-1 lg:w-72 lg:flex-none">
               <span className="sr-only">Search claims</span>

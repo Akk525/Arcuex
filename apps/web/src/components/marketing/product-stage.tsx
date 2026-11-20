@@ -57,7 +57,7 @@ export function ProductStage() {
           id={`${baseId}-panel`}
           role="tabpanel"
           aria-labelledby={`${baseId}-tab-${active.id}`}
-          className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-center lg:gap-16"
+          className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-center lg:gap-16"
         >
           <div className="product-stage-canvas">
             <StageFrame chapter={active}>
@@ -71,7 +71,7 @@ export function ProductStage() {
       <div className="product-stage-scrub">
         <div className="marketing-wrap flex flex-col gap-14 lg:hidden">
           {PRODUCT_STAGE_CHAPTERS.map((chapter, chapterIndex) => (
-            <article key={chapter.id} className="grid gap-6">
+            <article key={chapter.id} className="grid grid-cols-1 gap-6">
               <div className="product-stage-canvas">
                 <StageFrame chapter={chapter}>
                   <Vignette kind={chapter.vignette} />

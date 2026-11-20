@@ -15,7 +15,8 @@ export default function ClaimsReviewPage() {
         Claims
       </Link>
       <PageHeader
-        title="Review queue"
+        appearance="dark"
+        title="Insurer Review Queue"
         description="Claims grouped by what they need next. Open a claim to read its record and take the decisions your session is allowed to make."
       />
       <ReviewerWorkbench />

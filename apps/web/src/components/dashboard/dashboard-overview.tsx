@@ -19,7 +19,7 @@ export function DashboardOverview() {
   if (!data) {
     return (
       <>
-        <PageHeader title="Mission Control" />
+        <PageHeader appearance="dark" serif title="Mission Control" />
         <div
           role="alert"
           className="flex flex-col items-start gap-3 rounded-[var(--radius-lg)] border border-[#f3c4bf] bg-[var(--danger-soft)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
@@ -48,7 +48,7 @@ export function DashboardOverview() {
   return (
     <>
       <PageHeader
-        title="Mission Control"
+        appearance="dark" serif title="Mission Control"
         description={
           anonymous
             ? 'Your insurance workspace. Sign in to see the policies, agents and claims tied to your wallet.'
@@ -90,19 +90,15 @@ export function DashboardOverview() {
       ) : (
         <div className="grid gap-4">
           <SummaryStrip data={data} />
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] lg:items-start">
-            <div className="grid gap-4">
-              <AttentionRail
-                claims={data.claimsNeedingAttention}
-                evidence={data.evidenceRequests}
-                reconciliation={data.pendingReconciliation}
-              />
-              <ActivityFeed items={data.recentActivity} />
-            </div>
-            <div className="grid gap-4">
-              <PortfolioSummary portfolio={data.portfolio} />
-              <AgentsPanel agents={data.agents} delegations={data.delegations} />
-            </div>
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+            <AttentionRail
+              claims={data.claimsNeedingAttention}
+              evidence={data.evidenceRequests}
+              reconciliation={data.pendingReconciliation}
+            />
+            <ActivityFeed items={data.recentActivity} />
+            <AgentsPanel agents={data.agents} delegations={data.delegations} />
+            <PortfolioSummary portfolio={data.portfolio} />
           </div>
           <p className="text-xs leading-relaxed text-[var(--ink-faint)]">
             {data.labels.synthetic}. {data.labels.live}.

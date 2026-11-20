@@ -8,7 +8,9 @@ export default function PoliciesPage() {
     <AppShell>
       <PageHeader
         eyebrow="Protect"
-        title="Policies"
+        appearance="dark"
+        serif
+        title="Policy portfolio"
         description="Every policy this wallet owns or paid for, with its confirmation status, coverage window and next step."
         action={<ButtonLink href="/coverage">Buy coverage</ButtonLink>}
       />

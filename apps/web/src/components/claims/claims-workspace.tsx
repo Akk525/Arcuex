@@ -20,7 +20,8 @@ export function ClaimsWorkspace() {
   return (
     <div>
       <PageHeader
-        title="Claims"
+        appearance="dark"
+        title="Claims List"
         description="Track each claim from filing to decision. Respond to evidence requests here so reviewers can see your proof in the record."
         action={
           ops ? (

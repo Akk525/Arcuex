@@ -1,64 +1,62 @@
-import { FileMagnifyingGlass, Key, Scales, ShieldCheck } from '@phosphor-icons/react/ssr';
+import {
+  FileMagnifyingGlass,
+  Key,
+  Scales,
+  ShieldCheck,
+  UserCheck,
+} from '@phosphor-icons/react/ssr';
 
 const CAPABILITIES = [
   {
     icon: ShieldCheck,
     title: 'Coverage procurement',
-    body: 'Quote published products, read the terms, exclusions and deductible, then bind from your own wallet. A quote never reserves pool capital.',
-    detail: ['Quote', 'Accept', 'Authorize', 'Reconcile'],
+    body: 'Review the terms, exclusions and deductible, then bind from your own wallet.',
   },
   {
     icon: Key,
     title: 'Delegated authority',
-    body: 'Give an agent a scoped delegation with a limit cap, premium allowance and expiry, and revoke it at any time. Registering an agent grants it nothing.',
-    detail: ['Scope', 'Allowance', 'Expiry', 'Revoke'],
+    body: 'Give an agent a policy limit, premium allowance and expiry. Revoke that permission at any time.',
   },
   {
     icon: FileMagnifyingGlass,
     title: 'Evidence-backed claims',
-    body: 'Claims move on records an agent can prove: linked transactions, uploaded files and answers to the specific questions a reviewer asks.',
-    detail: ['Incident', 'Evidence', 'Requests', 'Provenance'],
+    body: 'Submit linked transactions, records and answers to a reviewer’s evidence requests.',
+  },
+  {
+    icon: UserCheck,
+    title: 'Insurer review',
+    body: 'Reviewers can request evidence and record a decision with a rationale.',
   },
   {
     icon: Scales,
     title: 'Controlled settlement',
-    body: 'An authorized person decides every claim. Reimbursement happens only after a settlement receipt is confirmed on Arc.',
-    detail: ['Advisory', 'Decision', 'Authority', 'Receipt'],
+    body: 'Track reimbursement through a confirmed settlement receipt on Arc.',
   },
 ] as const;
 
 export function Capabilities() {
   return (
-    <section id="capabilities" className="marketing-band scroll-mt-16 bg-white">
+    <section id="capabilities" className="marketing-capabilities scroll-mt-16">
       <div className="marketing-wrap">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-end lg:gap-16">
-          <h2 className="section-title max-w-[16ch] text-[var(--ink)]">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-end lg:gap-12">
+          <h2 className="section-title arc-serif max-w-[19ch] text-[var(--ink)]">
             Coverage, authority and claims in one record.
           </h2>
           <p className="marketing-lede lg:pb-1.5">
-            Each policy carries its terms, the agent it insures, who may act for it, and every claim
-            filed against it, so operators and reviewers work from the same facts.
+            Each policy carries its terms, the agent it insures, who may act for it, and the
+            evidence behind any claim.
           </p>
         </div>
-
-        <ul className="mt-14 grid gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-4">
-          {CAPABILITIES.map(({ icon: Icon, title, body, detail }) => (
-            <li
-              key={title}
-              className="group flex flex-col bg-white p-6 transition-colors duration-200 hover:bg-[#f7fafa] sm:p-7"
-            >
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-signal)] transition-transform duration-200 group-hover:-translate-y-0.5">
-                <Icon size={21} weight="duotone" aria-hidden="true" />
+        <ul className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {CAPABILITIES.map(({ icon: Icon, title, body }) => (
+            <li key={title} className="arc-panel marketing-capability px-5 py-4">
+              <span className="arc-stat-icon">
+                <Icon size={19} weight="duotone" aria-hidden="true" />
               </span>
-              <h3 className="mt-6 font-display text-lg font-semibold tracking-[-0.02em] text-[var(--ink)]">{title}</h3>
-              <p className="mt-2 text-[0.9375rem] leading-relaxed text-[var(--ink-secondary)]">{body}</p>
-              <p className="mt-auto flex flex-wrap gap-1.5 pt-6" aria-label={`${title} stages`}>
-                {detail.map((step) => (
-                  <span key={step} className="rounded-md bg-[var(--surface-inset)] px-2 py-1 text-xs font-medium text-[var(--ink-muted)]">
-                    {step}
-                  </span>
-                ))}
-              </p>
+              <h3 className="mt-4 font-display text-base font-semibold tracking-[-0.02em] text-[var(--ink)]">
+                {title}
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-[var(--ink-secondary)]">{body}</p>
             </li>
           ))}
         </ul>

@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, CaretDown, List, X } from '@phosphor-icons/react';
+import { ArrowRight, CaretDown, List, Wallet, X } from '@phosphor-icons/react';
+import { useWalletStatus } from '@/hooks/use-wallet-status';
 import { MarketingMark } from '@/components/marketing/marketing-mark';
 
 const productLinks = [
@@ -100,13 +102,7 @@ export function MarketingNav() {
         </ul>
 
         <div className="marketing-nav-end ml-auto flex items-center gap-1 sm:gap-2">
-          <Link href="/dashboard" className="marketing-nav-link hidden sm:inline-flex">
-            Dashboard
-          </Link>
-          <Link href="/coverage" className="marketing-nav-pill max-sm:!hidden">
-            Explore coverage
-            <ArrowRight size={14} weight="bold" aria-hidden="true" />
-          </Link>
+          <MarketingWallet />
           <button
             type="button"
             className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--ink)] hover:bg-black/5 lg:hidden"
@@ -148,5 +144,45 @@ export function MarketingNav() {
         </div>
       ) : null}
     </header>
+  );
+}
+
+function MarketingWallet() {
+  const router = useRouter();
+  const { address, uiStatus, connectError, connectInjected, hasInjectedConnector } = useWalletStatus();
+  const [missingWallet, setMissingWallet] = useState(false);
+  const connecting = uiStatus === 'connecting';
+  const connected = Boolean(address) && !connecting;
+  const error = missingWallet || connectError?.name === 'ProviderNotFoundError'
+    ? 'No browser wallet detected. Open Arcuex in a browser with an EVM wallet.'
+    : connectError?.message;
+
+  return (
+    <div className="relative">
+      {connected ? (
+        <Link href="/dashboard" className="marketing-nav-pill">
+          Dashboard
+          <ArrowRight size={14} weight="bold" aria-hidden="true" />
+        </Link>
+      ) : (
+        <button
+          type="button"
+          className="marketing-nav-pill disabled:cursor-wait disabled:opacity-70"
+          disabled={connecting}
+          onClick={() => {
+            setMissingWallet(!hasInjectedConnector);
+            if (hasInjectedConnector) connectInjected(() => router.push('/dashboard'));
+          }}
+        >
+          <Wallet size={15} weight="bold" aria-hidden="true" />
+          {connecting ? 'Connecting…' : 'Connect wallet'}
+        </button>
+      )}
+      {error && !connected && !connecting ? (
+        <p role="alert" className="absolute top-full right-0 z-40 mt-2 w-56 rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs text-[var(--danger)] shadow-[var(--shadow-md)]">
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }

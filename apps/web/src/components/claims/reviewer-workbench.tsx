@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowsClockwise, CaretRight, Tray } from '@phosphor-icons/react';
+import { ArrowsClockwise, CaretRight, Tray, Stack, ShieldCheck } from '@phosphor-icons/react';
 import { CaseStatusBadge } from '@/components/claims/case-status-badge';
 import { TruthBadge } from '@/components/ui/truth-badge';
 import { Button } from '@/components/ui/button';
+import { StatContent } from '@/components/ui/stat-content';
 import { EmptyState } from '@/components/ui/empty-state';
 import { claimsFetch } from '@/lib/claims/claims-api';
 import {
@@ -140,6 +141,14 @@ export function ReviewerWorkbench() {
         </Button>
       </div>
 
+      <aside className="arc-panel flex items-start gap-3 p-4" aria-label="Financial gate">
+        <span className="arc-stat-icon"><ShieldCheck size={17} aria-hidden="true" /></span>
+        <div>
+          <p className="font-semibold text-[var(--ink)]">Financial gate & reimbursement</p>
+          <p className="text-sm text-[var(--ink-muted)]">A human decision records coverage. Reimbursement requires a separate authority and a verified Arc settlement receipt.</p>
+        </div>
+      </aside>
+
       {loading && cases.length === 0 && (
         <div role="status" className="space-y-2">
           <span className="sr-only">Loading review queue…</span>
@@ -176,16 +185,15 @@ export function ReviewerWorkbench() {
         <>
           <nav
             aria-label="Review queue sections"
-            className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1"
+            className="grid grid-cols-2 gap-2 xl:grid-cols-5"
           >
             {groups.map(({ section, rows }) => (
               <a
                 key={section}
                 href={`#queue-${section}`}
-                className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-[var(--line-strong)] bg-[var(--surface)] px-3 text-[0.8125rem] font-medium text-[var(--ink-secondary)] transition-colors hover:border-[var(--line-emphasis)] hover:text-[var(--ink)]"
+                className="arc-stat"
               >
-                {queueSections[section]}
-                <span className="tabular-nums opacity-60">{rows.length}</span>
+                <StatContent icon={<Stack size={16} />} label={queueSections[section]} count={rows.length} />
               </a>
             ))}
           </nav>

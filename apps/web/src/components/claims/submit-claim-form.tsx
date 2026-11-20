@@ -298,7 +298,16 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
           onSubmit(e);
         }}
       >
-        <Stepper steps={steps} ariaLabel="Claim filing progress" />
+        {selected && step !== 'policy' ? (
+          <section className="arc-panel flex flex-wrap items-center justify-between gap-3 p-4 sm:px-5" aria-label="Selected policy">
+            <div className="min-w-0">
+              <p className="text-xs text-[var(--ink-muted)]">Selected policy</p>
+              <p className="break-all text-sm font-semibold text-[var(--ink)]">{selected.labels?.product ?? selected.id}</p>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => go('policy')}>Change policy</Button>
+          </section>
+        ) : null}
+        <div className="arc-panel p-3 sm:px-5"><Stepper steps={steps} ariaLabel="Claim filing progress" /></div>
 
         {initialPolicyId && !policies.some((p) => p.id === initialPolicyId) && (
           <Callout kind="warn" title="Linked policy is unavailable">
@@ -624,7 +633,7 @@ export function SubmitClaimForm({ initialPolicyId }: { initialPolicyId?: string 
       </form>
 
       <aside className="hidden space-y-3 lg:sticky lg:top-[calc(var(--topbar-h)+1.25rem)] lg:block">
-        <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)] px-5 py-4 text-[0.8125rem]">
+        <div className="arc-panel px-5 py-4 text-[0.8125rem]">
           <p className="text-xs font-medium text-[var(--ink-muted)]">After you file</p>
           <ol className="mt-3 space-y-3">
             {[
@@ -677,7 +686,7 @@ function StepPanel({
   return (
     <section
       aria-labelledby={`claim-step-${id}`}
-      className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)] px-5 py-5 sm:px-6"
+      className="arc-panel px-5 py-5 sm:px-6"
     >
       <h2
         id={`claim-step-${id}`}

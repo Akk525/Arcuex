@@ -414,6 +414,8 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
     <div className="claim-case min-w-0 [overflow-wrap:anywhere]">
       <BackLink />
       <PageHeader
+        appearance="dark"
+        eyebrow="Claim investigation"
         title={title}
         badges={
           <>
@@ -449,6 +451,16 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
         }
       />
 
+      <nav aria-label="Claim dossier sections" className="arc-panel mb-4 flex flex-wrap gap-x-1 p-1">
+        {[
+          [c.syntheticDemo ? '#claim-investigation' : '#claim-timeline', 'Investigation'],
+          ['#claim-verifier-findings', 'Verification records'],
+          ['#claim-review-actions', 'Human decision'],
+          ['#claim-financial-outcome', 'Reimbursement'],
+        ].map(([href, label]) => (
+          <a key={href} href={href} className="inline-flex min-h-10 items-center rounded-[var(--radius)] px-3 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent-soft)]">{label}</a>
+        ))}
+      </nav>
       <NextActionBand
         next={next}
         notice={notice}
@@ -472,6 +484,7 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
         })}
       />
 
+      <div id="claim-financial-outcome" className="scroll-mt-20" />
       {/* Compact outcome summary for small screens; the sidebar carries it on desktop. */}
       <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--line)] text-[0.8125rem] lg:hidden">
         {[
@@ -490,7 +503,7 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
       <div className="mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6">
         <div className="min-w-0 space-y-6">
           {c.syntheticDemo ? (
-            <ClaimsInvestigation
+            <div id="claim-investigation" className="scroll-mt-20"><ClaimsInvestigation
               caseId={caseId}
               role={data.principalRole}
               status={c.status}
@@ -509,7 +522,7 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
                   synthetic={c.syntheticDemo}
                 />
               }
-            />
+            /></div>
           ) : (
             <>
               <FindingsComparison

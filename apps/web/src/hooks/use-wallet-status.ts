@@ -18,7 +18,7 @@ export type WalletStatusApi = {
   hasInjectedConnector: boolean;
   connectError: Error | null;
   switchError: Error | null;
-  connectInjected: () => void;
+  connectInjected: (onConnected?: () => void) => void;
   disconnect: () => void;
   switchToArc: () => void;
 };
@@ -59,11 +59,11 @@ export function useWalletStatus(): WalletStatusApi {
     hasInjectedConnector: Boolean(injected),
     connectError: connectError ?? null,
     switchError: switchError ?? null,
-    connectInjected: () => {
+    connectInjected: (onConnected) => {
       if (!injected) {
         throw new Error('No injected EVM wallet detected');
       }
-      connect({ connector: injected, chainId: ARC_TESTNET_CHAIN_ID });
+      connect({ connector: injected, chainId: ARC_TESTNET_CHAIN_ID }, { onSuccess: onConnected });
     },
     disconnect: () => {
       disconnect();

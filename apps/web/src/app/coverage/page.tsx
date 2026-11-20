@@ -18,7 +18,8 @@ export default async function CoveragePage({
     <AppShell>
       <PageHeader
         eyebrow={from === 'build' ? 'Mission Control' : 'Protect'}
-        title="Buy coverage"
+        appearance="light"
+        title="Buy Coverage"
         action={<ButtonLink href="/coverage/applications" variant="secondary">Apply for tailored coverage</ButtonLink>}
         description="Choose a product, set the terms and review the quote. You pay from your own wallet, and coverage begins only after the bind is reconciled on Arc Testnet."
       />

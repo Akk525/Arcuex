@@ -13,7 +13,8 @@ export default async function AgentPage({
     <AppShell>
       <PageHeader
         eyebrow="Mission Control"
-        title="Agent management"
+        appearance="dark"
+        title="Manage agents & delegation"
         description="Register a signer, set delegated procurement scope and review who can pay."
         action={
           <ButtonLink href="/integrations" variant="secondary">

@@ -1381,10 +1381,10 @@ export function HumanProcurementPanel({
 
       <aside
         aria-label="Purchase summary"
-        className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-sm)] lg:sticky lg:top-[calc(var(--topbar-h)+1.5rem)]"
+        className="arc-panel overflow-hidden lg:sticky lg:top-[calc(var(--topbar-h)+1.5rem)]"
       >
         <div className="border-b border-[var(--line)] px-5 py-4">
-          <p className="text-xs text-[var(--ink-muted)]">Purchase summary</p>
+          <h2 className="text-sm font-semibold text-[var(--ink)]">Purchase summary</h2>
           <p className="mt-1 font-semibold text-[var(--ink)]">{product?.name ?? terms?.productCode ?? 'Choose a product'}</p>
           {selectedAgent ? (
             <p className="mt-0.5 truncate text-sm text-[var(--ink-muted)]">Insuring {selectedAgent.label}</p>

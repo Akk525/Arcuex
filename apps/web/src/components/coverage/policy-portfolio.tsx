@@ -16,6 +16,7 @@ import { Button, ButtonLink } from '@/components/ui/button';
 import { AuthRequired } from '@/components/ui/auth-required';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Callout } from '@/components/ui/callout';
+import { StatContent } from '@/components/ui/stat-content';
 import { StatusBadge } from '@/components/status-badge';
 import { TruthBadge } from '@/components/ui/truth-badge';
 import { usdc } from '@/lib/procurement/presentation';
@@ -122,7 +123,7 @@ export function PolicyPortfolio() {
       )}
 
       {views && views.length > 0 && (attention.length > 0 || pending.length > 0 || expiring.length > 0) && (
-        <section aria-labelledby="portfolio-attention" className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)]">
+        <section aria-labelledby="portfolio-attention" className="arc-panel overflow-hidden border-l-4 border-l-[#e5ae55]">
           <h2 id="portfolio-attention" className="border-b border-[var(--line)] px-5 py-3 text-sm font-semibold text-[var(--ink)]">
             Needs your attention
           </h2>
@@ -176,13 +177,32 @@ export function PolicyPortfolio() {
       )}
 
       {views && views.length > 0 && (
+        <div role="group" aria-label="Policy status summary" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          {([
+            { id: 'in_force', label: 'In force', icon: ShieldCheck },
+            { id: 'scheduled', label: 'Scheduled', icon: CalendarX },
+            { id: 'pending', label: 'Awaiting confirmation', icon: Hourglass },
+            { id: 'action', label: 'Needs action', icon: WarningCircle },
+          ] as const).map(({ id, label, icon: Icon }) => {
+            const category = id;
+            return (
+              <button key={id} type="button" aria-pressed={filter === category}
+                className="arc-stat" onClick={() => setFilter(filter === category ? 'all' : category)}>
+                <StatContent icon={<Icon size={18} weight="duotone" />} label={label} count={counts[category]} />
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {views && views.length > 0 && (
         <section aria-labelledby="portfolio-list" className="space-y-3">
           <h2 id="portfolio-list" className="sr-only">
             Policies
           </h2>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div role="group" aria-label="Filter by status" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 lg:pb-0">
-              {FILTERS.filter((f) => f.id === 'all' || counts[f.id] > 0).map((f) => (
+              {FILTERS.filter((f) => f.id === 'all' || counts[f.id] > 0 || f.id === filter).map((f) => (
                 <button
                   key={f.id}
                   type="button"

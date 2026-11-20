@@ -141,7 +141,9 @@ export function PolicyRecord({ id }: { id: string }) {
   return (
     <>
       <PageHeader
-        eyebrow={<span className="font-mono text-xs">{t.policyId}</span>}
+        appearance="dark"
+        serif
+        eyebrow={<span className="font-mono text-xs">{shortId(t.policyId)}</span>}
         title={v.productName}
         badges={
           <>
@@ -168,7 +170,7 @@ export function PolicyRecord({ id }: { id: string }) {
         }
       />
 
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6 [overflow-wrap:anywhere]">
         {r.error && (
           <Callout kind="danger" title="Refresh failed">
             <p role="alert">{r.error}</p>
@@ -182,7 +184,7 @@ export function PolicyRecord({ id }: { id: string }) {
 
         <section
           aria-label="Coverage summary"
-          className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-sm)]"
+          className="arc-panel overflow-hidden"
         >
           <p
             className="border-b border-[var(--line)] px-5 py-3.5 text-sm leading-relaxed text-[var(--ink)]"
@@ -210,68 +212,68 @@ export function PolicyRecord({ id }: { id: string }) {
           )}
         </section>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-          <div className="min-w-0 space-y-6">
-            <Section title="Binding and coverage timeline">
-              <ol className="relative">
-                {timeline.map((e, i) => (
-                  <li
-                    key={e.id}
-                    className="relative grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 pb-5 last:pb-0"
-                  >
-                    {i < timeline.length - 1 && (
-                      <span
-                        aria-hidden="true"
-                        className={`absolute top-6 bottom-0 left-[0.6875rem] w-px ${e.state === 'done' ? 'bg-[var(--accent-signal)]' : 'bg-[var(--line-strong)]'}`}
-                      />
-                    )}
-                    <TimelineDot state={e.state} />
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
-                        <p
-                          className={`text-sm font-semibold ${e.state === 'upcoming' || e.state === 'skipped' ? 'text-[var(--ink-muted)]' : 'text-[var(--ink)]'}`}
-                        >
-                          {e.title}
-                          <span className="sr-only">, {timelineStateText[e.state]}</span>
-                        </p>
-                        {e.at ? (
-                          <p className="text-xs tabular-nums text-[var(--ink-muted)]">
-                            {displayDate(e.at)}
-                          </p>
-                        ) : null}
-                      </div>
-                      {e.detail ? (
-                        <p className="mt-0.5 text-[0.8125rem] text-[var(--ink-muted)]">
-                          {e.detail}
-                        </p>
-                      ) : null}
-                      {e.hash && isBindHash(e.hash) ? (
-                        <a
-                          href={`${EXPLORER}${e.hash}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-1 inline-flex max-w-full items-center gap-1.5 font-mono text-xs text-[var(--accent)] underline-offset-4 hover:underline"
-                        >
-                          <span className="truncate">{e.hash}</span>
-                          <ArrowSquareOut size={12} className="shrink-0" aria-hidden="true" />
-                          <span className="sr-only">(opens Arc Testnet explorer)</span>
-                        </a>
-                      ) : e.hash ? (
-                        <p className="mt-1 break-all font-mono text-xs text-[var(--ink-muted)]">
-                          {e.hash}
-                        </p>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              {lifecycle?.notice ? (
-                <p className="mt-4 border-t border-[var(--line)] pt-3 text-[0.8125rem] text-[var(--ink-secondary)]">
-                  {lifecycle.notice}
-                </p>
-              ) : null}
-            </Section>
+        <Section title="Binding and coverage timeline">
+          <ol className="policy-timeline relative">
+            {timeline.map((e, i) => (
+              <li
+                key={e.id}
+                className="policy-timeline-step relative grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 pb-5 last:pb-0"
+              >
+                {i < timeline.length - 1 && (
+                  <span
+                    aria-hidden="true"
+                    className={`policy-timeline-connector absolute top-6 bottom-0 left-[0.6875rem] w-px ${e.state === 'done' ? 'bg-[var(--accent-signal)]' : 'bg-[var(--line-strong)]'}`}
+                  />
+                )}
+                <TimelineDot state={e.state} />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+                    <p
+                      className={`text-sm font-semibold ${e.state === 'upcoming' || e.state === 'skipped' ? 'text-[var(--ink-muted)]' : 'text-[var(--ink)]'}`}
+                    >
+                      {e.title}
+                      <span className="sr-only">, {timelineStateText[e.state]}</span>
+                    </p>
+                    {e.at ? (
+                      <p className="text-xs tabular-nums text-[var(--ink-muted)]">
+                        {displayDate(e.at)}
+                      </p>
+                    ) : null}
+                  </div>
+                  {e.detail ? (
+                    <p className="mt-0.5 text-[0.8125rem] text-[var(--ink-muted)]">
+                      {e.detail}
+                    </p>
+                  ) : null}
+                  {e.hash && isBindHash(e.hash) ? (
+                    <a
+                      href={`${EXPLORER}${e.hash}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-flex max-w-full items-center gap-1.5 font-mono text-xs text-[var(--accent)] underline-offset-4 hover:underline"
+                    >
+                      <span className="truncate">{e.hash}</span>
+                      <ArrowSquareOut size={12} className="shrink-0" aria-hidden="true" />
+                      <span className="sr-only">(opens Arc Testnet explorer)</span>
+                    </a>
+                  ) : e.hash ? (
+                    <p className="mt-1 break-all font-mono text-xs text-[var(--ink-muted)]">
+                      {e.hash}
+                    </p>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+          {lifecycle?.notice ? (
+            <p className="mt-4 border-t border-[var(--line)] pt-3 text-[0.8125rem] text-[var(--ink-secondary)]">
+              {lifecycle.notice}
+            </p>
+          ) : null}
+        </Section>
 
+        <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+          <div className="min-w-0 space-y-6">
             <Section title="Terms">
               <div className="space-y-5">
                 <div>
@@ -407,7 +409,9 @@ export function PolicyRecord({ id }: { id: string }) {
               <Section title="Claims">
                 <p className="text-sm leading-relaxed text-[var(--ink-secondary)]">
                   {v.canClaim
-                    ? 'This policy is in force and its confirmation is current. You can begin a claim.'
+                    ? r.fixtureMode
+                      ? 'This synthetic policy is available for a rehearsal claim.'
+                      : 'This policy is in force and its confirmation is current. You can begin a claim.'
                     : v.phase === 'scheduled'
                       ? `Claim intake opens when coverage starts on ${displayDate(t.effectiveAt)}.`
                       : 'Claim intake is unavailable for this policy and session.'}

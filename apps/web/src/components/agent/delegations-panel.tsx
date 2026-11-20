@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { Key, User, Users } from '@phosphor-icons/react';
+import { StatContent } from '@/components/ui/stat-content';
 import {
   PROCUREMENT_PRODUCT as PRODUCT,
   type ProcurementAgent as Agent,
@@ -93,13 +95,22 @@ export function DelegationsPanel({ initialAgentId }: { initialAgentId?: string }
   }
 
   return (
-    <div className="procurement space-y-8">
+    <div className="procurement grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.8fr)] lg:items-start">
+      {authenticated && loaded ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:col-span-2">
+          <div className="arc-stat"><StatContent icon={<Users size={18} />} label="Registered agents" count={agents.length} /></div>
+          <div className="arc-stat"><StatContent icon={<Key size={18} />} label="Active delegations" count={rows.filter((row) => delegationPresentation(row, elapsed(), authenticated).active).length} /></div>
+          <div className="arc-stat"><StatContent icon={<User size={18} />} label="Owned oracle exposures" count={eligibleAgents.length} /></div>
+        </div>
+      ) : null}
+      <div className="lg:col-span-2">
       <Callout kind="warn" title="Backend-only permission boundary">
         Revocation prevents future API preparation. Previously prepared transactions remain
         executable onchain. These permissions cannot protect a compromised EOA private key.
       </Callout>
+      </div>
 
-      <section className="space-y-4">
+      <section className="arc-panel space-y-4 p-4 sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-[var(--ink)]">Your agents</h2>
@@ -146,7 +157,11 @@ export function DelegationsPanel({ initialAgentId }: { initialAgentId?: string }
                 className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:justify-between"
               >
                 <div>
-                  <p className="font-medium text-[var(--ink)]">{a.label}</p>
+                  {eligibleAgents.some((eligible) => eligible.id === a.id) ? (
+                    <button type="button" className="inline-flex items-center gap-2 rounded text-left font-semibold text-[var(--accent)] hover:underline" aria-pressed={agentId === a.id} onClick={() => setAgentId(a.id)}>
+                      <User size={15} aria-hidden="true" /> {a.label}
+                    </button>
+                  ) : <p className="font-medium text-[var(--ink)]">{a.label}</p>}
                   <p className="break-all font-mono text-xs text-[var(--ink-muted)]">
                     Signer {a.signer}
                   </p>
@@ -168,7 +183,7 @@ export function DelegationsPanel({ initialAgentId }: { initialAgentId?: string }
         )}
       </section>
 
-      <section className="space-y-4 border-t border-[var(--line)] pt-8">
+      <section className="arc-panel space-y-4 p-4 sm:p-5">
         <h2 className="text-lg font-semibold text-[var(--ink)]">Delegation configuration</h2>
         <p className="text-sm text-[var(--ink-muted)]">
           Authorize a registered agent to prepare this product within a cumulative premium budget
@@ -351,7 +366,7 @@ export function DelegationsPanel({ initialAgentId }: { initialAgentId?: string }
         ) : null}
       </section>
 
-      <section className="space-y-3 border-t border-[var(--line)] pt-8">
+      <section className="space-y-3 lg:col-span-2">
         <h2 className="text-lg font-semibold text-[var(--ink)]">Developer SDK workflow</h2>
         <Panel title="Integrate with the same records">
           <p className="text-sm leading-relaxed text-[var(--ink-muted)]">
