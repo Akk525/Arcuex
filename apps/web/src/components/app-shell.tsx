@@ -56,7 +56,7 @@ export function AppShell({
           <div className="flex flex-col gap-2.5 py-3 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
               <Link
-                href="/"
+                href="/dashboard"
                 className="inline-flex min-h-9 items-center text-xl font-semibold tracking-tight text-[var(--ink)]"
               >
                 Arcuex
@@ -64,6 +64,12 @@ export function AppShell({
               <span className="hidden text-xs text-[var(--ink-faint)] sm:inline">
                 Agent-native insurance infrastructure
               </span>
+              <Link
+                href="/"
+                className="hidden text-xs text-[var(--ink-faint)] hover:text-[var(--ink-muted)] md:inline"
+              >
+                Product
+              </Link>
             </div>
             <AccountBar />
           </div>

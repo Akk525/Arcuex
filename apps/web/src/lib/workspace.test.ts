@@ -17,6 +17,11 @@ describe('workspace helpers', () => {
   });
 
   it('keeps privileged review out of protect and claims nav', () => {
+    expect(WORKSPACE_NAV.protect.map((i) => i.href)).toEqual([
+      '/dashboard',
+      '/coverage',
+      '/policies',
+    ]);
     expect(WORKSPACE_NAV.protect.map((i) => i.href)).not.toContain('/claims/review');
     expect(WORKSPACE_NAV.protect.map((i) => i.href)).not.toContain('/capital');
     expect(WORKSPACE_NAV.claims.map((i) => i.href)).toEqual(['/claims', '/claims/new']);
@@ -24,7 +29,11 @@ describe('workspace helpers', () => {
   });
 
   it('follows dedicated deep links and retains a valid preference on shared routes', () => {
+    // `/` is marketing. AppShell may still fall back to Protect, but Overview no longer owns `/`.
     expect(workspaceForPath('/', null, false)).toBe('protect');
+    expect(activeWorkspaceLink('/', 'protect')).toBeUndefined();
+    expect(workspaceForPath('/dashboard', null, false)).toBe('protect');
+    expect(activeWorkspaceLink('/dashboard', 'protect')?.label).toBe('Overview');
     expect(workspaceForPath('/agent', 'protect', false)).toBe('build');
     expect(workspaceForPath('/coverage', 'build', false)).toBe('build');
     expect(workspaceForPath('/policies/policy-id', null, false)).toBe('protect');
@@ -42,7 +51,7 @@ describe('workspace helpers', () => {
   });
 
   it('maps default entry hrefs per workspace', () => {
-    expect(defaultHrefForWorkspace('protect')).toBe('/');
+    expect(defaultHrefForWorkspace('protect')).toBe('/dashboard');
     expect(defaultHrefForWorkspace('claims')).toBe('/claims');
     expect(defaultHrefForWorkspace('build')).toBe('/agent');
     expect(defaultHrefForWorkspace('ops')).toBe('/claims/review');

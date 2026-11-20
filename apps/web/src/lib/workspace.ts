@@ -13,7 +13,7 @@ export type NavItem = { href: string; label: string };
 
 export const WORKSPACE_NAV: Record<WorkspaceId, readonly NavItem[]> = {
   protect: [
-    { href: '/', label: 'Overview' },
+    { href: '/dashboard', label: 'Overview' },
     { href: '/coverage', label: 'Coverage' },
     { href: '/policies', label: 'Policies' },
   ],
@@ -61,7 +61,7 @@ export function writeStoredWorkspace(workspace: WorkspaceId): void {
 export function defaultHrefForWorkspace(workspace: WorkspaceId): string {
   switch (workspace) {
     case 'protect':
-      return '/';
+      return '/dashboard';
     case 'claims':
       return '/claims';
     case 'build':
@@ -76,7 +76,7 @@ export function workspaceForPath(
   preferred: WorkspaceId | null,
   mayUseOps: boolean,
 ): WorkspaceId {
-  if (pathname === '/') return 'protect';
+  if (pathname === '/dashboard') return 'protect';
   if (pathname === '/claims/review' || pathname === '/capital')
     return mayUseOps ? 'ops' : 'protect';
   // Claim routes are Claims-owned unless Ops holds a valid preference on /claims list.
