@@ -29,6 +29,8 @@ import { TruthBadge } from '@/components/ui/truth-badge';
 import { Button, ButtonLink } from '@/components/ui/button';
 import type { PaymentFinality } from '@/lib/claims/payment-finality';
 import { settlementPresentation } from '@/lib/claims/settlement-presentation';
+import { claimJourney } from '@/lib/claims/claim-journey';
+import { ClaimJourneyRail } from '@/components/claims/claim-journey-rail';
 import { claimsFetch } from '@/lib/claims/claims-api';
 import {
   CLAIMS_SIGN_IN_REQUIRED,
@@ -456,6 +458,18 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
             ? (reviewHelp[c.reviewReasonCode] ?? null)
             : null
         }
+      />
+
+      <ClaimJourneyRail
+        steps={claimJourney({
+          status: c.status,
+          unansweredRequests: unanswered,
+          examinerPending: examiner.pending,
+          examinerReported: Boolean(examiner.latest),
+          settlementBlocked: fixtureBlocked,
+          confirmedReceipt: receipt,
+          paymentFinality: data.paymentFinality,
+        })}
       />
 
       {/* Compact outcome summary for small screens; the sidebar carries it on desktop. */}

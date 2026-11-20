@@ -39,7 +39,7 @@ export default function IntegrationsPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Build"
+        eyebrow="Mission Control"
         title="Integrations"
         description={
           fixtureMode

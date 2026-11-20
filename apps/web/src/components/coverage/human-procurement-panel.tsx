@@ -227,14 +227,16 @@ export function HumanProcurementPanel({
       return stage > n ? 'complete' : 'upcoming';
     };
     return [
-      { id: '1', label: 'Exposure', state: mark(1, !!agentId && agents.length > 0) },
+      { id: '1', label: 'Product & agent', state: mark(1, !!agentId && agents.length > 0) },
       { id: '2', label: 'Terms', state: mark(2, !!quote) },
-      { id: '3', label: 'Review', state: mark(3, !!prep) },
+      { id: '3', label: 'Quote', state: mark(3, !!prep) },
       {
         id: '4',
-        label: 'Pay and bind',
+        label: 'Authorize',
         state: confirmed ? 'complete' : stage === 4 && error ? 'error' : mark(4, false),
       },
+      // Complete only once the server reports a confirmed, reconciled bind.
+      { id: '5', label: 'Policy', state: confirmed ? 'complete' : 'upcoming' },
     ];
   }, [stage, agentId, agents.length, quote, prep, confirmed, error]);
 
@@ -1465,7 +1467,7 @@ function StepSection({
       className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-sm)]"
     >
       <header className="border-b border-[var(--line)] px-5 py-4 sm:px-6">
-        <p className="text-xs tabular-nums text-[var(--ink-muted)]">Step {n} of 4</p>
+        <p className="text-xs tabular-nums text-[var(--ink-muted)]">Step {n} of 5</p>
         <h2 id={`checkout-step-${n}`} className="mt-0.5 font-display text-lg font-semibold tracking-[-0.015em] text-[var(--ink)]">
           {title}
         </h2>
