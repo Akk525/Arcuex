@@ -138,9 +138,9 @@ The currently deployed Railway beta has not been changed.
 
 ## Tailored synthetic oracle coverage
 
-Use **Protect → Applications** to apply for a registered synthetic oracle exposure. Sign in
+Use **Coverage → Applications** to apply for a registered synthetic oracle exposure. Sign in
 with the owner wallet or with the registered agent signer and a current delegation. Use
-**Insurer → Underwriting** with a provisioned reviewer or authority session to review the
+**Insurer workspace → Underwriting** with a provisioned reviewer or authority session to review the
 dossier, ask a question, request evidence or record an approval or decline with a rationale.
 
 The versioned demonstration rules use the requested limit relative to the registered

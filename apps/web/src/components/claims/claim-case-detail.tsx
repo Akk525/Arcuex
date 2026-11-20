@@ -13,6 +13,7 @@ import {
   WarningCircle,
 } from '@phosphor-icons/react';
 import { PageHeader } from '@/components/ui/page-header';
+import { canUseInsurerWorkspace } from '@/lib/app-nav';
 import { ClaimsInvestigation } from './claims-investigation';
 import { ClaimEventMetadata, ClaimEvidenceLinks, formatClaimTime } from './claim-evidence-links';
 import { ClaimAuditEvent, type ClaimAuditRecord } from './claim-audit-event';
@@ -126,12 +127,13 @@ type DetailResponse = {
   error?: string;
 };
 
-export function ClaimCaseDetail({ caseId }: { caseId: string }) {
+export function ClaimCaseDetail({ caseId, claimQueue }: { caseId: string; claimQueue: string }) {
   const [data, setData] = useState<DetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [reviewRationale, setReviewRationale] = useState('');
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
+  const backHref = canUseInsurerWorkspace(data?.principalRole) ? claimQueue : '/claims';
   const [notice, setNotice] = useState<string | null>(null);
   const [examiner, setExaminer] = useState<ExaminerSummary>({ pending: false, latest: null });
 
@@ -238,7 +240,7 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   if (error && !data) {
     return (
       <div className="space-y-4">
-        <BackLink />
+        <BackLink href={backHref} />
         <div
           role="alert"
           className="max-w-2xl rounded-[var(--radius-lg)] border border-[#f3c4bf] bg-[var(--danger-soft)] px-5 py-4"
@@ -269,7 +271,7 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   if (!data) {
     return (
       <div className="space-y-4">
-        <BackLink />
+        <BackLink href={backHref} />
         <div role="status" className="space-y-3">
           <span className="sr-only">Loading case…</span>
           <div className="h-9 w-72 max-w-full animate-pulse rounded-[var(--radius)] bg-[var(--surface-inset)]" />
@@ -412,7 +414,7 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
 
   return (
     <div className="claim-case min-w-0 [overflow-wrap:anywhere]">
-      <BackLink />
+      <BackLink href={backHref} />
       <PageHeader
         appearance="dark"
         eyebrow="Claim investigation"
@@ -435,8 +437,8 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
         action={
           <>
             {isReviewer ? (
-              <ButtonLink href="/claims/review" variant="secondary" size="sm">
-                Review queue
+              <ButtonLink href={backHref} variant="secondary" size="sm">
+                Return to queue
               </ButtonLink>
             ) : null}
             <Button size="sm" variant="secondary" disabled={pending} onClick={() => void refresh()}>
@@ -453,7 +455,7 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
 
       <nav aria-label="Claim dossier sections" className="arc-panel mb-4 flex flex-wrap gap-x-1 p-1">
         {[
-          [c.syntheticDemo ? '#claim-investigation' : '#claim-timeline', 'Investigation'],
+          ['#claim-investigation', isReviewer ? 'Evidence & AI insights' : 'Investigation'],
           ['#claim-verifier-findings', 'Verification records'],
           ['#claim-review-actions', 'Human decision'],
           ['#claim-financial-outcome', 'Reimbursement'],
@@ -524,7 +526,7 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
               }
             /></div>
           ) : (
-            <>
+            <div id="claim-investigation" className="scroll-mt-20 space-y-6">
               <FindingsComparison
                 verification={latestVerification}
                 state={latestVerification ? verificationFresh(latestVerification.id) : undefined}
@@ -543,7 +545,7 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
                   ))}
                 </ol>
               </DossierSection>
-            </>
+            </div>
           )}
 
           <DossierSection
@@ -1095,14 +1097,14 @@ export function ClaimCaseDetail({ caseId }: { caseId: string }) {
   );
 }
 
-function BackLink() {
+function BackLink({ href }: { href: string }) {
   return (
     <Link
-      href="/claims"
+      href={href}
       className="mb-3 inline-flex min-h-9 items-center gap-1 text-[0.8125rem] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]"
     >
       <CaretLeft size={13} weight="bold" aria-hidden="true" />
-      Claims
+      {href === '/insurer/investigations' ? 'AI investigations' : href === '/insurer/settlements' ? 'Settlements' : href === '/claims/review' ? 'Claims review' : 'Claims'}
     </Link>
   );
 }
@@ -1288,7 +1290,7 @@ function FindingsComparison({
                 href={`#${evidenceAnchor('verification', verification.id)}`}
                 className="mt-2 inline-block text-xs font-medium text-[var(--accent)] hover:underline"
               >
-                Open verification record
+                Read verification findings
               </a>
             </>
           ) : (

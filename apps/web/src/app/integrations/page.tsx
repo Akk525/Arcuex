@@ -40,22 +40,29 @@ export default function IntegrationsPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Mission Control"
-        title="Integrations"
+        title="Integrations & API"
         description={
           fixtureMode
             ? 'Inspect the integrations available in this synthetic environment.'
             : 'Check this host’s Arc Testnet and service connectivity.'
         }
         action={
-          <ButtonLink href="/agent" variant="secondary">
-            Manage agents
+          <ButtonLink href="/agent/new">
+            Connect an agent
           </ButtonLink>
         }
       />
-      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+      <div className="mb-4 grid gap-4 lg:grid-cols-2">
+        <Panel title="TypeScript SDK" description="Register a signer and position, then use the SDK to connect within a delegation you grant.">
+          <ButtonLink href="/#developers" variant="secondary">View SDK examples</ButtonLink>
+        </Panel>
+        <Panel title="API access" description="Agent requests use a signed wallet session. Delegations define the positions and premium limits an agent can use.">
+          <p className="text-sm text-[var(--ink-muted)]">API key management and MCP connections are unavailable in this build.</p>
+        </Panel>
+      </div>
+      <div id="diagnostics" className="scroll-mt-20 grid gap-4 lg:grid-cols-2 lg:items-start">
         <Panel
-          title="Integration health"
+          title="Diagnostics"
           action={
             <Button
               variant="secondary"

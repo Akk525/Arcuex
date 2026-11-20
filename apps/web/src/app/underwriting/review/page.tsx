@@ -6,7 +6,7 @@ export default function UnderwritingReviewPage() {
   return (
     <AppShell>
       <PageHeader
-        title="Underwriting desk"
+        title="Underwriting"
         description="Review exposure evidence, request proof and decide which applications can proceed to a quote."
       />
       <UnderwritingWorkspace insurer />

@@ -78,7 +78,7 @@ function pickNextAction(input: {
   if (input.state === 'anonymous') {
     return {
       label: 'Explore coverage',
-      href: '/coverage',
+      href: '/coverage?tab=products',
       reason: 'Connect a wallet and sign in from the account bar to see your portfolio.',
     };
   }
@@ -108,8 +108,8 @@ function pickNextAction(input: {
   }
   if (input.portfolioTotal === 0) {
     return {
-      label: 'Obtain coverage',
-      href: '/coverage',
+      label: 'Get coverage',
+      href: '/coverage?tab=products',
       reason: 'No policies in this session yet.',
     };
   }

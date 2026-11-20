@@ -48,7 +48,7 @@ describe('buildDashboardOverview', () => {
     expect(overview.agents).toEqual([]);
     expect(overview.nextAction).toMatchObject({
       label: 'Explore coverage',
-      href: '/coverage',
+      href: '/coverage?tab=products',
     });
   });
 
@@ -56,8 +56,8 @@ describe('buildDashboardOverview', () => {
     const overview = buildDashboardOverview(emptyAuthenticated());
     expect(overview.state).toBe('authenticated');
     expect(overview.nextAction).toEqual({
-      label: 'Obtain coverage',
-      href: '/coverage',
+      label: 'Get coverage',
+      href: '/coverage?tab=products',
       reason: 'No policies in this session yet.',
     });
   });

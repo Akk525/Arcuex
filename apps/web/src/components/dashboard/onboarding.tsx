@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { Check, Code, Robot, ShieldCheck } from '@phosphor-icons/react';
 import { useWalletStatus } from '@/hooks/use-wallet-status';
 import { useWalletSignIn } from '@/hooks/use-wallet-sign-in';
@@ -72,16 +71,16 @@ export function Onboarding() {
           <Step
             n={3}
             state="upcoming"
-            title="Buy coverage or register an agent"
+            title="Get coverage or register an agent"
             body="Quote and bind a policy yourself, or let a registered agent procure within a delegation you grant."
             last
           >
             <div className="flex flex-wrap gap-2">
-              <ButtonLink href="/coverage" size="sm" variant="secondary">
-                Buy coverage
+              <ButtonLink href="/coverage?tab=products" size="sm" variant="secondary">
+                Get coverage
               </ButtonLink>
               <ButtonLink href="/agent" size="sm" variant="ghost">
-                Register an agent
+                Add an agent
               </ButtonLink>
             </div>
           </Step>
@@ -91,7 +90,7 @@ export function Onboarding() {
       <Panel title="Explore without signing in" flush>
         <WorkList label="Explore">
           <WorkRow
-            href="/coverage"
+            href="/coverage?tab=products"
             icon={<ShieldCheck size={18} weight="duotone" />}
             iconTone="accent"
             title="Coverage products"
@@ -112,9 +111,6 @@ export function Onboarding() {
             meta="Connect an agent with @arcuex/agent-sdk"
           />
         </WorkList>
-        <p className="border-t border-[var(--line)] px-4 py-3 text-xs text-[var(--ink-muted)] sm:px-5">
-          Underwriting is synthetic on this testnet build. <Link href="/" className="underline underline-offset-2 hover:text-[var(--ink)]">About Arcuex</Link>
-        </p>
       </Panel>
     </div>
   );

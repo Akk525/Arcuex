@@ -118,7 +118,7 @@ export function PolicyPortfolio() {
               ? 'Use the wallet assigned to the seeded policy to continue the rehearsal.'
               : 'Policies you buy, or pay for on behalf of an agent, appear here with their confirmation status.'
           }
-          action={<ButtonLink href="/coverage">Buy coverage</ButtonLink>}
+          action={<ButtonLink href="/coverage?tab=products">Get coverage</ButtonLink>}
         />
       )}
 

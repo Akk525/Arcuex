@@ -641,6 +641,8 @@ export function ClaimsInvestigation({
 
   return (
     <>
+      {reviewer ? findings : null}
+
       {(open || openRequests.length > 0) && (
         <section
           id="outstanding-requests"
@@ -763,7 +765,7 @@ export function ClaimsInvestigation({
         </section>
       )}
 
-      {findings}
+      {!reviewer ? findings : null}
 
       {view.underwriting && (
         <section className="rounded-[var(--radius)] border border-[var(--line)] p-4">

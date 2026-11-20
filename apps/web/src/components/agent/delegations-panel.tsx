@@ -100,7 +100,7 @@ export function DelegationsPanel({ initialAgentId }: { initialAgentId?: string }
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:col-span-2">
           <div className="arc-stat"><StatContent icon={<Users size={18} />} label="Registered agents" count={agents.length} /></div>
           <div className="arc-stat"><StatContent icon={<Key size={18} />} label="Active delegations" count={rows.filter((row) => delegationPresentation(row, elapsed(), authenticated).active).length} /></div>
-          <div className="arc-stat"><StatContent icon={<User size={18} />} label="Owned oracle exposures" count={eligibleAgents.length} /></div>
+          <div className="arc-stat"><StatContent icon={<User size={18} />} label="Owned positions" count={eligibleAgents.length} /></div>
         </div>
       ) : null}
       <div className="lg:col-span-2">
@@ -120,10 +120,10 @@ export function DelegationsPanel({ initialAgentId }: { initialAgentId?: string }
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/coverage?from=build"
+              href="/agent/new"
               className="inline-flex min-h-11 items-center underline"
             >
-              Register an agent
+              Add an agent
             </Link>
             <Button variant="secondary" disabled={busy} onClick={() => void run(load)}>
               {busy ? 'Loading…' : 'Refresh agents'}
@@ -138,13 +138,13 @@ export function DelegationsPanel({ initialAgentId }: { initialAgentId?: string }
         {loaded && agents.length === 0 ? (
           <EmptyState
             title="No agents registered"
-            description="Register a synthetic exposure in Coverage, then return here to configure delegation."
+            description="Add an agent and a position you control to set up delegation."
             action={
               <Link
-                href="/coverage?from=build"
+                href="/agent/new"
                 className="text-sm font-medium text-[var(--accent)] underline"
               >
-                Register agent in Coverage
+                Add an agent
               </Link>
             }
           />
@@ -381,7 +381,7 @@ export function DelegationsPanel({ initialAgentId }: { initialAgentId?: string }
             <li>Grant delegation with beneficiary and premium caps.</li>
             <li>
               Confirm policies, then inspect under{' '}
-              <Link href="/policies" className="underline">
+              <Link href="/coverage" className="underline">
                 Policies
               </Link>{' '}
               or{' '}

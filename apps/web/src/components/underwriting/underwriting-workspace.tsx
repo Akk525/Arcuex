@@ -215,7 +215,7 @@ function Workspace({ insurer }: { insurer: boolean }) {
         <div className="min-w-0 space-y-4">
           <section className={surface}>
             <h2 className="mb-3 font-semibold">
-              {insurer ? 'Applications queue' : 'Your applications'}
+              {insurer ? 'Applications queue' : 'Your coverage applications'}
             </h2>
             {!list ? (
               <p className={muted}>
@@ -226,7 +226,9 @@ function Workspace({ insurer }: { insurer: boolean }) {
                   : 'Load applications to view requests and offers.'}
               </p>
             ) : list.applications.length === 0 ? (
-              <p className={muted}>No applications to show.</p>
+              <p className={muted}>
+                {insurer ? 'New applications will appear here.' : 'Start an application to request tailored coverage.'}
+              </p>
             ) : (
               <ul className="divide-y divide-[var(--line)]">
                 {list.applications.map((item) => (
