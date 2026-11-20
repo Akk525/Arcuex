@@ -1,0 +1,844 @@
+diff --git a/apps/web/src/app/api/dashboard/route.ts b/apps/web/src/app/api/dashboard/route.ts
+--- a/apps/web/src/app/api/dashboard/route.ts
++++ b/apps/web/src/app/api/dashboard/route.ts
+@@ -12,7 +12,7 @@
+   buildDashboardOverview,
+   type DashboardOverviewInput,
+ } from '@/lib/server/dashboard-overview';
+-import { confirmedClaimReceipt } from '@/lib/server/claims-settlement-projection';
++import { projectSettlementFinality } from '@/lib/server/claims-settlement-projection';
+ import { loadPrincipalFromSession, parseSessionCookie } from '@/lib/server/claims-session';
+ import { getDb, getRepo } from '@/lib/server/db';
+ import { configuredIndependentLiquidation } from '@/lib/server/independent-evidence';
+@@ -82,9 +82,9 @@
+   );
+   const policies = accessiblePolicies.map((p) => ({
+     id: p.id,
+-    status: p.status,
+-    synthetic: Boolean(p.terms.synthetic),
+-    claimsEligible: store.claimsEligible(p.id, now),
++    status: chainSource === 'fixture' ? 'Rehearsal' : p.status,
++    synthetic: chainSource === 'fixture' || Boolean(p.terms.synthetic),
++    claimsEligible: chainSource !== 'fixture' && store.claimsEligible(p.id, now),
+     label: p.terms.synthetic ? 'Synthetic policy' : `Policy ${p.id.slice(0, 8)}`,
+   }));
+
+@@ -126,7 +126,20 @@
+     for (const req of outstanding) {
+       evidenceRequests.push({ caseId: claim.id, id: req.id, href });
+     }
+-    const receipt = confirmedClaimReceipt(db, chainSource, claim);
++    const payment = await projectSettlementFinality(db, chainSource, claim);
++    const confirmedPayment =
++      payment.paymentFinality === 'confirmed' && Boolean(payment.confirmedSettlementReceipt);
++    const status =
++      claim.status === 'PAID' && !confirmedPayment ? 'SETTLEMENT_PENDING' : claim.status;
++    const activityStatus = confirmedPayment
++      ? 'payment confirmed'
++      : payment.paymentFinality === 'reorged'
++        ? 'payment reorged'
++        : payment.paymentFinality === 'unverified'
++          ? 'payment unconfirmed'
++          : status === 'SETTLEMENT_PENDING'
++            ? 'intent prepared'
++            : status;
+     // Label from what is persisted: the insured agent or exposure the claim was filed against.
+     const context = claimListContext(repo, claim);
+     claims.push({
+@@ -134,20 +147,20 @@
+       title: context.insured.label?.trim() || null,
+       filedAt: claim.createdAt,
+       synthetic: claim.syntheticDemo,
+-      status: claim.status,
++      status,
+       reason:
+         claim.status === 'COLLECTING_EVIDENCE'
+           ? 'Evidence collection in progress'
+           : claim.status === 'DRAFT'
+             ? 'Draft claim needs submission'
+-            : `Claim status ${claim.status}`,
++            : `Claim status ${activityStatus}`,
+       href,
+-      hasConfirmedSettlement: Boolean(receipt),
++      hasConfirmedSettlement: confirmedPayment,
+     });
+     recentActivity.push({
+       at: claim.updatedAt ?? claim.createdAt,
+       kind: 'claim',
+-      summary: `Claim ${claim.status}`,
++      summary: `Claim ${activityStatus}`,
+       href,
+     });
+   }
+diff --git a/apps/web/src/components/claims/case-status-badge.tsx b/apps/web/src/components/claims/case-status-badge.tsx
+--- a/apps/web/src/components/claims/case-status-badge.tsx
++++ b/apps/web/src/components/claims/case-status-badge.tsx
+@@ -1,3 +1,4 @@
++import type { PaymentFinality } from '@/lib/claims/payment-finality';
+ import { StatusBadge } from '@/components/status-badge';
+ import { claimStatusLabel, displayClaimStatus } from '@/lib/claims/settlement-presentation';
+ import { statusTone } from '@/lib/claims/status-tone';
+@@ -5,14 +6,16 @@
+ export function CaseStatusBadge({
+   status,
+   confirmedReceipt,
++  paymentFinality,
+ }: {
+   status: string;
+   confirmedReceipt?: string | null;
++  paymentFinality?: PaymentFinality;
+ }) {
+-  const verifiedStatus = displayClaimStatus(status, confirmedReceipt);
++  const verifiedStatus = displayClaimStatus(status, confirmedReceipt, paymentFinality);
+   return (
+     <StatusBadge
+-      label={claimStatusLabel(status, confirmedReceipt)}
++      label={claimStatusLabel(status, confirmedReceipt, paymentFinality)}
+       tone={verifiedStatus === status ? statusTone(status) : 'warn'}
+     />
+   );
+diff --git a/apps/web/src/components/claims/claim-audit-event.tsx b/apps/web/src/components/claims/claim-audit-event.tsx
+--- a/apps/web/src/components/claims/claim-audit-event.tsx
++++ b/apps/web/src/components/claims/claim-audit-event.tsx
+@@ -23,6 +23,11 @@
+   receipt?: string | null;
+   targets: readonly EvidenceTarget[];
+ }) {
++  const recordedReceipt = event.payload?.receiptRef;
++  const currentReceipt =
++    typeof recordedReceipt === 'string' && recordedReceipt.toLowerCase() === receipt?.toLowerCase()
++      ? receipt
++      : undefined;
+   const binding = event.payload?.binding;
+   const verificationId =
+     binding && typeof binding === 'object' && 'verificationId' in binding
+@@ -39,7 +44,7 @@
+     >
+       <p className="text-sm font-semibold text-[var(--ink)]">
+         {decision ? 'Human decision · ' : ''}
+-        {claimStatusLabel(event.fromStatus, receipt)} → {claimStatusLabel(event.toStatus, receipt)}
++        {claimStatusLabel(event.fromStatus)} → {claimStatusLabel(event.toStatus, currentReceipt)}
+       </p>
+       <ClaimEventMetadata actor={event.actor} timestamp={event.createdAt} />
+       <p className="mt-1 font-mono text-[0.6875rem] text-[var(--ink-muted)]">{event.reasonCode}</p>
+diff --git a/apps/web/src/components/claims/claim-case-detail.tsx b/apps/web/src/components/claims/claim-case-detail.tsx
+--- a/apps/web/src/components/claims/claim-case-detail.tsx
++++ b/apps/web/src/components/claims/claim-case-detail.tsx
+@@ -27,6 +27,7 @@
+ import { CaseStatusBadge } from '@/components/claims/case-status-badge';
+ import { TruthBadge } from '@/components/ui/truth-badge';
+ import { Button, ButtonLink } from '@/components/ui/button';
++import type { PaymentFinality } from '@/lib/claims/payment-finality';
+ import { settlementPresentation } from '@/lib/claims/settlement-presentation';
+ import { claimsFetch } from '@/lib/claims/claims-api';
+ import {
+@@ -54,6 +55,7 @@
+   };
+   principalRole?: string;
+   context?: ClaimListContext;
++  paymentFinality?: PaymentFinality;
+   confirmedSettlementReceipt?: string;
+   fixtureCatalog?: { reference: string; digest: string; raw: string };
+   linkedIncident?: { id: string; observedAt: string; observedEventRef?: string };
+@@ -167,7 +169,8 @@
+         });
+         const json = await res.json();
+         if (!res.ok) throw new Error(json.error ?? 'Action failed');
+-        if (json.notice) setNotice(String(json.notice));
++        if (body.action === 'prepare_settlement') setNotice('Intent prepared');
++        else if (json.notice) setNotice(String(json.notice));
+         await refresh();
+       })().catch((e) => setError(e instanceof Error ? e.message : 'Action failed'));
+     });
+@@ -336,6 +339,7 @@
+     status: c.status,
+     blocked: fixtureBlocked,
+     confirmedReceipt: receipt,
++    paymentFinality: data.paymentFinality,
+     canPrepare,
+   });
+   const decision =
+@@ -373,6 +377,7 @@
+     examinerPending: examiner.pending,
+     fixtureBlocked,
+     receipt,
++    paymentFinality: data.paymentFinality,
+     canPrepare,
+   });
+   const recordedDecision = (() => {
+@@ -410,7 +415,7 @@
+         title={title}
+         badges={
+           <>
+-            <CaseStatusBadge status={c.status} confirmedReceipt={receipt} />
++            <CaseStatusBadge status={c.status} confirmedReceipt={receipt} paymentFinality={data.paymentFinality} />
+             {c.syntheticDemo ? <TruthBadge label="Synthetic fixture" tone="synthetic" /> : null}
+           </>
+         }
+@@ -837,7 +842,7 @@
+                           })
+                         }
+                       >
+-                        Prepare settlement (authority session, no broadcast)
++                        Prepare settlement intent
+                       </Button>
+                     </div>
+                   )}
+diff --git a/apps/web/src/components/claims/claims-case-list.tsx b/apps/web/src/components/claims/claims-case-list.tsx
+--- a/apps/web/src/components/claims/claims-case-list.tsx
++++ b/apps/web/src/components/claims/claims-case-list.tsx
+@@ -394,7 +394,7 @@
+         {step.category === 'action' ? (
+           <StatusBadge label={step.label} tone="warn" />
+         ) : (
+-          <CaseStatusBadge status={row.status} confirmedReceipt={row.confirmedSettlementReceipt} />
++          <CaseStatusBadge status={row.status} confirmedReceipt={row.confirmedSettlementReceipt} paymentFinality={row.paymentFinality} />
+         )}
+         <span className="text-xs text-[var(--ink-muted)]">
+           {row.status === 'APPROVED' ? 'Not reimbursed · ' : ''}Updated {day(row.updatedAt)}
+diff --git a/apps/web/src/components/claims/historic-settlement-panel.tsx b/apps/web/src/components/claims/historic-settlement-panel.tsx
+--- a/apps/web/src/components/claims/historic-settlement-panel.tsx
++++ b/apps/web/src/components/claims/historic-settlement-panel.tsx
+@@ -52,14 +52,13 @@
+
+   return (
+     <Panel
+-      title="Verified Arc Testnet settlement (read-only)"
+-      action={<StatusBadge label="CHAIN RECEIPT" tone="ok" />}
++      title="Archived Arc Testnet settlement"
++      action={<StatusBadge label="ARCHIVED" tone="neutral" />}
+     >
+       {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+       {authRequired ? (
+         <p className="text-sm text-zinc-600">
+-          Sign in to view the verified Arc Testnet settlement receipt. Auth failures are not treated
+-          as a missing receipt.
++          Sign in to view the archived Arc Testnet receipt. Current payment finality is unverified.
+         </p>
+       ) : null}
+       {!data && !error ? <p className="text-sm text-zinc-500">Loading receipt…</p> : null}
+@@ -75,7 +74,7 @@
+           <div className="break-all font-mono text-xs">Authority: {data.claimsAuthority}</div>
+           <div className="break-all font-mono text-xs">Pool: {data.pool}</div>
+           <div className="break-all font-mono text-xs">Loss key: {data.lossKey}</div>
+-          <div className="text-xs text-zinc-500">Verified at {data.verifiedAt}</div>
++          <div className="text-xs text-zinc-500">Recorded verification at {data.verifiedAt} · historical snapshot</div>
+           <a
+             href={data.explorerUrl}
+             target="_blank"
+diff --git a/apps/web/src/components/claims/reviewer-workbench.tsx b/apps/web/src/components/claims/reviewer-workbench.tsx
+--- a/apps/web/src/components/claims/reviewer-workbench.tsx
++++ b/apps/web/src/components/claims/reviewer-workbench.tsx
+@@ -253,7 +253,7 @@
+           {claimTitle(row)}
+         </Link>
+         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--ink-muted)]">
+-          <CaseStatusBadge status={row.status} confirmedReceipt={row.confirmedSettlementReceipt} />
++          <CaseStatusBadge status={row.status} confirmedReceipt={row.confirmedSettlementReceipt} paymentFinality={row.paymentFinality} />
+           {fixture ? <TruthBadge label="Synthetic" tone="synthetic" /> : null}
+           <span className="font-mono">{row.id.slice(0, 8)}</span>
+         </div>
+diff --git a/apps/web/src/components/coverage/human-procurement-panel.tsx b/apps/web/src/components/coverage/human-procurement-panel.tsx
+--- a/apps/web/src/components/coverage/human-procurement-panel.tsx
++++ b/apps/web/src/components/coverage/human-procurement-panel.tsx
+@@ -47,6 +47,7 @@
+   readBindAttempt,
+   saveBindAttempt,
+ } from '@/lib/procurement/bind-attempt';
++import { confirmCheckoutReceipt } from '@/lib/procurement/checkout-recovery';
+ import { delegationPresentation } from '@/lib/delegation-presentation';
+ import {
+   checkoutStatus,
+@@ -314,34 +315,34 @@
+
+   async function confirmPayment(kind: 'approve' | 'bind', txHash: Hex, policyId: string) {
+     if (!publicClient) throw new Error('Connect to Arc Testnet to check this receipt.');
+-    const receipt = await publicClient.waitForTransactionReceipt({
+-      hash: txHash,
+-      confirmations: 1,
+-      timeout: 20_000,
++    const outcome = await confirmCheckoutReceipt(publicClient, txHash, async (sameHash) => {
++      if (kind === 'bind') {
++        const policy = await api<Policy>('confirm', { policyId, hash: sameHash });
++        setPrep({ policy, state: 'accepted_offchain' });
++        await refreshLifecycle(policyId);
++        setNotice(
++          'Receipt checked. Coverage follows canonical reconciliation and the effective window.',
++        );
++      } else {
++        await api('approvals', { policyId, hash: sameHash });
++        setApproved(true);
++        setNotice('Premium allowance confirmed. Continue to authorize the bind.');
++      }
+     });
+-    if (receipt.status !== 'success') {
+-      if (kind === 'bind') {
++    if (outcome !== 'reverted') return;
++
++    if (kind === 'bind') {
++      const attempt = readBindAttempt(policyId);
++      if (attempt?.state === 'submitted' && attempt.hash.toLowerCase() === txHash.toLowerCase()) {
+         clearBindAttempt(policyId);
+         setBindUncertain(false);
+         setHash(null);
+-      } else {
+-        sessionStorage.removeItem(`arcuex-${kind}:${policyId}`);
+-        setApprovalHash(null);
+       }
+-      throw new Error('Transaction reverted. You can retry while the quote is open.');
++    } else if (sessionStorage.getItem(`arcuex-approve:${policyId}`) === txHash) {
++      sessionStorage.removeItem(`arcuex-approve:${policyId}`);
++      setApprovalHash(null);
+     }
+-    if (kind === 'bind') {
+-      const policy = await api<Policy>('confirm', { policyId, hash: txHash });
+-      setPrep({ policy, state: 'accepted_offchain' });
+-      await refreshLifecycle(policyId);
+-      setNotice(
+-        'Receipt checked. Coverage follows canonical reconciliation and the effective window.',
+-      );
+-    } else {
+-      await api('approvals', { policyId, hash: txHash });
+-      setApproved(true);
+-      setNotice('Premium allowance confirmed. Continue to authorize the bind.');
+-    }
++    throw new Error('Transaction reverted on Arc. Refresh payment preflight before retrying.');
+   }
+
+   async function payment(kind: 'approve' | 'bind') {
+diff --git a/apps/web/src/components/coverage/policy-portfolio.tsx b/apps/web/src/components/coverage/policy-portfolio.tsx
+--- a/apps/web/src/components/coverage/policy-portfolio.tsx
++++ b/apps/web/src/components/coverage/policy-portfolio.tsx
+@@ -29,6 +29,7 @@
+   { id: 'action', label: 'Needs action' },
+   { id: 'pending', label: 'Awaiting confirmation' },
+   { id: 'in_force', label: 'In force' },
++  { id: 'rehearsal', label: 'Rehearsal' },
+   { id: 'scheduled', label: 'Scheduled' },
+   { id: 'ended', label: 'Ended' },
+ ];
+@@ -51,7 +52,7 @@
+   const [query, setQuery] = useState('');
+
+   const counts = useMemo(() => {
+-    const c: Record<Filter, number> = { all: 0, action: 0, pending: 0, in_force: 0, scheduled: 0, ended: 0 };
++    const c: Record<Filter, number> = { all: 0, action: 0, pending: 0, in_force: 0, scheduled: 0, ended: 0, rehearsal: 0 };
+     for (const v of views ?? []) {
+       c.all++;
+       c[v.category]++;
+diff --git a/apps/web/src/components/coverage/policy-record.tsx b/apps/web/src/components/coverage/policy-record.tsx
+--- a/apps/web/src/components/coverage/policy-record.tsx
++++ b/apps/web/src/components/coverage/policy-record.tsx
+@@ -333,24 +333,14 @@
+                     </dd>
+                   </div>
+                 ) : null}
+-                {lifecycle?.settlements.map((s) => (
+-                  <div
+-                    key={s.caseId}
+-                    className="grid gap-1 py-3 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4"
+-                  >
+-                    <dt className="text-[var(--ink-muted)]">
+-                      Settlement · claim {s.caseId.slice(0, 8)}
+-                    </dt>
++                {timeline.filter((event) => event.id.startsWith('settlement-')).map((event) => (
++                  <div key={event.id} className="grid gap-1 py-3 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4">
++                    <dt className="text-[var(--ink-muted)]">{event.title}</dt>
+                     <dd className="text-[var(--ink)]">
+-                      {s.state}.{' '}
+-                      {s.explorerUrl ? (
+-                        <a
+-                          className="text-[var(--accent)] underline underline-offset-4"
+-                          href={s.explorerUrl}
+-                          target="_blank"
+-                          rel="noreferrer"
+-                        >
+-                          Receipt reference, verify independently
++                      {event.detail}.{' '}
++                      {event.hash ? (
++                        <a className="text-[var(--accent)] underline underline-offset-4" href={`https://explorer.testnet.arc.io/tx/${event.hash}`} target="_blank" rel="noreferrer">
++                          View confirmed receipt
+                         </a>
+                       ) : (
+                         <span className="text-[var(--ink-muted)]">No verified receipt link</span>
+diff --git a/apps/web/src/lib/claims/claim-presentation.test.ts b/apps/web/src/lib/claims/claim-presentation.test.ts
+--- a/apps/web/src/lib/claims/claim-presentation.test.ts
++++ b/apps/web/src/lib/claims/claim-presentation.test.ts
+@@ -33,6 +33,20 @@
+     );
+   });
+
++  it('treats reorged or unverified payment projections as unresolved', () => {
++    expect(
++      claimantStep({ status: 'SETTLEMENT_PENDING', paymentFinality: 'reorged' }),
++    ).toMatchObject({ label: 'Payment reorged', category: 'decided' });
++    expect(
++      claimantStep({
++        status: 'PAID',
++        paymentFinality: 'unverified',
++        confirmedSettlementReceipt: `0x${'a'.repeat(64)}`,
++      }),
++    ).toMatchObject({ label: 'Payment unconfirmed', category: 'decided' });
++    expect(claimantStep({ status: 'SETTLEMENT_PENDING' }).label).toBe('Intent prepared');
++  });
++
+   it('never presents approval or an unreceipted PAID as payment', () => {
+     expect(claimantStep({ status: 'APPROVED' }).label).toBe('Approved · not reimbursed');
+     expect(claimantStep({ status: 'APPROVED' }).tone).not.toBe('ok');
+@@ -41,7 +55,11 @@
+       tone: 'warn',
+     });
+     expect(
+-      claimantStep({ status: 'PAID', confirmedSettlementReceipt: `0x${'a'.repeat(64)}` }).label,
++      claimantStep({
++        status: 'PAID',
++        paymentFinality: 'confirmed',
++        confirmedSettlementReceipt: `0x${'a'.repeat(64)}`,
++      }).label,
+     ).toBe('Payment confirmed');
+   });
+ });
+diff --git a/apps/web/src/lib/claims/claim-presentation.ts b/apps/web/src/lib/claims/claim-presentation.ts
+--- a/apps/web/src/lib/claims/claim-presentation.ts
++++ b/apps/web/src/lib/claims/claim-presentation.ts
+@@ -2,7 +2,7 @@
+  * Presentation-only claim states. These name what the server already decided;
+  * nothing here enables an action, approves a claim or implies payment.
+  */
+-import { hasArcReceiptHash } from './settlement-presentation';
++import { currentPaymentReceipt, type PaymentFinality } from './payment-finality';
+ import { reviewBlockerMessage } from './investigation-presentation';
+ import type { ClaimListContext, ClaimVerificationFreshness } from './claims-client-response';
+
+@@ -20,6 +20,7 @@
+   status: string;
+   context?: ClaimListContext;
+   confirmedSettlementReceipt?: string;
++  paymentFinality?: PaymentFinality;
+ }): { label: string; tone: Tone; category: ClaimCategory; action: string | null } {
+   const open = row.context?.openRequests ?? 0;
+   const responded = row.context?.respondedRequests ?? 0;
+@@ -31,6 +32,13 @@
+       category: 'action',
+       action: 'Respond',
+     };
++  if (row.paymentFinality === 'reorged' || row.paymentFinality === 'unverified')
++    return {
++      label: row.paymentFinality === 'reorged' ? 'Payment reorged' : 'Payment unconfirmed',
++      tone: 'warn',
++      category: 'decided',
++      action: null,
++    };
+   switch (row.status) {
+     case 'SUBMITTED':
+     case 'COLLECTING_EVIDENCE':
+@@ -58,7 +66,7 @@
+       };
+     case 'SETTLEMENT_PENDING':
+       return {
+-        label: 'Settlement prepared · unpaid',
++        label: 'Intent prepared',
+         tone: 'pending',
+         category: 'decided',
+         action: null,
+@@ -66,7 +74,7 @@
+     case 'SETTLEMENT_FAILED':
+       return { label: 'Settlement failed', tone: 'error', category: 'decided', action: null };
+     case 'PAID':
+-      return hasArcReceiptHash(row.confirmedSettlementReceipt)
++      return currentPaymentReceipt(row.status, row.paymentFinality, row.confirmedSettlementReceipt)
+         ? { label: 'Payment confirmed', tone: 'ok', category: 'closed', action: null }
+         : { label: 'Payment unconfirmed', tone: 'warn', category: 'decided', action: null };
+     case 'DENIED':
+@@ -86,6 +94,7 @@
+   examinerPending: boolean;
+   fixtureBlocked: boolean;
+   receipt: string | null | undefined;
++  paymentFinality?: PaymentFinality;
+   canPrepare: boolean;
+ };
+
+@@ -96,8 +105,14 @@
+   const reviewer = f.role === 'reviewer' || f.role === 'authority';
+   const open = OPEN.includes(f.status);
+
++  if (!f.fixtureBlocked && (f.paymentFinality === 'reorged' || f.paymentFinality === 'unverified'))
++    return {
++      title: f.paymentFinality === 'reorged' ? 'Payment reorged' : 'Payment unconfirmed',
++      detail: 'Await canonical reconciliation before treating this claim as paid.',
++      tone: 'warn',
++    };
+   if (f.status === 'PAID')
+-    return hasArcReceiptHash(f.receipt)
++    return currentPaymentReceipt(f.status, f.paymentFinality, f.receipt, f.fixtureBlocked)
+       ? {
+           title: 'Payment confirmed',
+           detail: 'A matching Arc Testnet settlement receipt is reconciled.',
+@@ -116,7 +131,7 @@
+     };
+   if (f.status === 'SETTLEMENT_PENDING')
+     return {
+-      title: 'Settlement prepared, not paid',
++      title: 'Intent prepared',
+       detail: 'Payment needs separate execution and a reconciled receipt.',
+       tone: 'pending',
+     };
+diff --git a/apps/web/src/lib/claims/claims-client-response.ts b/apps/web/src/lib/claims/claims-client-response.ts
+--- a/apps/web/src/lib/claims/claims-client-response.ts
++++ b/apps/web/src/lib/claims/claims-client-response.ts
+@@ -5,7 +5,11 @@
+   type ReviewReadiness,
+   type VerificationState,
+ } from './investigation-presentation';
+-import { hasArcReceiptHash } from './settlement-presentation';
++import {
++  currentPaymentReceipt,
++  parsePaymentFinality,
++  type PaymentFinality,
++} from './payment-finality';
+
+ /** Client-side claims API response discrimination (auth vs empty vs malformed). */
+
+@@ -17,7 +21,12 @@
+
+ export type ClaimsClientResult<T> =
+   | { ok: true; data: T }
+-  | { ok: false; kind: ClaimsClientFailureKind; status?: number; message: string };
++  | {
++      ok: false;
++      kind: ClaimsClientFailureKind;
++      status?: number;
++      message: string;
++    };
+
+ export type LegacyClaimsLedger = {
+   notice: string;
+@@ -36,6 +45,7 @@
+   id: string;
+   status: string;
+   policyId: string;
++  paymentFinality?: PaymentFinality;
+   confirmedSettlementReceipt?: string;
+   syntheticDemo: boolean;
+   payable: { usdc: string | null };
+@@ -131,10 +141,16 @@
+     if (!isRecord(raw.labels)) return null;
+     const synthetic = raw.labels.synthetic;
+     if (!(synthetic === null || typeof synthetic === 'string')) return null;
++    const paymentFinality = parsePaymentFinality(raw.paymentFinality);
++    const receipt = currentPaymentReceipt(
++      raw.status,
++      paymentFinality,
++      raw.confirmedSettlementReceipt,
++      raw.syntheticDemo || synthetic !== null || raw.evidenceAuthenticity === 'synthetic_fixture',
++    );
+     rows.push({
+-      ...(hasArcReceiptHash(raw.confirmedSettlementReceipt) && !raw.syntheticDemo
+-        ? { confirmedSettlementReceipt: raw.confirmedSettlementReceipt }
+-        : {}),
++      ...(paymentFinality && { paymentFinality }),
++      ...(receipt && { confirmedSettlementReceipt: receipt }),
+       ...(isRecord(raw.triage) &&
+       typeof raw.triage.section === 'string' &&
+       Object.hasOwn(queueSections, raw.triage.section) &&
+@@ -231,6 +247,7 @@
+   settlementVerificationBlocker?: string | null;
+   case: Record<string, unknown>;
+   timeline: unknown[];
++  paymentFinality?: PaymentFinality;
+   confirmedSettlementReceipt?: string;
+   evidenceManifests: unknown[];
+   context?: ClaimListContext;
+@@ -238,6 +255,15 @@
+   if (!isRecord(json) || !isRecord(json.case)) return null;
+   if (!Array.isArray(json.timeline) || !Array.isArray(json.evidenceManifests)) return null;
+   if (typeof json.case.id !== 'string' || typeof json.case.status !== 'string') return null;
++  const paymentFinality = parsePaymentFinality(json.paymentFinality);
++  const receipt = currentPaymentReceipt(
++    json.case.status,
++    paymentFinality,
++    json.confirmedSettlementReceipt,
++    (isRecord(json.source) && json.source.mode === 'fixture') ||
++      json.case.syntheticDemo === true ||
++      json.case.evidenceAuthenticity === 'synthetic_fixture',
++  );
+   return {
+     source: isRecord(json.source) ? json.source : undefined,
+     principalRole: typeof json.principalRole === 'string' ? json.principalRole : undefined,
+@@ -267,9 +293,8 @@
+       : {}),
+     case: json.case,
+     ...(parseListContext(json.context) ? { context: parseListContext(json.context) } : {}),
+-    ...(hasArcReceiptHash(json.confirmedSettlementReceipt)
+-      ? { confirmedSettlementReceipt: json.confirmedSettlementReceipt }
+-      : {}),
++    ...(paymentFinality && { paymentFinality }),
++    ...(receipt && { confirmedSettlementReceipt: receipt }),
+     timeline: json.timeline,
+     evidenceManifests: json.evidenceManifests,
+   };
+diff --git a/apps/web/src/lib/claims/payment-finality.ts b/apps/web/src/lib/claims/payment-finality.ts
+new file mode 100644
+--- /dev/null
++++ b/apps/web/src/lib/claims/payment-finality.ts
+@@ -0,0 +1,25 @@
++export type PaymentFinality = 'confirmed' | 'unverified' | 'reorged' | 'not_paid';
++
++export function parsePaymentFinality(value: unknown): PaymentFinality | undefined {
++  if (
++    value === 'confirmed' ||
++    value === 'unverified' ||
++    value === 'reorged' ||
++    value === 'not_paid'
++  )
++    return value;
++}
++
++export function hasArcReceiptHash(value: unknown): value is string {
++  return typeof value === 'string' && /^0x[0-9a-f]{64}$/i.test(value) && !/^0x0{64}$/.test(value);
++}
++
++export function currentPaymentReceipt(
++  status: unknown,
++  finality: unknown,
++  receipt: unknown,
++  synthetic = false,
++): string | undefined {
++  if (!synthetic && status === 'PAID' && finality === 'confirmed' && hasArcReceiptHash(receipt))
++    return receipt;
++}
+diff --git a/apps/web/src/lib/claims/settlement-presentation.test.ts b/apps/web/src/lib/claims/settlement-presentation.test.ts
+--- a/apps/web/src/lib/claims/settlement-presentation.test.ts
++++ b/apps/web/src/lib/claims/settlement-presentation.test.ts
+@@ -11,11 +11,11 @@
+
+ describe('claim financial presentation', () => {
+   it('separates coverage approval from settlement preparation and payment', () => {
+-    expect(render('APPROVED').label).toBe('Awaiting settlement authorization');
++    expect(render('APPROVED').label).toBe('Awaiting settlement preparation');
+     expect(render('APPROVED', false, undefined, true).action).toContain('can request preparation');
+-    expect(render('SETTLEMENT_PENDING').label).toBe('Awaiting a verified settlement receipt');
++    expect(render('SETTLEMENT_PENDING').label).toBe('Intent prepared');
+     expect(render('SETTLEMENT_PENDING').action).toContain('requires separate submission');
+-    expect(claimStatusLabel('SETTLEMENT_PENDING')).toBe('Settlement prepared');
++    expect(claimStatusLabel('SETTLEMENT_PENDING')).toBe('Intent prepared');
+     expect(render('SETTLEMENT_FAILED').label).toBe('Settlement failed');
+     expect(render('DENIED').label).toBe('No settlement');
+   });
+diff --git a/apps/web/src/lib/claims/settlement-presentation.ts b/apps/web/src/lib/claims/settlement-presentation.ts
+--- a/apps/web/src/lib/claims/settlement-presentation.ts
++++ b/apps/web/src/lib/claims/settlement-presentation.ts
+@@ -1,33 +1,52 @@
+-export function hasArcReceiptHash(value: unknown): value is string {
+-  return typeof value === 'string' && /^0x[0-9a-f]{64}$/i.test(value) && !/^0x0{64}$/.test(value);
+-}
++import { hasArcReceiptHash, type PaymentFinality } from './payment-finality';
+
+-export function displayClaimStatus(status: string, confirmedReceipt?: string | null) {
+-  return status === 'PAID' && !hasArcReceiptHash(confirmedReceipt) ? 'Payment unconfirmed' : status;
++export { hasArcReceiptHash };
++
++export function displayClaimStatus(
++  status: string,
++  confirmedReceipt?: string | null,
++  paymentFinality?: PaymentFinality,
++) {
++  if (paymentFinality === 'reorged') return 'Payment reorged';
++  if (paymentFinality === 'unverified') return 'Payment unconfirmed';
++  return status === 'PAID' &&
++    (!hasArcReceiptHash(confirmedReceipt) || paymentFinality === 'not_paid')
++    ? 'Payment unconfirmed'
++    : status;
+ }
+
+ export function settlementPresentation({
+   status,
+   blocked,
+   confirmedReceipt,
++  paymentFinality,
+   canPrepare,
+ }: {
+   status: string;
+   blocked: boolean;
+   confirmedReceipt?: string | null;
++  paymentFinality?: PaymentFinality;
+   canPrepare: boolean;
+ }) {
+   if (status === 'DENIED')
+-    return { label: 'No settlement', action: 'Review the decision and its recorded reason.' };
++    return {
++      label: 'No settlement',
++      action: 'Review the decision and its recorded reason.',
++    };
+   if (blocked)
+     return {
+       label: 'Settlement blocked',
+       action:
+         'Synthetic fixture restrictions apply. No settlement action is available for this case.',
+     };
++  if (paymentFinality === 'reorged' || paymentFinality === 'unverified')
++    return {
++      label: paymentFinality === 'reorged' ? 'Payment reorged' : 'Payment unconfirmed',
++      action: 'Await canonical reconciliation before displaying a payment receipt.',
++    };
+   switch (status) {
+     case 'PAID':
+-      return hasArcReceiptHash(confirmedReceipt)
++      return hasArcReceiptHash(confirmedReceipt) && paymentFinality !== 'not_paid'
+         ? {
+             label: 'Payment confirmed',
+             action: 'View the reconciled Arc Testnet settlement receipt.',
+@@ -38,14 +57,14 @@
+           };
+     case 'APPROVED':
+       return {
+-        label: 'Awaiting settlement authorization',
++        label: 'Awaiting settlement preparation',
+         action: canPrepare
+           ? 'A settlement authority can request preparation. Payment requires separate execution and receipt confirmation.'
+           : 'The settlement authority must review preparation eligibility. No payment is confirmed.',
+       };
+     case 'SETTLEMENT_PENDING':
+       return {
+-        label: 'Awaiting a verified settlement receipt',
++        label: 'Intent prepared',
+         action:
+           'Preparation is recorded. Payment requires separate submission and reconciliation of a matching Arc Testnet receipt.',
+       };
+@@ -71,13 +90,17 @@
+   REVIEW: 'Human review',
+   APPROVED: 'Approved',
+   DENIED: 'Denied',
+-  SETTLEMENT_PENDING: 'Settlement prepared',
++  SETTLEMENT_PENDING: 'Intent prepared',
+   SETTLEMENT_FAILED: 'Settlement failed',
+   PAID: 'Payment confirmed',
+ };
+
+-export function claimStatusLabel(status: string, confirmedReceipt?: string | null) {
+-  const verifiedStatus = displayClaimStatus(status, confirmedReceipt);
++export function claimStatusLabel(
++  status: string,
++  confirmedReceipt?: string | null,
++  paymentFinality?: PaymentFinality,
++) {
++  const verifiedStatus = displayClaimStatus(status, confirmedReceipt, paymentFinality);
+   return Object.hasOwn(claimStatusLabels, verifiedStatus)
+     ? (claimStatusLabels[verifiedStatus] ?? verifiedStatus)
+     : verifiedStatus;
+diff --git a/apps/web/src/lib/procurement/checkout-presentation.ts b/apps/web/src/lib/procurement/checkout-presentation.ts
+--- a/apps/web/src/lib/procurement/checkout-presentation.ts
++++ b/apps/web/src/lib/procurement/checkout-presentation.ts
+@@ -142,7 +142,7 @@
+   }
+ }
+
+-export type PortfolioCategory = 'action' | 'pending' | 'in_force' | 'scheduled' | 'ended';
++export type PortfolioCategory = 'action' | 'pending' | 'in_force' | 'scheduled' | 'ended' | 'rehearsal';
+
+ /** Portfolio grouping and tone for an existing phase label. */
+ export function portfolioState(phase: PolicyPhase, opts: { exhausted?: boolean; mismatch?: boolean; cancelled?: boolean } = {}): {
+@@ -158,7 +158,7 @@
+     case 'scheduled':
+       return { category: 'scheduled', tone: 'live' };
+     case 'fixture':
+-      return { category: 'in_force', tone: 'synthetic' };
++      return { category: 'rehearsal', tone: 'synthetic' };
+     case 'prepared':
+     case 'uncertain':
+       return { category: 'action', tone: phase === 'uncertain' ? 'warn' : 'pending' };
+diff --git a/apps/web/src/lib/procurement/checkout-recovery.ts b/apps/web/src/lib/procurement/checkout-recovery.ts
+new file mode 100644
+--- /dev/null
++++ b/apps/web/src/lib/procurement/checkout-recovery.ts
+@@ -0,0 +1,45 @@
++import type { Hex } from 'viem';
++
++type ReceiptReader = {
++  waitForTransactionReceipt(input: { hash: Hex; confirmations: number; timeout: number }): Promise<{
++    transactionHash: Hex;
++    blockNumber: bigint;
++    blockHash: Hex;
++    status: 'success' | 'reverted';
++  }>;
++  getChainId(): Promise<number>;
++  getBlockNumber(input: { cacheTime: 0 }): Promise<bigint>;
++  getBlock(input: { blockNumber: bigint }): Promise<{ hash: Hex | null }>;
++};
++
++/** Observe the recorded hash. The caller can release its retry guard only after a canonical revert. */
++export async function confirmCheckoutReceipt(
++  reader: ReceiptReader,
++  hash: Hex,
++  confirmSuccess: (hash: Hex) => Promise<void>,
++): Promise<'confirmed' | 'reverted'> {
++  // Viem counts the inclusion block. Arc backend v1 requires two descendant blocks.
++  const receipt = await reader.waitForTransactionReceipt({
++    hash,
++    confirmations: 3,
++    timeout: 20_000,
++  });
++  if (receipt.transactionHash.toLowerCase() !== hash.toLowerCase())
++    throw new Error(
++      'Wallet transaction was replaced. Keep the original attempt and reconcile the hashes.',
++    );
++  if (receipt.status === 'success') {
++    await confirmSuccess(hash);
++    return 'confirmed';
++  }
++  const [chainId, head, block] = await Promise.all([
++    reader.getChainId(),
++    reader.getBlockNumber({ cacheTime: 0 }),
++    reader.getBlock({ blockNumber: receipt.blockNumber }),
++  ]);
++  if (chainId !== 5042002 || head < receipt.blockNumber + 2n || block.hash !== receipt.blockHash)
++    throw new Error(
++      'The revert is not canonically confirmed. Check the same hash before retrying.',
++    );
++  return 'reverted';
++}
+diff --git a/apps/web/src/lib/procurement/policy-timeline.test.ts b/apps/web/src/lib/procurement/policy-timeline.test.ts
+--- a/apps/web/src/lib/procurement/policy-timeline.test.ts
++++ b/apps/web/src/lib/procurement/policy-timeline.test.ts
+@@ -58,6 +58,6 @@
+       }),
+     );
+     expect(e['settlement-c-12345678']).toMatchObject({ state: 'current' });
+-    expect(e['settlement-c-12345678']?.detail).toMatch(/No settlement receipt/);
++    expect(e['settlement-c-12345678']?.detail).toBe('APPROVED');
+   });
+ });
+diff --git a/apps/web/src/lib/procurement/policy-timeline.ts b/apps/web/src/lib/procurement/policy-timeline.ts
+--- a/apps/web/src/lib/procurement/policy-timeline.ts
++++ b/apps/web/src/lib/procurement/policy-timeline.ts
+@@ -1,4 +1,5 @@
+ import type { PolicyLifecycle, ProcurementPolicy } from '@arcuex/domain';
++import { currentPaymentReceipt } from '../claims/payment-finality';
+ import type { PolicyPhase } from './checkout-presentation';
+
+ export type TimelineState = 'done' | 'current' | 'upcoming' | 'attention' | 'skipped';
+@@ -102,14 +103,20 @@
+     at: t.expiresAt,
+   });
+
+-  for (const s of lifecycle?.settlements ?? [])
++  for (const s of lifecycle?.settlements ?? []) {
++    const finality = 'paymentFinality' in s ? s.paymentFinality : undefined;
++    const receipt = currentPaymentReceipt(s.state, finality, s.receiptRef, lifecycle?.source?.mode !== 'arc-testnet');
++    const status = finality === 'reorged' ? 'Payment reorged · reconciliation pending'
++      : finality === 'unverified' || (s.state === 'PAID' && !receipt) ? 'Payment unconfirmed'
++        : s.state === 'SETTLEMENT_PENDING' ? 'Intent prepared' : s.state;
+     events.push({
+       id: `settlement-${s.caseId}`,
+       title: `Settlement for claim ${s.caseId.slice(0, 8)}`,
+-      state: s.receiptRef ? 'done' : 'current',
+-      detail: s.receiptRef ? `${s.state}. Receipt recorded; verify independently.` : `${s.state}. No settlement receipt recorded.`,
+-      hash: s.receiptRef ?? undefined,
++      state: receipt ? 'done' : 'current',
++      detail: receipt ? 'Payment confirmed' : status,
++      hash: receipt,
+     });
++  }
+
+   return events;
+ }
