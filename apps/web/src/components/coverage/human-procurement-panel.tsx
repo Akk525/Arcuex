@@ -72,11 +72,13 @@ export function HumanProcurementPanel({
   requestedAgentId,
   requestedGrantId,
   fromBuild,
+  registrationOnly = false,
 }: {
   resumePolicyId?: string;
   requestedAgentId?: string;
   requestedGrantId?: string;
   fromBuild?: boolean;
+  registrationOnly?: boolean;
 }) {
   const router = useRouter();
   const delegated = Boolean(requestedGrantId);
@@ -608,7 +610,10 @@ export function HumanProcurementPanel({
   };
 
   return (
-    <div className="procurement grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-8">
+    <div className={registrationOnly
+      ? 'procurement max-w-4xl'
+      : 'procurement grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-8'
+    }>
       <div className="min-w-0 space-y-5">
         <div className="flex flex-wrap items-center gap-2">
           {product && (
@@ -617,7 +622,7 @@ export function HumanProcurementPanel({
               tone={product.synthetic ? 'synthetic' : 'pending'}
             />
           )}
-          {catalog && (
+          {catalog && !registrationOnly && (
             <TruthBadge
               label={offline ? 'Offline quotes only' : 'Arc Testnet payment'}
               tone={offline ? 'synthetic' : 'live'}
@@ -652,7 +657,7 @@ export function HumanProcurementPanel({
           </section>
         )}
 
-        <Stepper steps={steps} ariaLabel="Coverage purchase progress" />
+        {!registrationOnly ? <Stepper steps={steps} ariaLabel="Coverage purchase progress" /> : null}
 
         {(status || terms) && (
           <div className="flex items-center justify-between gap-3 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--surface)] px-4 py-3 lg:hidden">
@@ -695,10 +700,12 @@ export function HumanProcurementPanel({
 
         {stage === 1 && product && catalog && (
           <StepSection
-            n={1}
-            title={delegated ? 'Product and delegated authority' : 'Product and insured exposure'}
+            n={registrationOnly ? undefined : 1}
+            title={registrationOnly ? 'Position and signer' : delegated ? 'Product and delegated authority' : 'Product and insured exposure'}
             description={
-              delegated
+              registrationOnly
+                ? 'Choose the product that matches the position you want to register.'
+                : delegated
                 ? 'The policyholder chose the product, scope and beneficiary. Connect the registered agent signer to buy within that grant.'
                 : 'Choose what to insure. You can only insure a position you control and have registered.'
             }
@@ -734,46 +741,48 @@ export function HumanProcurementPanel({
               </div>
             </fieldset>
 
-            <div className="grid gap-x-8 gap-y-5 rounded-[var(--radius)] bg-[var(--paper)] p-4 sm:grid-cols-2 sm:p-5">
-              <div className="space-y-1.5">
-                <h3 className="text-[0.8125rem] font-semibold text-[var(--ink)]">Pricing and limits</h3>
-                <p className="text-sm leading-relaxed text-[var(--ink-secondary)]">{product.pricing}</p>
-                <p className="text-sm text-[var(--ink-muted)] tabular-nums">
-                  Limits {product.limitsMicros.map(usdc).join(', ')}. Terms of{' '}
-                  {product.durationsDays.join(' or ')} days.
-                </p>
+            {!registrationOnly && (
+              <div className="grid gap-x-8 gap-y-5 rounded-[var(--radius)] bg-[var(--paper)] p-4 sm:grid-cols-2 sm:p-5">
+                <div className="space-y-1.5">
+                  <h3 className="text-[0.8125rem] font-semibold text-[var(--ink)]">Pricing and limits</h3>
+                  <p className="text-sm leading-relaxed text-[var(--ink-secondary)]">{product.pricing}</p>
+                  <p className="text-sm text-[var(--ink-muted)] tabular-nums">
+                    Limits {product.limitsMicros.map(usdc).join(', ')}. Terms of{' '}
+                    {product.durationsDays.join(' or ')} days.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-[0.8125rem] font-semibold text-[var(--ink)]">Eligibility</h3>
+                  <p className="text-sm leading-relaxed text-[var(--ink-secondary)]">
+                    A registered position you control, declared healthy, with no known incident.
+                  </p>
+                  <p className="text-xs text-[var(--ink-muted)]">
+                    {capacity?.status === 'verified'
+                      ? `Pool capacity at last check: ${usdc(capacity.availableMicros!)}. Quotes do not reserve capital.`
+                      : offline
+                        ? 'Fixture source. No onchain capacity or payment available.'
+                        : 'Current pool capacity is unverified.'}
+                  </p>
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <h3 className="text-[0.8125rem] font-semibold text-[var(--ink)]">Not covered</h3>
+                  <ul className="grid gap-1.5 text-sm text-[var(--ink-secondary)] sm:grid-cols-2 sm:gap-x-6">
+                    {product.exclusions.map((item) => (
+                      <li key={item} className="flex gap-2">
+                        <Prohibit size={15} className="mt-0.5 shrink-0 text-[var(--ink-faint)]" aria-hidden="true" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <h3 className="text-[0.8125rem] font-semibold text-[var(--ink)]">Eligibility</h3>
-                <p className="text-sm leading-relaxed text-[var(--ink-secondary)]">
-                  A registered position you control, declared healthy, with no known incident.
-                </p>
-                <p className="text-xs text-[var(--ink-muted)]">
-                  {capacity?.status === 'verified'
-                    ? `Pool capacity at last check: ${usdc(capacity.availableMicros!)}. Quotes do not reserve capital.`
-                    : offline
-                      ? 'Fixture source. No onchain capacity or payment available.'
-                      : 'Current pool capacity is unverified.'}
-                </p>
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <h3 className="text-[0.8125rem] font-semibold text-[var(--ink)]">Not covered</h3>
-                <ul className="grid gap-1.5 text-sm text-[var(--ink-secondary)] sm:grid-cols-2 sm:gap-x-6">
-                  {product.exclusions.map((item) => (
-                    <li key={item} className="flex gap-2">
-                      <Prohibit size={15} className="mt-0.5 shrink-0 text-[var(--ink-faint)]" aria-hidden="true" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+            )}
 
             <div className="space-y-3 border-t border-[var(--line)] pt-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-[0.8125rem] font-semibold text-[var(--ink)]">
-                    {delegated ? 'Delegated authority' : 'Insured exposure'}
+                    {registrationOnly ? 'Agent details' : delegated ? 'Delegated authority' : 'Insured exposure'}
                   </h3>
                   {wallet.uiStatus !== 'ready' && (
                     <p className="mt-0.5 text-sm text-[var(--ink-muted)]">
@@ -781,9 +790,11 @@ export function HumanProcurementPanel({
                     </p>
                   )}
                 </div>
-                <Button variant="secondary" size="sm" disabled={busy} onClick={() => void run(loadAgents)}>
-                  {delegated ? 'Check delegation' : loaded ? 'Reload my agents' : 'Load my agents'}
-                </Button>
+                {!registrationOnly ? (
+                  <Button variant="secondary" size="sm" disabled={busy} onClick={() => void run(loadAgents)}>
+                    {delegated ? 'Check delegation' : loaded ? 'Reload my agents' : 'Load my agents'}
+                  </Button>
+                ) : null}
               </div>
 
               {grant && selectedAgent && (
@@ -810,7 +821,7 @@ export function HumanProcurementPanel({
                 </div>
               )}
 
-              {!delegated && ownAgents.length > 0 && (
+              {!registrationOnly && !delegated && ownAgents.length > 0 && (
                 <fieldset className="min-w-0">
                   <legend className="sr-only">Registered agent</legend>
                   <div className="grid gap-2">
@@ -842,7 +853,7 @@ export function HumanProcurementPanel({
                   </div>
                 </fieldset>
               )}
-              {!delegated && ownAgents.length === 0 && (
+              {!registrationOnly && !delegated && ownAgents.length === 0 && (
                 <p className="rounded-[var(--radius)] bg-[var(--paper)] px-4 py-3 text-sm text-[var(--ink-muted)]">
                   {loaded
                     ? 'No registered positions for this product yet. Register one below.'
@@ -851,7 +862,7 @@ export function HumanProcurementPanel({
               )}
 
               {!delegated && (
-                <details open={fromBuild || undefined} className="group rounded-[var(--radius)] border border-[var(--line)]">
+                <details open={registrationOnly || fromBuild || undefined} className="group rounded-[var(--radius)] border border-[var(--line)]">
                   <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-medium text-[var(--ink)]">
                     {product.synthetic ? 'Register a new synthetic position' : 'Register a reviewed position'}
                     <CaretDown size={14} className="transition-transform group-open:rotate-180" aria-hidden="true" />
@@ -902,11 +913,11 @@ export function HumanProcurementPanel({
                             });
                             setAgents((prev) => [...prev, a]);
                             setAgentId(a.id);
-                            if (fromBuild) router.push(`/agent?agentId=${a.id}`);
+                            if (registrationOnly || fromBuild) router.push(`/agent?agentId=${a.id}`);
                           })
                         }
                       >
-                        {fromBuild ? 'Register and return to Build' : 'Register position I control'}
+                        {registrationOnly ? 'Add agent' : fromBuild ? 'Register and return to Agents' : 'Register position I control'}
                       </Button>
                     </div>
                   </div>
@@ -1363,7 +1374,7 @@ export function HumanProcurementPanel({
           </StepSection>
         )}
 
-        {!confirmed && catalog && (
+        {!registrationOnly && !confirmed && catalog && (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Button variant="secondary" disabled={busy || stage === 1 || submitted} onClick={goBack}>
               Back
@@ -1379,7 +1390,7 @@ export function HumanProcurementPanel({
         )}
       </div>
 
-      <aside
+      {!registrationOnly ? <aside
         aria-label="Purchase summary"
         className="arc-panel overflow-hidden lg:sticky lg:top-[calc(var(--topbar-h)+1.5rem)]"
       >
@@ -1445,7 +1456,7 @@ export function HumanProcurementPanel({
                 : 'Every payment step needs your wallet approval.'}
           </p>
         </div>
-      </aside>
+      </aside> : null}
     </div>
   );
 }
@@ -1456,19 +1467,20 @@ function StepSection({
   description,
   children,
 }: {
-  n: number;
+  n?: number;
   title: string;
   description?: string;
   children: ReactNode;
 }) {
+  const heading = n === undefined ? 'agent-registration-heading' : `checkout-step-${n}`;
   return (
     <section
-      aria-labelledby={`checkout-step-${n}`}
+      aria-labelledby={heading}
       className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-sm)]"
     >
       <header className="border-b border-[var(--line)] px-5 py-4 sm:px-6">
-        <p className="text-xs tabular-nums text-[var(--ink-muted)]">Step {n} of 5</p>
-        <h2 id={`checkout-step-${n}`} className="mt-0.5 font-display text-lg font-semibold tracking-[-0.015em] text-[var(--ink)]">
+        {n === undefined ? null : <p className="text-xs tabular-nums text-[var(--ink-muted)]">Step {n} of 5</p>}
+        <h2 id={heading} className="mt-0.5 font-display text-lg font-semibold tracking-[-0.015em] text-[var(--ink)]">
           {title}
         </h2>
         {description ? (

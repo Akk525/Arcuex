@@ -31,7 +31,7 @@ export function MarketingHero() {
             review and track reimbursement through Arc settlement.
           </p>
           <div className="marketing-hero-actions">
-            <Link href="/coverage" className="marketing-cta marketing-hero-primary">
+            <Link href="/coverage?tab=products" className="marketing-cta marketing-hero-primary">
               Explore coverage <ArrowRight size={16} weight="bold" aria-hidden="true" />
             </Link>
             <Link href="#developers" className="marketing-cta-secondary marketing-hero-secondary">

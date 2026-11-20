@@ -10,6 +10,8 @@ import { SummaryStrip } from '@/components/dashboard/summary-strip';
 import { useDashboardOverview } from '@/components/dashboard/use-dashboard-overview';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button, ButtonLink } from '@/components/ui/button';
+import { Panel } from '@/components/panel';
+import { ProductStage } from '@/components/marketing/product-stage';
 
 export function DashboardOverview() {
   const { data, error, loading, refresh } = useDashboardOverview();
@@ -19,7 +21,7 @@ export function DashboardOverview() {
   if (!data) {
     return (
       <>
-        <PageHeader appearance="dark" serif title="Mission Control" />
+        <PageHeader appearance="dark" serif title="Overview" />
         <div
           role="alert"
           className="flex flex-col items-start gap-3 rounded-[var(--radius-lg)] border border-[#f3c4bf] bg-[var(--danger-soft)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
@@ -29,7 +31,7 @@ export function DashboardOverview() {
             <div>
               <p className="text-sm font-semibold text-[var(--ink)]">The overview could not be loaded</p>
               <p className="mt-0.5 text-[0.8125rem] text-[var(--ink-secondary)]">
-                {error ?? 'No response from the overview service.'} Your records are unchanged.
+                {error ?? 'No response from the overview service.'}
               </p>
             </div>
           </div>
@@ -44,11 +46,14 @@ export function DashboardOverview() {
 
   const anonymous = data.state === 'anonymous';
   const next = anonymous ? null : data.nextAction;
+  const reimbursements = data.recentActivity.filter(({ kind, summary }) =>
+    kind === 'claim' && /^Claim (payment (confirmed|reorged|unconfirmed)|intent prepared|SETTLEMENT_FAILED)$/.test(summary),
+  );
 
   return (
     <>
       <PageHeader
-        appearance="dark" serif title="Mission Control"
+        appearance="dark" serif title="Overview"
         description={
           anonymous
             ? 'Your insurance workspace. Sign in to see the policies, agents and claims tied to your wallet.'
@@ -72,7 +77,7 @@ export function DashboardOverview() {
             {next ? (
               <ButtonLink href={next.href}>{next.label}</ButtonLink>
             ) : (
-              <ButtonLink href="/coverage">Buy coverage</ButtonLink>
+              <ButtonLink href="/coverage?tab=products">Get coverage</ButtonLink>
             )}
           </>
         }
@@ -91,20 +96,32 @@ export function DashboardOverview() {
         <div className="grid gap-4">
           <SummaryStrip data={data} />
           <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+            <PortfolioSummary portfolio={data.portfolio} />
             <AttentionRail
               claims={data.claimsNeedingAttention}
               evidence={data.evidenceRequests}
               reconciliation={data.pendingReconciliation}
             />
             <ActivityFeed items={data.recentActivity} />
+            {reimbursements.length > 0 ? <ActivityFeed title="Recent reimbursement status" items={reimbursements} /> : null}
             <AgentsPanel agents={data.agents} delegations={data.delegations} />
-            <PortfolioSummary portfolio={data.portfolio} />
           </div>
           <p className="text-xs leading-relaxed text-[var(--ink-faint)]">
             {data.labels.synthetic}. {data.labels.live}.
           </p>
         </div>
       )}
+      <div className="mt-5 grid gap-4">
+        <Panel title="Mission Control" description="Explore the insurance lifecycle with a synthetic example.">
+          <details>
+            <summary className="cursor-pointer py-2 text-sm font-semibold text-[var(--accent)]">Explore the lifecycle</summary>
+            <ProductStage compact />
+          </details>
+        </Panel>
+        <Panel title="Featured case study" description="Explore a historical oracle liquidation and its counterfactual replay.">
+          <ButtonLink href="/replay/oracle-liquidation" variant="secondary">View historical replay</ButtonLink>
+        </Panel>
+      </div>
     </>
   );
 }

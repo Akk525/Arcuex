@@ -1,20 +1,5 @@
-import { AppShell } from '@/components/app-shell';
-import { PolicyPortfolio } from '@/components/coverage/policy-portfolio';
-import { ButtonLink } from '@/components/ui/button';
-import { PageHeader } from '@/components/ui/page-header';
+import { CoverageWorkspace } from '@/components/coverage/coverage-workspace';
 
 export default function PoliciesPage() {
-  return (
-    <AppShell>
-      <PageHeader
-        eyebrow="Protect"
-        appearance="dark"
-        serif
-        title="Policy portfolio"
-        description="Every policy this wallet owns or paid for, with its confirmation status, coverage window and next step."
-        action={<ButtonLink href="/coverage">Buy coverage</ButtonLink>}
-      />
-      <PolicyPortfolio />
-    </AppShell>
-  );
+  return <CoverageWorkspace />;
 }

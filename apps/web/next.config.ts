@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
   ],
   serverExternalPackages: ['better-sqlite3'],
   reactStrictMode: true,
+  devIndicators: false,
 };
 
 export default nextConfig;

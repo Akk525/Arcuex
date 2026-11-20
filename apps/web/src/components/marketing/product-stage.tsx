@@ -13,11 +13,12 @@ import {
 
 const chapterCount = PRODUCT_STAGE_CHAPTERS.length;
 
-export function ProductStage() {
+export function ProductStage({ compact = false }: { compact?: boolean }) {
   const [index, setIndex] = useState(0);
   const baseId = useId();
 
   useEffect(() => {
+    if (compact) return;
     const el = document.getElementById('product-stage-scrub');
     if (!el) return;
 
@@ -45,13 +46,13 @@ export function ProductStage() {
       window.removeEventListener('resize', onScroll);
       if (frame !== 0) window.cancelAnimationFrame(frame);
     };
-  }, []);
+  }, [compact]);
 
   const active = PRODUCT_STAGE_CHAPTERS[index] ?? PRODUCT_STAGE_CHAPTERS[0];
 
   return (
     <>
-      <div className="product-stage-fallback marketing-wrap">
+      <div className={compact ? 'mt-4' : 'product-stage-fallback marketing-wrap'}>
         <ChapterTabs baseId={baseId} index={index} onSelect={setIndex} />
         <div
           id={`${baseId}-panel`}
@@ -68,7 +69,7 @@ export function ProductStage() {
         </div>
       </div>
 
-      <div className="product-stage-scrub">
+      {!compact ? <div className="product-stage-scrub">
         <div className="marketing-wrap flex flex-col gap-14 lg:hidden">
           {PRODUCT_STAGE_CHAPTERS.map((chapter, chapterIndex) => (
             <article key={chapter.id} className="grid grid-cols-1 gap-6">
@@ -153,7 +154,7 @@ export function ProductStage() {
             </div>
           </div>
         </div>
-      </div>
+      </div> : null}
     </>
   );
 }

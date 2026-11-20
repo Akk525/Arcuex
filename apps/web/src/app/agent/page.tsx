@@ -12,14 +12,16 @@ export default async function AgentPage({
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Mission Control"
         appearance="dark"
-        title="Manage agents & delegation"
-        description="Register a signer, set delegated procurement scope and review who can pay."
+        title="Agents"
+        description="Manage registered agents, their positions and procurement delegations."
         action={
-          <ButtonLink href="/integrations" variant="secondary">
-            Integrations
-          </ButtonLink>
+          <>
+            <ButtonLink href={agentId ? `/coverage?agentId=${encodeURIComponent(agentId)}` : '/coverage?tab=products'} variant="secondary">
+              Get coverage
+            </ButtonLink>
+            <ButtonLink href="/agent/new">Add an agent</ButtonLink>
+          </>
         }
       />
       <DelegationsPanel initialAgentId={agentId} />

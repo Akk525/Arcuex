@@ -13,7 +13,7 @@ export function PortfolioSummary({ portfolio }: { portfolio: DashboardOverview['
       title="Policies"
       action={
         portfolio.total > 0 ? (
-          <Link href="/policies" className="text-[0.8125rem] font-medium text-[var(--accent-signal)] hover:text-[var(--accent)]">
+          <Link href="/coverage" className="text-[0.8125rem] font-medium text-[var(--accent-signal)] hover:text-[var(--accent)]">
             View all
           </Link>
         ) : null
@@ -27,10 +27,10 @@ export function PortfolioSummary({ portfolio }: { portfolio: DashboardOverview['
             after on-chain reconciliation.
           </p>
           <Link
-            href="/coverage"
+            href="/coverage?tab=products"
             className="mt-3 inline-flex text-[0.8125rem] font-semibold text-[var(--accent-signal)] hover:text-[var(--accent)]"
           >
-            Buy coverage
+            Get coverage
           </Link>
         </div>
       ) : (

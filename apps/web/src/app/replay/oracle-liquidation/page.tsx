@@ -70,7 +70,7 @@ export default function OracleLiquidationReplayPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Mission Control · Historical replay"
+        eyebrow="Historical case study"
         title="Oracle-capped liquidation, replayed"
         badges={
           <>

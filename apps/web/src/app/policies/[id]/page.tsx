@@ -9,11 +9,11 @@ export default async function PolicyPage({ params }: { params: Promise<{ id: str
     <AppShell>
       <nav aria-label="Breadcrumb" className="mb-2">
         <Link
-          href="/policies"
+          href="/coverage"
           className="inline-flex min-h-9 items-center gap-1 text-[0.8125rem] font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]"
         >
           <CaretLeft size={13} weight="bold" aria-hidden="true" />
-          Policies
+          My policies
         </Link>
       </nav>
       <PolicyRecord id={id} />

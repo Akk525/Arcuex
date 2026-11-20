@@ -109,7 +109,21 @@ Do not expose the service publicly until those checklists pass.
 
 ### Authenticated synthetic procurement beta
 
-`/coverage` now provides wallet authentication, agent/exposure registration,
+The signed-in workspace starts at `/dashboard` (Overview). Coverage, Agents and Claims
+are primary destinations. Coverage opens on **My policies**, with tabs for applications
+and products. Open **Get coverage** to start the existing quote flow
+(`/coverage?tab=products`). The older `/policies` and `/coverage/applications` URLs still
+open their respective tabs. **File a claim** is available from Claims and eligible
+policy records. Overview links to the historical replay and includes the Mission
+Control lifecycle demo.
+
+A provisioned reviewer or settlement authority can switch to **Insurer workspace**.
+The insurer sidebar links to the portfolio overview, underwriting, claims review,
+AI investigations, settlements and capital. Legacy staff sign-in is available at
+`/claims/review`. Developer tools, wallet settings and help are grouped below the
+customer destinations. See the [workspace route map](docs/development/workspace-navigation.md).
+
+The Coverage product flow provides wallet authentication, agent/exposure registration,
 validated demo quotes, immutable terms acceptance and explicit wallet-authorized
 USDC approval/binding. `/policies` and `/policies/[id]` expose policy history,
 receipts and read-only chain reconciliation. `/agent` manages owner-authenticated
@@ -123,14 +137,14 @@ for endpoints, exact limitations, launch blockers and the claims-sprint handoff.
 
 ### Tailored synthetic underwriting
 
-**Protect → Applications** and **Insurer → Underwriting** share an application, evidence
+**Coverage → Applications** and **Insurer workspace → Underwriting** share an application, evidence
 requests and a versioned quote. Registered agent signers use the same workflow through
 `ProcurementApiClient`. [Rules, SDK example and payment boundary](docs/development/procurement-beta.md#tailored-synthetic-oracle-coverage).
 
 ### Procurement + claims integration
 
 The integration branch uses one wallet-signature/httpOnly session across
-`/coverage → /policies/[id] → /claims/new → /claims/[id]`. Claims reference the
+`/coverage?tab=products → /policies/[id] → /claims/new → /claims/[id]`. Claims reference the
 immutable procurement policy/exposure directly; reviewer and authority rights
 remain separately provisioned. Legacy claimant tokens and procurement browser
 bearer sessions are retired. No contract changes or broadcasts are part of this
@@ -203,7 +217,7 @@ The existing claims UI and agent SDK now share append-only proof requests, submi
 findings and human responses on one claim. Claim details connect open requests and source citations
 to the recorded timeline. Long timelines group events by UTC date and fold older activity.
 Citations open the corresponding evidence records. The reviewer workbench groups cases by their next
-action. A shared shell shows the current route and environment across Protect, Build, Claims and Ops.
+action. The shared shell shows the current route and environment in both customer and insurer workspaces.
 OpenAI analysis runs in a separate bounded worker and never authenticates evidence or authorizes a
 decision or payment. The OpenAI key belongs only in the separate worker environment. See
 [workflow, authority boundaries and acceptance](docs/claims-investigation.md).

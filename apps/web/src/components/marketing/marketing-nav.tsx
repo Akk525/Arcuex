@@ -135,7 +135,7 @@ export function MarketingNav() {
               </li>
             ))}
             <li className="mt-2 sm:hidden">
-              <Link href="/coverage" className="marketing-cta w-full" onClick={() => setOpen(false)}>
+              <Link href="/coverage?tab=products" className="marketing-cta w-full" onClick={() => setOpen(false)}>
                 Explore coverage
                 <ArrowRight size={16} weight="bold" aria-hidden="true" />
               </Link>

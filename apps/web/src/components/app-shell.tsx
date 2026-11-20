@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import {
-  ArrowUpRight,
+  ArrowsLeftRight,
   Bank,
-  ClockCounterClockwise,
-  Code,
-  FilePlus,
-  Files,
+  Brain,
+  CurrencyCircleDollar,
+  Gear,
   FileText,
   House,
+  Question,
   List,
   PlugsConnected,
   Robot,
@@ -20,7 +20,6 @@ import {
   X,
   type Icon,
 } from '@phosphor-icons/react';
-import { useWorkspace } from '@/components/workspace-provider';
 import { AccountBar } from '@/components/shell/account-bar';
 import { MarketingMark } from '@/components/marketing/marketing-mark';
 import { TruthBadge } from '@/components/ui/truth-badge';
@@ -28,7 +27,8 @@ import { useClaimsSession } from '@/hooks/use-claims-session';
 import {
   activeNavHref,
   appNavGroups,
-  workspaceForNavHref,
+  canUseInsurerWorkspace,
+  isInsurerRoute,
   type AppNavGroup,
   type AppNavIcon,
 } from '@/lib/app-nav';
@@ -48,31 +48,34 @@ type ProvenanceTone =
 const ICONS: Record<AppNavIcon, Icon> = {
   overview: House,
   coverage: ShieldCheck,
-  policies: Files,
   claims: FileText,
-  'file-claim': FilePlus,
   agents: Robot,
   integrations: PlugsConnected,
   review: Scales,
   capital: Bank,
-  replay: ClockCounterClockwise,
+  investigations: Brain,
+  settlements: CurrencyCircleDollar,
+  settings: Gear,
+  help: Question,
+  switch: ArrowsLeftRight,
 };
 
 export function AppShell({
   children,
   provenanceExtra,
+  claimQueue,
 }: {
   children: ReactNode;
+  claimQueue?: string;
   provenanceExtra?: Array<{ label: string; tone?: ProvenanceTone; title?: string }>;
 }) {
   const fixtureMode = useFixtureMode();
   const pathname = usePathname();
-  const { setWorkspace } = useWorkspace();
   const { session } = useClaimsSession();
-  const opsSession =
-    session?.role === 'reviewer' || session?.role === 'authority' || session?.role === 'system';
-  const groups = appNavGroups(opsSession);
-  const active = activeNavHref(pathname, groups);
+  const canUseInsurer = canUseInsurerWorkspace(session?.role);
+  const inInsurer = canUseInsurer && (isInsurerRoute(pathname) || Boolean(claimQueue));
+  const groups = appNavGroups(canUseInsurer, inInsurer);
+  const active = activeNavHref(pathname, groups, claimQueue);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => setDrawerOpen(false), [pathname]);
@@ -90,11 +93,6 @@ export function AppShell({
       document.body.style.overflow = previous;
     };
   }, [drawerOpen]);
-
-  function onNavigate(href: string) {
-    const workspace = workspaceForNavHref(href, groups);
-    if (workspace) setWorkspace(workspace);
-  }
 
   const environment = fixtureMode ? (
     <TruthBadge
@@ -149,8 +147,8 @@ export function AppShell({
           groups={groups}
           active={active}
           pathname={pathname}
-          fixtureMode={fixtureMode}
-          onNavigate={onNavigate}
+          inInsurer={inInsurer}
+          onNavigate={() => setDrawerOpen(false)}
         />
       </aside>
 
@@ -183,8 +181,8 @@ export function AppShell({
               groups={groups}
               active={active}
               pathname={pathname}
-              fixtureMode={fixtureMode}
-              onNavigate={onNavigate}
+              inInsurer={inInsurer}
+              onNavigate={() => setDrawerOpen(false)}
             />
           </div>
         </div>
@@ -203,21 +201,24 @@ function SidebarContent({
   groups,
   active,
   pathname,
-  fixtureMode,
+  inInsurer,
   onNavigate,
 }: {
   groups: readonly AppNavGroup[];
   active: string | null;
   pathname: string;
-  fixtureMode: boolean;
-  onNavigate: (href: string) => void;
+  inInsurer: boolean;
+  onNavigate: () => void;
 }) {
   return (
     <div className="flex h-full flex-col">
-      <nav aria-label="Primary" className="flex-1 overflow-y-auto px-3 py-4">
+      <nav aria-label={inInsurer ? 'Insurer navigation' : 'Primary'} className="flex-1 overflow-y-auto px-3 py-4">
         {groups.map((group) => (
-          <div key={group.id} className="mb-4 last:mb-0">
+          <div key={group.label ?? 'customer'} className="mb-4 last:mb-0">
             {group.label ? <p className="app-nav-heading">{group.label}</p> : null}
+            {inInsurer ? (
+              <p className="px-2.5 pb-3 text-xs text-[var(--ink-muted)]">Authorized risk provider</p>
+            ) : null}
             <ul className="grid gap-0.5">
               {group.items.map((item) => {
                 const Glyph = ICONS[item.icon];
@@ -226,7 +227,7 @@ function SidebarContent({
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      onClick={() => onNavigate(item.href)}
+                      onClick={onNavigate}
                       aria-current={selected ? (pathname === item.href ? 'page' : 'location') : undefined}
                       className="app-nav-link"
                     >
@@ -239,29 +240,13 @@ function SidebarContent({
             </ul>
           </div>
         ))}
+        {inInsurer ? (
+          <Link href="/dashboard" onClick={onNavigate} className="app-nav-link mt-4 border-t border-[var(--line)]">
+            <ArrowsLeftRight size={17} aria-hidden="true" />
+            Customer workspace
+          </Link>
+        ) : null}
       </nav>
-
-      <div className="border-t border-[var(--line)] px-4 py-4 text-xs leading-relaxed text-[var(--ink-muted)]">
-        <p>
-          <strong className="font-semibold text-[var(--ink-secondary)]">Approval ≠ payment.</strong> A
-          human decision does not reimburse until a verified settlement receipt exists.
-        </p>
-        {fixtureMode ? (
-          <p className="mt-2">Live binding, reconciliation and settlement broadcasts are disabled.</p>
-        ) : (
-          <p className="mt-2">On-chain transfers always require your wallet approval.</p>
-        )}
-        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
-          <Link href="/integrations" className="app-quiet-link">
-            <Code size={13} aria-hidden="true" />
-            Integration health
-          </Link>
-          <Link href="/" className="app-quiet-link">
-            <ArrowUpRight size={13} aria-hidden="true" />
-            Product site
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }

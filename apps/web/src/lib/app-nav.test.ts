@@ -1,59 +1,53 @@
 import { describe, expect, it } from 'vitest';
-import { activeNavHref, appNavGroups, workspaceForNavHref } from './app-nav';
+import { activeNavHref, appNavGroups, canUseInsurerWorkspace, isInsurerRoute } from './app-nav';
 
-const hrefs = (ops: boolean) => appNavGroups(ops).flatMap((g) => g.items.map((i) => i.href));
+const labels = (canUseInsurer: boolean, inInsurer = false) =>
+  appNavGroups(canUseInsurer, inInsurer).map(({ items }) => items.map(({ label }) => label));
 
 describe('app navigation', () => {
-  it('keeps reviewer and capital surfaces out of non-ops navigation', () => {
-    expect(hrefs(false)).not.toContain('/claims/review');
-    expect(hrefs(false)).not.toContain('/capital');
-    expect(hrefs(true)).toContain('/claims/review');
-    expect(hrefs(true)).toContain('/underwriting/review');
-    expect(hrefs(false)).not.toContain('/underwriting/review');
-    expect(hrefs(false)).toContain('/coverage/applications');
-    expect(hrefs(true)).toContain('/capital');
-  });
-
-  it('selects the most specific matching item', () => {
-    const ops = appNavGroups(true);
-    expect(activeNavHref('/dashboard', ops)).toBe('/dashboard');
-    expect(activeNavHref('/claims', ops)).toBe('/claims');
-    expect(activeNavHref('/claims/new', ops)).toBe('/claims/new');
-    expect(activeNavHref('/claims/review', ops)).toBe('/claims/review');
-    expect(activeNavHref('/claims/abc-123', ops)).toBe('/claims');
-    expect(activeNavHref('/policies/abc', ops)).toBe('/policies');
-  });
-
-  it('does not treat sibling prefixes as matches', () => {
-    expect(activeNavHref('/claimsx', appNavGroups(true))).toBeNull();
-    expect(activeNavHref('/', appNavGroups(true))).toBeNull();
-  });
-
-  it('highlights nothing on restricted routes for non-ops sessions', () => {
-    // The reviewer item is hidden, so no visible item may claim the route.
-    expect(activeNavHref('/claims/review', appNavGroups(false))).toBeNull();
-    expect(activeNavHref('/claims/review/anything', appNavGroups(false))).toBeNull();
-    expect(activeNavHref('/capital', appNavGroups(false))).toBeNull();
-    // Ordinary claim routes are unaffected.
-    expect(activeNavHref('/claims/abc-123', appNavGroups(false))).toBe('/claims');
-  });
-
-  it('maps hrefs to owning workspaces', () => {
-    const ops = appNavGroups(true);
-    expect(workspaceForNavHref('/coverage', ops)).toBe('protect');
-    expect(workspaceForNavHref('/agent', ops)).toBe('build');
-    expect(workspaceForNavHref('/claims/review', ops)).toBe('ops');
-    expect(workspaceForNavHref('/dashboard', ops)).toBe('protect');
-  });
-
-  it('groups navigation into Protect, Claims, Insurer and Mission Control', () => {
-    expect(appNavGroups(true).map((g) => g.label)).toEqual([
-      'Protect',
-      'Claims',
-      'Insurer',
-      'Mission Control',
+  it('shows the customer destinations and developer utilities', () => {
+    expect(labels(false)).toEqual([
+      ['Overview', 'Coverage', 'Agents', 'Claims'],
+      ['Integrations & API', 'Settings', 'Help & documentation'],
     ]);
-    expect(appNavGroups(false).map((g) => g.label)).toEqual(['Protect', 'Claims', 'Mission Control']);
-    expect(hrefs(false)).toContain('/replay/oracle-liquidation');
+    expect(labels(true)[0]).toEqual(['Overview', 'Coverage', 'Agents', 'Claims', 'Insurer workspace']);
+  });
+
+  it('only switches to insurer navigation for reviewer and settlement authority roles', () => {
+    for (const role of [null, 'claimant', 'system']) {
+      expect(labels(canUseInsurerWorkspace(role), true)).toEqual(labels(false));
+    }
+    for (const role of ['reviewer', 'authority']) {
+      expect(labels(canUseInsurerWorkspace(role), true)).toEqual([
+        ['Portfolio overview', 'Underwriting', 'Claims review', 'AI investigations', 'Settlements', 'Capital & exposure'],
+      ]);
+    }
+  });
+
+  it('selects the parent workspace for contextual tab, action and legacy URLs', () => {
+    const customer = appNavGroups(false);
+    for (const path of ['/coverage', '/coverage/applications', '/policies', '/policies/example']) {
+      expect(activeNavHref(path, customer)).toBe('/coverage');
+    }
+    for (const path of ['/claims', '/claims/new', '/claims/example']) {
+      expect(activeNavHref(path, customer)).toBe('/claims');
+    }
+    for (const path of ['/', '/claimsx', '/replay/oracle-liquidation']) {
+      expect(activeNavHref(path, customer)).toBeNull();
+    }
+  });
+
+  it('recognizes insurer URLs and preserves the originating queue on dossiers', () => {
+    const insurer = appNavGroups(true, true);
+    const customer = appNavGroups(false);
+    for (const path of ['/insurer', '/insurer/investigations', '/insurer/settlements', '/claims/review', '/underwriting/review', '/capital']) {
+      expect(isInsurerRoute(path)).toBe(true);
+      expect(activeNavHref(path, customer)).toBeNull();
+      expect(activeNavHref(path, insurer)).toBe(path);
+    }
+    expect(isInsurerRoute('/claims/reviewer')).toBe(false);
+    expect(activeNavHref('/claims/example', insurer)).toBe('/claims/review');
+    expect(activeNavHref('/claims/example', insurer, '/insurer/investigations')).toBe('/insurer/investigations');
+    expect(activeNavHref('/claims/example', customer, '/insurer/investigations')).toBe('/claims');
   });
 });

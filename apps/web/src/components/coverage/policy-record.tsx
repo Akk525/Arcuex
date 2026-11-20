@@ -58,7 +58,7 @@ export function PolicyRecord({ id }: { id: string }) {
   if (!ready)
     return (
       <>
-        <PageHeader title={`Policy ${shortId(id)}`} eyebrow="Protect" />
+        <PageHeader title={`Policy ${shortId(id)}`} eyebrow="Coverage" />
         <AuthRequired
           title="Connect a wallet on Arc Testnet"
           description="Policy records are visible to the policyholder, payer and insured agent signer. Connect one of those wallets."
@@ -71,7 +71,7 @@ export function PolicyRecord({ id }: { id: string }) {
       <>
         <PageHeader
           title={`Policy ${shortId(id)}`}
-          eyebrow="Protect"
+          eyebrow="Coverage"
           description="Load the record to see its terms, confirmation status and claim eligibility."
         />
         {r.error ? (
@@ -129,7 +129,7 @@ export function PolicyRecord({ id }: { id: string }) {
   const primary = v.canClaim ? (
     <ButtonLink href={`/claims/new?policyId=${t.policyId}`}>
       <FileText size={16} aria-hidden="true" />
-      {t.synthetic ? 'Submit a synthetic claim' : 'Open an independent claim'}
+      File a claim
     </ButtonLink>
   ) : v.canResume ? (
     <ButtonLink href={`/coverage?policyId=${t.policyId}`}>
@@ -418,7 +418,7 @@ export function PolicyRecord({ id }: { id: string }) {
                 </p>
                 {v.canClaim ? (
                   <ButtonLink href={`/claims/new?policyId=${t.policyId}`} className="mt-3 w-full">
-                    {t.synthetic ? 'Submit a synthetic claim' : 'Open an independent claim'}
+                    File a claim
                   </ButtonLink>
                 ) : null}
                 <p className="mt-3 text-xs text-[var(--ink-muted)]">

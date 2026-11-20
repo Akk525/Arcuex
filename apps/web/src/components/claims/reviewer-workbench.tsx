@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowsClockwise, CaretRight, Tray, Stack, ShieldCheck } from '@phosphor-icons/react';
 import { CaseStatusBadge } from '@/components/claims/case-status-badge';
 import { TruthBadge } from '@/components/ui/truth-badge';
-import { Button } from '@/components/ui/button';
+import { Button, ButtonLink } from '@/components/ui/button';
 import { StatContent } from '@/components/ui/stat-content';
 import { EmptyState } from '@/components/ui/empty-state';
 import { claimsFetch } from '@/lib/claims/claims-api';
@@ -19,6 +19,21 @@ import { queueSections, type QueueSection } from '@/lib/claims/investigation-pre
 import { claimTitle, freshnessLabel, type Tone } from '@/lib/claims/claim-presentation';
 import { useClaimsSession } from '@/hooks/use-claims-session';
 import { ClaimsAuthPanel } from './claims-auth-panel';
+import { ClaimsPanel } from './claims-panel';
+import { Panel } from '@/components/panel';
+import { canUseInsurerWorkspace } from '@/lib/app-nav';
+
+type View = 'review' | 'investigations' | 'settlements' | 'overview';
+
+type QueueView = Exclude<View, 'overview'>;
+
+function dossierHref(id: string, view: QueueView) {
+  const href = `/claims/${encodeURIComponent(id)}`;
+  if (view === 'investigations') return `${href}?queue=${view}#claim-investigation`;
+  if (view === 'settlements') return `${href}?queue=${view}#claim-financial-outcome`;
+  return href;
+}
+
 
 /** Display order: work a human can do now first, handoffs last. */
 const ORDER: QueueSection[] = [
@@ -64,9 +79,10 @@ const toneText: Record<Tone, string> = {
   synthetic: 'text-[var(--synthetic)]',
 };
 
-export function ReviewerWorkbench() {
+export function ReviewerWorkbench({ view = 'review' }: { view?: View }) {
   const { session, loading: sessionLoading } = useClaimsSession();
-  const ops = session?.role === 'reviewer' || session?.role === 'authority';
+  const ops = canUseInsurerWorkspace(session?.role);
+  const [showLedger, setShowLedger] = useState(false);
   const [cases, setCases] = useState<ClaimsCaseListRow[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -106,14 +122,14 @@ export function ReviewerWorkbench() {
     else setLoading(false);
   }, [ops, sessionLoading, load]);
 
-  const groups = useMemo(
-    () =>
-      ORDER.map((section) => ({
-        section,
-        rows: cases.filter((c) => c.triage?.section === section),
-      })).filter((g) => g.rows.length > 0),
-    [cases],
-  );
+  const groups = useMemo(() => {
+    const sections = view === 'settlements' ? ['settlement' as const]
+      : view === 'investigations' ? ORDER.filter((section) => section !== 'settlement')
+      : ORDER;
+    return sections
+      .map((section) => ({ section, rows: cases.filter((row) => row.triage?.section === section) }))
+      .filter(({ rows }) => rows.length > 0);
+  }, [cases, view]);
 
   if (sessionLoading)
     return (
@@ -122,7 +138,31 @@ export function ReviewerWorkbench() {
       </p>
     );
 
-  if (!ops) return <ClaimsAuthPanel />;
+  if (!ops || !session) return <ClaimsAuthPanel />;
+
+  if (view === 'overview') {
+    const next = groups.find(({ section }) => section === 'awaiting_human' || section === 'ready')?.rows[0];
+    return (
+      <Panel
+        title="Claims requiring attention"
+        action={next ? <ButtonLink href={dossierHref(next.id, 'review')}>Review next case</ButtonLink> : null}
+      >
+        {loading ? <p role="status">Loading claims…</p> : error ? (
+          <div className="space-y-2">
+            <p role="alert">{error}</p>
+            <Button size="sm" variant="secondary" onClick={() => void load()}>Retry</Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-[var(--ink-muted)]">
+              {next ? claimTitle(next) : 'No claims are waiting for a human decision.'}
+            </p>
+            <ButtonLink href="/claims/review" size="sm" variant="secondary">Open claims review</ButtonLink>
+          </div>
+        )}
+      </Panel>
+    );
+  }
 
   return (
     <div className="min-w-0 space-y-6">
@@ -141,13 +181,13 @@ export function ReviewerWorkbench() {
         </Button>
       </div>
 
-      <aside className="arc-panel flex items-start gap-3 p-4" aria-label="Financial gate">
+      {view !== 'investigations' ? <aside className="arc-panel flex items-start gap-3 p-4" aria-label="Financial gate">
         <span className="arc-stat-icon"><ShieldCheck size={17} aria-hidden="true" /></span>
         <div>
           <p className="font-semibold text-[var(--ink)]">Financial gate & reimbursement</p>
           <p className="text-sm text-[var(--ink-muted)]">A human decision records coverage. Reimbursement requires a separate authority and a verified Arc settlement receipt.</p>
         </div>
-      </aside>
+      </aside> : null}
 
       {loading && cases.length === 0 && (
         <div role="status" className="space-y-2">
@@ -173,11 +213,13 @@ export function ReviewerWorkbench() {
         </div>
       )}
 
-      {!loading && !error && cases.length === 0 && (
+      {!loading && !error && groups.length === 0 && (
         <EmptyState
           icon={<Tray size={18} weight="duotone" />}
-          title="Nothing to review"
-          description="Open claims appear here as soon as they need evidence, verification, a human decision or a settlement handoff."
+          title={view === 'settlements' ? 'No settlements awaiting action' : 'Nothing to review'}
+          description={view === 'settlements'
+            ? 'Approved claims appear here when they need a settlement handoff or receipt.'
+            : 'Claims appear here when they need evidence, verification or a human decision.'}
         />
       )}
 
@@ -233,18 +275,24 @@ export function ReviewerWorkbench() {
               </div>
               <ul className="divide-y divide-[var(--line)]">
                 {rows.map((row) => (
-                  <QueueRow key={row.id} row={row} now={now} />
+                  <QueueRow key={row.id} row={row} now={now} view={view} />
                 ))}
               </ul>
             </section>
           ))}
         </>
       )}
+      {view === 'review' ? (
+        <details onToggle={(event) => setShowLedger(event.currentTarget.open)}>
+          <summary className="cursor-pointer py-2 text-sm font-semibold text-[var(--ink-muted)]">Legacy synthetic claims ledger</summary>
+          {showLedger ? <ClaimsPanel /> : null}
+        </details>
+      ) : null}
     </div>
   );
 }
 
-function QueueRow({ row, now }: { row: ClaimsCaseListRow; now: number }) {
+function QueueRow({ row, now, view }: { row: ClaimsCaseListRow; now: number; view: QueueView }) {
   const fixture = row.syntheticDemo;
   const decision = decisionState(row, fixture);
   const fresh = freshnessLabel(row.verification, now);
@@ -254,7 +302,7 @@ function QueueRow({ row, now }: { row: ClaimsCaseListRow; now: number }) {
     <li className="group relative grid gap-x-4 gap-y-2 px-5 py-4 transition-colors hover:bg-[#fafcfc] lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.9fr)_minmax(0,1fr)_minmax(0,1fr)_1rem] lg:items-center">
       <div className="min-w-0">
         <Link
-          href={`/claims/${encodeURIComponent(row.id)}`}
+          href={dossierHref(row.id, view)}
           aria-label={`Open claim ${row.id}`}
           className="font-semibold text-[var(--ink)] after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:rounded-[var(--radius)] focus-visible:after:ring-2 focus-visible:after:ring-[var(--accent-ring)] focus-visible:after:ring-inset"
         >

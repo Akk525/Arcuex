@@ -11,16 +11,22 @@ import { activityPresentation } from '@/components/dashboard/dashboard-presentat
 
 const label = (status: string) => (status === 'DRAFT' ? 'Draft' : claimStatusLabel(status));
 
-export function ActivityFeed({ items }: { items: DashboardOverview['recentActivity'] }) {
+export function ActivityFeed({
+  items,
+  title = 'Recent activity',
+}: {
+  items: DashboardOverview['recentActivity'];
+  title?: string;
+}) {
   // Relative times render after mount to avoid server/client clock mismatches.
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => setNow(Date.now()), []);
 
   return (
-    <Panel title="Recent activity" flush>
+    <Panel title={title} flush>
       {items.length === 0 ? (
         <p className="border-t border-[var(--line)] px-4 py-5 text-sm text-[var(--ink-muted)] sm:px-5">
-          No activity yet. Policy and claim changes for this account will list here as they happen.
+          Policy and claim updates will appear here.
         </p>
       ) : (
         <ol className="relative border-t border-[var(--line)] px-4 py-3 sm:px-5">

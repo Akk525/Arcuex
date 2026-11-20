@@ -17,7 +17,7 @@ export function FinalCta() {
               it procure within limits you set.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/coverage" className="marketing-cta">
+              <Link href="/coverage?tab=products" className="marketing-cta">
                 Explore coverage
                 <ArrowRight size={16} weight="bold" aria-hidden="true" />
               </Link>
