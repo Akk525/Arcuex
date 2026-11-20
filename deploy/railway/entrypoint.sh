@@ -2,9 +2,14 @@
 # Railway volume bootstrap. Never prints secret values.
 set -euo pipefail
 
-# Docker may invoke this entrypoint before the platform's start command.
+# When Docker wraps the Railway start command, run the isolation guard before storage bootstrap.
+if [[ "${1:-}" == bash && "${2:-}" == */deploy/backend/start-isolated.sh ]]; then
+  exec "$@"
+fi
+
 if [[ "${ARCUEX_BACKEND_ISOLATED:-}" == 1 ]]; then
   bash /app/deploy/backend/start-isolated.sh --check
+  pnpm --dir /app --filter @arcuex/onchain exec tsx ../../apps/web/scripts/check-isolated-startup.mts config
 fi
 
 DATA_DIR="${ARCUEX_DATA_DIR:-/data}"
@@ -63,6 +68,10 @@ if [[ "${NODE_ENV:-}" == "production" ]]; then
     ls -1t "$BACKUP_DIR"/prestart-*.sqlite 2>/dev/null | tail -n +15 | xargs -r rm -f || true
     echo "entrypoint: prestart backup captured"
   fi
+fi
+
+if [[ "${ARCUEX_BACKEND_ISOLATED:-}" == 1 ]]; then
+  pnpm --dir /app --filter @arcuex/onchain exec tsx ../../apps/web/scripts/check-isolated-startup.mts migrate
 fi
 
 # Honour Railway PORT when provided.

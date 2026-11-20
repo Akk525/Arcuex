@@ -1,6 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { join } = require('node:path');
+const { mkdtempSync, readdirSync, rmSync } = require('node:fs');
+const { tmpdir } = require('node:os');
 const { spawnSync } = require('node:child_process');
 
 const entrypoint = join(__dirname, 'start-isolated.sh');
@@ -27,3 +29,30 @@ for (const [name, planA] of Object.entries(identities)) {
     }
   });
 }
+
+test('Docker-wrapped backend start runs the isolation guard before shared storage writes', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'backend-entrypoint-'));
+  try {
+    const result = spawnSync(
+      'bash',
+      [join(__dirname, '../railway/entrypoint.sh'), 'bash', entrypoint],
+      {
+        encoding: 'utf8',
+        env: {
+          PATH: process.env.PATH,
+          NODE_ENV: 'production',
+          ARCUEX_CHAIN_SOURCE: 'arc-testnet',
+          ARCUEX_DATA_DIR: dir,
+          ARCUEX_STORAGE_ID: 'release-isolated-test',
+          ARCUE_X_SQLITE_PATH: join(dir, 'candidate.sqlite'),
+          RAILWAY_PROJECT_ID: identities.RAILWAY_PROJECT_ID,
+        },
+      },
+    );
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /backend startup blocked: RAILWAY_PROJECT_ID/);
+    assert.deepEqual(readdirSync(dir), []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
