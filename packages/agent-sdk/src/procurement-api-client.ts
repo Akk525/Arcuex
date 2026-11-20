@@ -6,6 +6,9 @@ import type {
   ProcurementCatalog,
   ProcurementCapacity,
   PolicyLifecycle,
+  UnderwritingAction,
+  UnderwritingApplicationInput,
+  UnderwritingView,
 } from '@arcuex/domain';
 import type { PreparedTx } from '@arcuex/onchain';
 type Input = Record<string, unknown>;
@@ -92,6 +95,34 @@ export class ProcurementApiClient {
   }
   quote(input: Input) {
     return this.call<ProcurementQuote>('quotes', input);
+  }
+  underwritingApplications(agentId?: string) {
+    return this.call<{ applications: UnderwritingView[]; paymentEnabled: boolean }>(
+      '/api/underwriting',
+      undefined,
+      agentId,
+    );
+  }
+  underwritingApplication(id: string, agentId?: string) {
+    return this.call<{ application: UnderwritingView; paymentEnabled: boolean }>(
+      `/api/underwriting/${encodeURIComponent(id)}`,
+      undefined,
+      agentId,
+    );
+  }
+  applyForUnderwriting(input: UnderwritingApplicationInput, signerAgentId?: string) {
+    return this.call<{ application: UnderwritingView; paymentEnabled: boolean }>(
+      '/api/underwriting',
+      input,
+      signerAgentId,
+    );
+  }
+  updateUnderwriting(id: string, input: UnderwritingAction, agentId?: string) {
+    return this.call<{ application: UnderwritingView; paymentEnabled: boolean }>(
+      `/api/underwriting/${encodeURIComponent(id)}`,
+      input,
+      agentId,
+    );
   }
   procure(input: { quoteId: string; acceptedDigest: string; delegationId?: string }) {
     return this.call<{ policy: ProcurementPolicy; transactions: PreparedTx[]; chainId: 5042002 }>(

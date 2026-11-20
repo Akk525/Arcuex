@@ -765,6 +765,17 @@ export function ClaimsInvestigation({
 
       {findings}
 
+      {view.underwriting && (
+        <section className="rounded-[var(--radius)] border border-[var(--line)] p-4">
+          <h3 className="text-sm font-semibold">Evidence requirements from the bound policy</h3>
+          <p className="mt-1 text-xs text-[var(--ink-muted)]">{view.underwriting.ruleVersion}</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+            {view.underwriting.claimEvidence.map((requirement) => (
+              <li key={requirement}>{requirement}</li>
+            ))}
+          </ul>
+        </section>
+      )}
       {view.reviewBlockers.length > 0 && (
         <section
           aria-label="Before a decision"

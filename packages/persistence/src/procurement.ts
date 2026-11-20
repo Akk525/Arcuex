@@ -1,5 +1,5 @@
 import type { SqliteDb } from './db';
-import type { ProcurementPolicy } from '@arcuex/domain';
+import type { ProcurementPolicy, UnderwritingApplication } from '@arcuex/domain';
 
 /** Records are insert-only. Revocation is a separate immutable record. */
 export class ProcurementStore {
@@ -13,9 +13,24 @@ export class ProcurementStore {
   list<T>(kind: string, owner: string): T[] {
     return (
       this.db
-        .prepare('SELECT payload FROM procurement_records WHERE kind=? AND owner=?')
+        .prepare('SELECT payload FROM procurement_records WHERE kind=? AND owner=? ORDER BY rowid')
         .all(kind, owner) as { payload: string }[]
     ).map((r) => JSON.parse(r.payload) as T);
+  }
+  underwritingApplications(owner?: string): UnderwritingApplication[] {
+    const rows =
+      owner === undefined
+        ? this.db
+            .prepare(
+              "SELECT payload FROM procurement_records WHERE kind='underwriting_application'",
+            )
+            .all()
+        : this.db
+            .prepare(
+              "SELECT payload FROM procurement_records WHERE kind='underwriting_application' AND owner=?",
+            )
+            .all(owner);
+    return (rows as { payload: string }[]).map((row) => JSON.parse(row.payload));
   }
   insert(kind: string, id: string, owner: string, payload: unknown) {
     this.db.transaction(() =>

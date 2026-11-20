@@ -1,3 +1,4 @@
+import type { UnderwritingSnapshot } from './underwriting';
 /** Public beta product. Amounts are decimal integer USDC micros on the wire. */
 export const PROCUREMENT_PRODUCT = {
   code: 'ARC_ORACLE_LIQUIDATION_DEMO_V1',
@@ -139,6 +140,7 @@ export type ProcurementTerms = {
   exclusions: readonly string[];
   synthetic: boolean;
   independentProfile?: IndependentLiquidationProfile;
+  underwriting?: UnderwritingSnapshot;
 };
 export function isSupportedIndependentTerms(t: ProcurementTerms): boolean {
   return (

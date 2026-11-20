@@ -1,3 +1,5 @@
+import type { UnderwritingSnapshot } from '@arcuex/domain';
+
 /** Agent-native claims only. External nonce signing; never stores signing keys or prepares transactions. */
 export class ClaimsApiClient {
   private cookie?: string;
@@ -67,6 +69,7 @@ export class ClaimsApiClient {
     return this.call<{
       outstandingRequests: string[];
       dossierDigest: string;
+      underwriting?: UnderwritingSnapshot | null;
       entries: Array<{ id: string; kind: string; payload: Record<string, unknown> }>;
     }>(`/api/claims/cases/${encodeURIComponent(caseId)}/investigation`);
   }

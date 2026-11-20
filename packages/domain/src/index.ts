@@ -18,3 +18,5 @@ export * from './product-definition';
 export * from './product-coverage';
 export * from './product-templates';
 export * from './product-publication';
+
+export * from './underwriting';

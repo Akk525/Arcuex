@@ -8,6 +8,9 @@ describe('app navigation', () => {
     expect(hrefs(false)).not.toContain('/claims/review');
     expect(hrefs(false)).not.toContain('/capital');
     expect(hrefs(true)).toContain('/claims/review');
+    expect(hrefs(true)).toContain('/underwriting/review');
+    expect(hrefs(false)).not.toContain('/underwriting/review');
+    expect(hrefs(false)).toContain('/coverage/applications');
     expect(hrefs(true)).toContain('/capital');
   });
 

@@ -327,6 +327,8 @@ export function getClaimsInvestigation(
     entries = repo.listInvestigationEntries(caseId);
   return {
     dossierDigest: digest,
+    underwriting:
+      repo.getProcurementPolicy(String(dossier.case.policyId))?.terms.underwriting ?? null,
     chronology: dossier.chronology as ReturnType<typeof readClaimChronology>,
     reviewBlockers: dossier.reviewBlockers as string[],
     authorityReview: dossier.authorityReview as string[],

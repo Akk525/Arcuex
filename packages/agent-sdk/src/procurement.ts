@@ -13,6 +13,7 @@ import {
   type ProcurementDelegationView,
   type ProcurementPolicy,
   type ProcurementQuote,
+  type UnderwritingSnapshot,
 } from '@arcuex/domain';
 import type { ProcurementStore } from '@arcuex/persistence';
 import {
@@ -273,8 +274,17 @@ export class ProcurementService {
         'Revocation blocks recognized coverage for later binds. The contract cannot revoke previously issued calldata.',
     };
   }
-  quote(actor: string, input: Record<string, unknown>) {
-    return this.idempotent(actor, 'quote', input.idempotencyKey, input, () => {
+  quote(
+    actor: string,
+    input: Record<string, unknown>,
+    underwriting?: {
+      snapshot: UnderwritingSnapshot;
+      premiumMicros: string;
+      deductibleMicros: string;
+    },
+  ) {
+    const request = underwriting ? { input, underwriting } : input;
+    return this.idempotent(actor, 'quote', input.idempotencyKey, request, () => {
       const agent = this.agent(input.agentId);
       const independent = agent.exposure.protocol === INDEPENDENT.protocol;
       const product = PROCUREMENT_OFFERINGS[independent ? 1 : 0];
@@ -320,9 +330,16 @@ export class ProcurementService {
         'INVALID_DURATION',
         'Duration is outside the approved product schedule',
       );
+      const premium = underwriting ? micros(underwriting.premiumMicros) : limit / 100n;
+      const deductible = underwriting ? micros(underwriting.deductibleMicros) : limit / 10n;
+      requireThat(
+        !underwriting || (!independent && deductible < limit && premium < limit),
+        'INVALID_UNDERWRITING',
+        'Underwritten terms are outside the synthetic product bounds',
+      );
       if (d)
         requireThat(
-          limit <= BigInt(d.limitCapMicros) && limit / 100n <= BigInt(d.premiumCapMicros),
+          limit <= BigInt(d.limitCapMicros) && premium <= BigInt(d.premiumCapMicros),
           'CAP_EXCEEDED',
           'Quote exceeds delegated cap',
           403,
@@ -356,9 +373,9 @@ export class ProcurementService {
           syntheticOnly: !independent,
           ownerAttestsControl: true,
         },
-        premiumMicros: (limit / 100n).toString(),
+        premiumMicros: premium.toString(),
         limitMicros: limit.toString(),
-        deductibleMicros: (limit / 10n).toString(),
+        deductibleMicros: deductible.toString(),
         effectiveAt: now + 900,
         expiresAt: now + 900 + days * 86400,
         quoteExpiresAt: now + 600,
@@ -366,6 +383,7 @@ export class ProcurementService {
         exclusions: [...product.exclusions],
         synthetic: !independent,
         ...(independent ? { independentProfile: profile } : {}),
+        ...(underwriting ? { underwriting: underwriting.snapshot } : {}),
       };
       const quote: ProcurementQuote = { terms, digest: procurementDigest(terms) };
       this.store.insert('quote', terms.quoteId, agent.owner, quote);

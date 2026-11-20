@@ -135,3 +135,72 @@ checkpoint must be no older than five minutes. Missing historical records remain
 `GET /api/policies/{UUID}/lifecycle` contracts, local operator commands, recovery rules and merge
 conditions are documented in the [backend handoff](policy-reconciliation-handoff.md).
 The currently deployed Railway beta has not been changed.
+
+## Tailored synthetic oracle coverage
+
+Use **Protect → Applications** to apply for a registered synthetic oracle exposure. Sign in
+with the owner wallet or with the registered agent signer and a current delegation. Use
+**Insurer → Underwriting** with a provisioned reviewer or authority session to review the
+dossier, ask a question, request evidence or record an approval or decline with a rationale.
+
+The versioned demonstration rules use the requested limit relative to the registered
+notional, requested duration and whether the agent monitors or manages the position. The
+base premium is 1% of the limit. A limit above half the notional adds 0.50 percentage points
+and raises the deductible from 10% to 20% of the limit. A term above seven days and active
+position management each add 0.25 percentage points to the premium. Active management
+also adds an execution-log requirement to the policy's evidence checklist. These rules
+are synthetic fixtures, separate from the fixed checkout schedule. Registration and
+activity facts are labeled as attestations. A response can close the intake proof request
+for human review, without authenticating its claims.
+
+An application with a rating adjustment opens an evidence request. After the applicant
+responds, an insurer must approve the application for quoting. The offer commits the
+rule version, application/dossier digest, reasons and claim evidence checklist alongside
+the usual immutable terms. Accepting the offer returns the existing prepared policy.
+Checkout and reconciliation use the existing wallet approval, limits and receipt checks.
+The bound checklist is visible from the claims investigation dossier. Existing claim
+verification, adjudication and settlement authority are unchanged. No new provider,
+contract or migration is required. An offline fixture can generate quotes, while
+financial preparation remains disabled.
+
+Agent SDK calls on an externally authenticated `ProcurementApiClient`:
+
+```ts
+const { application } = await api.applyForUnderwriting({
+  idempotencyKey: applicationRequestId,
+  agentId,
+  delegationId,
+  productCode: 'ARC_ORACLE_LIQUIDATION_DEMO_V1',
+  operation: 'manage_position',
+  activity: 'Changes collateral for the registered position within owner limits.',
+  limitMicros: '1000000',
+  durationDays: 7,
+  attestEligible: true,
+}, agentId);
+
+const id = application.application.id;
+const detail = await api.underwritingApplication(id, agentId);
+// Find the open request in detail.application.entries and respond with its ID.
+await api.updateUnderwriting(id, {
+  action: 'response', requestId, text: snapshotReference, idempotencyKey: evidenceRequestId,
+}, agentId);
+// Poll until an insurer approves the response, then explicitly request exact terms.
+const offer = await api.updateUnderwriting(id, {
+  action: 'quote', idempotencyKey: quoteRequestId,
+}, agentId);
+// Inspect offer.application.quote before calling the existing accept/payment API.
+```
+
+A request ID identifies one input. Repeat the same ID and payload after an uncertain
+response. The same ID with a different payload returns a conflict. Use
+`underwritingApplications(agentId)` to discover visible applications and
+`updateUnderwriting(id, { action: 'message', … }, agentId)` for follow-up questions.
+
+Verification on November 20, 2026 used signed wallet and reviewer sessions with a disposable
+SQLite database. The integration tests checked two different offers, linked evidence,
+replay conflicts, role and wallet isolation, acceptance of exact terms and the evidence
+checklist in a claim opened against a simulated reconciliation record. The production
+Chrome fixture exercised applicant submission, an insurer request, agent SDK responses,
+insurer approval and exact offer generation. Both views passed at 1440 and 390 pixels
+with zero horizontal overflow and zero uncaught page errors. Lint, type checking,
+the production web build, the workspace test suite and 46 Foundry tests passed.

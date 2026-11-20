@@ -20,6 +20,7 @@ const PROTECT: AppNavGroup = {
   label: 'Protect',
   items: [
     { href: '/coverage', label: 'Buy coverage', icon: 'coverage' },
+    { href: '/coverage/applications', label: 'Applications', icon: 'policies' },
     { href: '/policies', label: 'Policies', icon: 'policies' },
   ],
 };
@@ -39,6 +40,7 @@ const INSURER: AppNavGroup = {
   label: 'Insurer',
   items: [
     { href: '/claims/review', label: 'Review queue', icon: 'review' },
+    { href: '/underwriting/review', label: 'Underwriting', icon: 'coverage' },
     { href: '/capital', label: 'Capital', icon: 'capital' },
   ],
 };

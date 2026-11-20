@@ -121,6 +121,12 @@ eligibility/delegation controls are different guarantees; the deployed pool is
 permissionless and does not validate signed quotes. Read the [procurement guide](docs/development/procurement-beta.md)
 for endpoints, exact limitations, launch blockers and the claims-sprint handoff.
 
+### Tailored synthetic underwriting
+
+**Protect → Applications** and **Insurer → Underwriting** share an application, evidence
+requests and a versioned quote. Registered agent signers use the same workflow through
+`ProcurementApiClient`. [Rules, SDK example and payment boundary](docs/development/procurement-beta.md#tailored-synthetic-oracle-coverage).
+
 ### Procurement + claims integration
 
 The integration branch uses one wallet-signature/httpOnly session across
