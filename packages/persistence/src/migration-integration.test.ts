@@ -90,7 +90,9 @@ describe('integration migration histories', () => {
     db.pragma('foreign_keys=ON');
     migrate(db);
     migrate(db);
-    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(14);
+    expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(15);
+    // 013 is additive: an empty MCP token registry, no change to existing tables.
+    expect(db.prepare('SELECT * FROM mcp_access_tokens').all()).toEqual([]);
     expect(db.pragma('foreign_key_check')).toEqual([]);
     expect(db.pragma('foreign_keys', { simple: true })).toBe(1);
     expect(
@@ -326,7 +328,7 @@ it('upgrades the consolidated twelve-migration Plan A schema with only append-on
   for (const [table, rows] of before)
     expect(db.prepare(`SELECT * FROM ${table}`).all()).toEqual(rows);
   expect(db.prepare('SELECT * FROM claim_verifications').all()).toEqual([]);
-  expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(14);
+  expect(db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(15);
   expect(
     db.prepare("SELECT name FROM sqlite_master WHERE name='policy_indexer_state'").get(),
   ).toBeUndefined();
@@ -392,7 +394,7 @@ it('adds investigation journal to exact migration-011 storage without changing c
   const before = tables.map((table) => db.prepare(`SELECT * FROM ${table}`).all());
   migrate(db);
   migrate(db);
-  expect(db.prepare('SELECT id FROM schema_migrations').all()).toHaveLength(14);
+  expect(db.prepare('SELECT id FROM schema_migrations').all()).toHaveLength(15);
   expect(tables.map((table) => db.prepare(`SELECT * FROM ${table}`).all())).toEqual(before);
   expect(db.prepare('SELECT * FROM claim_investigation_entries').all()).toEqual([]);
   expect(db.pragma('foreign_key_check')).toEqual([]);

@@ -62,10 +62,10 @@ describe('pinned fixture source isolation and recovery', () => {
       /RAILWAY_VOLUME_ID/,
     );
   });
-  it('uses thirteen unchanged default migrations; pins provenance and a fixed checkpoint', () => {
+  it('uses the unchanged default migrations plus additive MCP token storage; pins provenance and a fixed checkpoint', () => {
     const f = fixture();
     try {
-      expect(f.db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(14);
+      expect(f.db.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(15);
       expect(readFixture(f.db, f.config, at).source).toEqual({
         mode: 'fixture',
         id,
@@ -102,7 +102,7 @@ describe('pinned fixture source isolation and recovery', () => {
         expect(() =>
           probe.prepare("UPDATE launch_runtime_state SET value='changed'").run(),
         ).toThrow(/readonly/);
-        expect(probe.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(14);
+        expect(probe.prepare('SELECT * FROM schema_migrations').all()).toHaveLength(15);
       } finally {
         probe.close();
       }
