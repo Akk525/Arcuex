@@ -128,7 +128,7 @@ Prompts: `insure_registered_position`, `respond_to_evidence_request`, `review_cl
   another owner registration.
 - **Delegation requests** are prepared owner actions; only the owner can create or revoke one.
 - **Human approval before binding.** Agents can quote/buy only under an owner delegation; the
-  live independent product is owner-purchase only (backend-enforced). There is no underwriter role.
+  live independent product is owner-purchase only (backend-enforced). The backend's synthetic underwriting applications and human insurer review (`/api/underwriting`) are not exposed through MCP yet.
 - **Purchase.** MCP returns backend-prepared unsigned transactions (`ACTION_REQUIRED`,
   `requiresWalletSignature`). A policy is reported bound only when the backend links a canonical
   `PolicyBound` event (`canonical_verified_linked`); a verified receipt alone is `PENDING`.
@@ -139,21 +139,25 @@ Prompts: `insure_registered_position`, `respond_to_evidence_request`, `review_cl
   `paymentFinality: confirmed` with a matching canonical receipt. Synthetic claims report
   `SYNTHETIC_SETTLEMENT_PROHIBITED`.
 
-### Blocked by missing backend capabilities
+### Blocked tools
 
-These tools are registered for discoverability and always return `BLOCKED` /
-`NOT_SUPPORTED_BY_BACKEND`:
+These tools are registered so agents can discover them. They always return `BLOCKED` and never act
+or simulate state.
 
-| Tool                                     | Missing service / contract                                          |
-| ---------------------------------------- | ------------------------------------------------------------------- |
-| `arcuex_request_risk_assessment`         | Risk-assessment service (pricing is a fixed testnet schedule).      |
-| `arcuex_submit_underwriting_application` | Underwriting application record, underwriter role and approval API. |
-| `arcuex_get_underwriting_status`         | Underwriting workflow state.                                        |
-| `arcuex_submit_underwriting_evidence`    | Underwriting evidence intake.                                       |
-| `arcuex_request_policy_renewal`          | Renewal contract (policies are fixed-window binds).                 |
-| `arcuex_request_claim_reconsideration`   | Appeal/reconsideration workflow (`DENIED` is terminal).             |
+| Tool                                     | `reasonCode`                | Why                                                                                                                           |
+| ---------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `arcuex_request_risk_assessment`         | `MCP_EXPOSURE_NOT_ACCEPTED` | The backend computes risk adjustments for each underwriting application (`/api/underwriting`). MCP doesn't call that API yet. |
+| `arcuex_submit_underwriting_application` | `MCP_EXPOSURE_NOT_ACCEPTED` | The backend accepts applications. MCP doesn't call that API yet.                                                              |
+| `arcuex_get_underwriting_status`         | `MCP_EXPOSURE_NOT_ACCEPTED` | The backend tracks application status. MCP doesn't call that API yet.                                                         |
+| `arcuex_submit_underwriting_evidence`    | `MCP_EXPOSURE_NOT_ACCEPTED` | The backend handles insurer evidence requests and applicant responses. MCP doesn't call that API yet.                         |
+| `arcuex_request_policy_renewal`          | `NOT_SUPPORTED_BY_BACKEND`  | There is no renewal contract; policies are fixed-window binds.                                                                |
+| `arcuex_request_claim_reconsideration`   | `NOT_SUPPORTED_BY_BACKEND`  | There is no appeal or reconsideration workflow; `DENIED` is terminal.                                                         |
 
-Also missing: a durable agent-registration request inbox for owners, OAuth 2.1 authorization
+`MCP_EXPOSURE_NOT_ACCEPTED` means the backend API exists, but MCP won't call it until the API has
+separately passed MCP authorization and integration tests. Until then, human owners use the web
+underwriting workspace, and insurer decisions stay human.
+
+Also missing: a durable agent-registration request inbox for owners, an OAuth 2.1 authorization
 server, and binary document attachments.
 
 ## Connecting a client

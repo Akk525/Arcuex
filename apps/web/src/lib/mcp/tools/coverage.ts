@@ -279,7 +279,7 @@ export const coverageTools: AnyToolSpec[] = [
               ? 'Owner-purchased only: the human owner must accept and sign. Agents cannot buy this product.'
               : 'An agent may buy only under an owner-created delegation (product, position, beneficiary, premium/limit caps, expiry). The owner delegation is the human approval.',
           underwriterReview:
-            'NOT_IMPLEMENTED: the backend has no underwriter role or approval record. Quotes are schedule-priced. Live (non-synthetic) binding stays owner-only.',
+            'NOT_EXPOSED_VIA_MCP: the backend has synthetic underwriting applications with human insurer review (/api/underwriting), but MCP does not call them until they pass separate MCP acceptance. MCP quotes use the procurement schedule. Live (non-synthetic) binding stays owner-only.',
           walletSignature:
             'Payer wallet signs USDC approve and InsurancePool.bindPolicy outside MCP; receipts are then reconciled by the backend.',
           capacity: 'Pool capacity is verified at quote and again before payment preparation.',

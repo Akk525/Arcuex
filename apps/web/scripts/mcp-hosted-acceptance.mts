@@ -16,7 +16,8 @@ import { CLAIM_FIXTURE } from '@arcuex/insurance';
 
 type Json = any; // eslint-disable-line @typescript-eslint/no-explicit-any
 const mode = process.argv[2];
-if (mode !== 'live' && mode !== 'fixture') throw new Error('mode must be live or fixture');
+if (mode !== 'live' && mode !== 'fixture' && mode !== 'restart')
+  throw new Error('mode must be live, fixture or restart');
 const base = new URL(process.env.ARCUEX_MCP_BASE_URL ?? '');
 if (base.protocol !== 'https:') throw new Error('hosted acceptance requires an https base URL');
 const readSecret = (name: string) => readFileSync(process.env[name] ?? '', 'utf8').trim();
@@ -468,13 +469,43 @@ async function live() {
     { status: passthrough.status },
   );
 
-  // Unsupported workflows stay blocked.
+  // Unsupported workflows stay blocked; underwriting is blocked pending separate MCP acceptance.
+  for (const name of ['arcuex_request_claim_reconsideration', 'arcuex_request_policy_renewal'])
+    check(
+      `blocked: ${name} NOT_SUPPORTED_BY_BACKEND`,
+      (await bound.call(name)).reasonCode === 'NOT_SUPPORTED_BY_BACKEND',
+    );
   for (const name of [
-    'arcuex_request_claim_reconsideration',
+    'arcuex_request_risk_assessment',
     'arcuex_submit_underwriting_application',
-    'arcuex_request_policy_renewal',
-  ])
-    check(`blocked: ${name}`, (await bound.call(name)).reasonCode === 'NOT_SUPPORTED_BY_BACKEND');
+    'arcuex_get_underwriting_status',
+    'arcuex_submit_underwriting_evidence',
+  ]) {
+    const r = await bound.call(name);
+    check(
+      `blocked: ${name} MCP_EXPOSURE_NOT_ACCEPTED`,
+      r.status === 'BLOCKED' &&
+        r.reasonCode === 'MCP_EXPOSURE_NOT_ACCEPTED' &&
+        r.data?.backendApi === '/api/underwriting',
+    );
+  }
+
+  // State handed to the restart check (token file is 0600 in the operator scratch area).
+  if (process.env.ARCUEX_HOSTED_STATE) {
+    const persisted = (await issueToken(agent, ['arcuex:read', 'arcuex:quote'], agentId)).body
+      .accessToken as string;
+    writeFileSync(
+      process.env.ARCUEX_HOSTED_STATE,
+      JSON.stringify({
+        token: persisted,
+        agentId,
+        quoteId: quote.resourceId,
+        delegationId,
+        policyId,
+      }),
+      { mode: 0o600 },
+    );
+  }
 
   // 9. Repeated tool calls under the shared limiter; spoofed proxy headers do not reset buckets.
   const burst = await connect((await issueToken(agent, ['arcuex:read'], agentId)).body.accessToken);
@@ -730,9 +761,48 @@ async function fixture() {
   await Promise.all([probe, a, other].map((c) => c.transport.close()));
 }
 
+/** After a service restart: the token, session and procurement state must survive. */
+async function restart() {
+  const state = JSON.parse(readFileSync(process.env.ARCUEX_HOSTED_STATE ?? '', 'utf8'));
+  secrets.push(state.token);
+  const c = await connect(state.token);
+  check(
+    'restart: token and wallet session survive restart',
+    (await c.call('arcuex_get_identity')).status === 'SUCCESS',
+  );
+  check(
+    'restart: registered agent persisted',
+    (await c.call('arcuex_get_agent', { agentId: state.agentId })).status === 'SUCCESS',
+  );
+  const quote = await c.call('arcuex_get_quote', { quoteId: state.quoteId });
+  check('restart: accepted quote persisted', quote.status === 'SUCCESS', {
+    reasonCode: quote.reasonCode,
+  });
+  check(
+    'restart: delegation persisted and active',
+    (await c.call('arcuex_get_delegation', { delegationId: state.delegationId })).data?.validity ===
+      'active',
+  );
+  check(
+    'restart: policy still not reported bound',
+    (await c.call('arcuex_get_purchase_status', { policyId: state.policyId })).canonicality !==
+      'canonical_verified_linked',
+  );
+  await c.transport.close();
+  const revoked = await postJson(
+    '/api/mcp/auth/revoke',
+    {},
+    { authorization: `Bearer ${state.token}` },
+  );
+  check(
+    'restart: token revoked after the check',
+    revoked.status === 200 && (await rawMcp(`Bearer ${state.token}`)).status === 401,
+  );
+}
+
 const started = Date.now();
 try {
-  await (mode === 'live' ? live() : fixture());
+  await (mode === 'live' ? live() : mode === 'fixture' ? fixture() : restart());
 } catch (error) {
   check('harness completed without exception', false, {
     error: String((error as Error).message ?? error).slice(0, 300),

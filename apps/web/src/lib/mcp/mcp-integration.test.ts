@@ -412,7 +412,18 @@ describe('agent registration → quote → authorization → policy → claim �
       requiresHumanApproval: true,
       requiresWalletSignature: true,
     });
-    expect(await bound.call('arcuex_request_risk_assessment')).toMatchObject({
+    for (const name of [
+      'arcuex_request_risk_assessment',
+      'arcuex_submit_underwriting_application',
+      'arcuex_get_underwriting_status',
+      'arcuex_submit_underwriting_evidence',
+    ])
+      expect(await bound.call(name)).toMatchObject({
+        status: 'BLOCKED',
+        reasonCode: 'MCP_EXPOSURE_NOT_ACCEPTED',
+        data: { backendApi: '/api/underwriting' },
+      });
+    expect(await bound.call('arcuex_request_policy_renewal')).toMatchObject({
       status: 'BLOCKED',
       reasonCode: 'NOT_SUPPORTED_BY_BACKEND',
     });
