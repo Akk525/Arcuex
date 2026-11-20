@@ -66,10 +66,20 @@ async function GETHandler(request: Request) {
   const now = Math.floor(Date.now() / 1000);
   const chainSource = getRuntimeConfig().chainSource;
 
-  const policies = repo
+  const accessiblePolicies = repo
     .listPolicies(50)
-    .filter((p) => canAccessClaimsPolicy(repo, principal, p.id))
-    .map((p) => ({
+    .filter((p) => canAccessClaimsPolicy(repo, principal, p.id));
+  // Most recent recorded lifecycle time — never the request time.
+  const policyActivityAt = new Map(
+    accessiblePolicies.map((p) => [
+      p.id,
+      [p.activatedAt, p.boundAt, p.fundingVerifiedAt, p.createdAt]
+        .filter((t): t is string => Boolean(t))
+        .sort()
+        .at(-1) ?? p.createdAt,
+    ]),
+  );
+  const policies = accessiblePolicies.map((p) => ({
       id: p.id,
       status: p.status,
       synthetic: Boolean(p.terms.synthetic),
@@ -138,7 +148,7 @@ async function GETHandler(request: Request) {
 
   for (const policy of policies.slice(0, 10)) {
     recentActivity.push({
-      at: new Date().toISOString(),
+      at: policyActivityAt.get(policy.id) ?? new Date(0).toISOString(),
       kind: 'policy',
       summary: `${policy.synthetic ? 'Synthetic' : 'Policy'} ${policy.status}`,
       href: `/policies/${policy.id}`,

@@ -1,8 +1,19 @@
-import type { DashboardOverview } from '@/lib/server/dashboard-overview';
+import Link from 'next/link';
+import { Robot } from '@phosphor-icons/react/ssr';
+import type { DashboardOverview } from '@/lib/dashboard-overview-types';
 import { Panel } from '@/components/panel';
-import { EmptyState } from '@/components/ui/empty-state';
-import { ButtonLink } from '@/components/ui/button';
+import { StatusBadge } from '@/components/status-badge';
+import { WorkList, WorkRow } from '@/components/ui/work-row';
 
+const VALIDITY: Record<string, { label: string; tone: 'ok' | 'neutral' | 'warn' | 'pending' }> = {
+  // Server-checked validity at read time; the Agents page re-checks freshness before acting.
+  active: { label: 'Delegation active', tone: 'ok' },
+  expired: { label: 'Delegation expired', tone: 'neutral' },
+  revoked: { label: 'Delegation revoked', tone: 'neutral' },
+  unavailable: { label: 'Scope unavailable', tone: 'warn' },
+};
+
+/** Agent identity and delegated authority are shown separately — registration grants no authority. */
 export function AgentsPanel({
   agents,
   delegations,
@@ -10,63 +21,45 @@ export function AgentsPanel({
   agents: DashboardOverview['agents'];
   delegations: DashboardOverview['delegations'];
 }) {
-  if (agents.length === 0 && delegations.length === 0) {
-    return (
-      <Panel title="Agents and delegated permissions">
-        <EmptyState
-          title="No agents registered"
-          description="Register an agent and grant scoped bind authority when you are ready to automate procurement."
-          action={
-            <ButtonLink href="/agent" variant="secondary">
-              Connect an agent
-            </ButtonLink>
-          }
-        />
-      </Panel>
-    );
-  }
-
   return (
     <Panel
-      title="Agents and delegated permissions"
+      title="Insured agents"
       action={
-        <ButtonLink href="/agent" variant="ghost" size="sm">
-          Manage
-        </ButtonLink>
+        <Link href="/agent" className="text-[0.8125rem] font-medium text-[var(--accent-signal)] hover:text-[var(--accent)]">
+          {agents.length > 0 ? 'Manage' : 'Register an agent'}
+        </Link>
       }
+      flush
     >
-      <div className="grid gap-6 md:grid-cols-2">
-        <div>
-          <h3 className="text-xs font-medium text-[var(--ink-muted)]">Agents</h3>
-          <ul className="mt-2 divide-y divide-[var(--line)]">
-            {agents.map((agent) => (
-              <li key={agent.id} className="py-2">
-                <p className="text-sm font-medium text-[var(--ink)]">{agent.label}</p>
-                <p className="font-mono text-xs text-[var(--ink-faint)]">
-                  {agent.status} · {agent.id.slice(0, 8)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h3 className="text-xs font-medium text-[var(--ink-muted)]">Delegations</h3>
-          {delegations.length === 0 ? (
-            <p className="mt-2 text-sm text-[var(--ink-muted)]">No active delegations.</p>
-          ) : (
-            <ul className="mt-2 divide-y divide-[var(--line)]">
-              {delegations.map((d) => (
-                <li key={d.id} className="py-2">
-                  <p className="text-sm font-medium text-[var(--ink)]">{d.validity}</p>
-                  <p className="font-mono text-xs text-[var(--ink-faint)]">
-                    agent {d.agentId.slice(0, 8)} · {d.id.slice(0, 8)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+      {agents.length === 0 ? (
+        <p className="border-t border-[var(--line)] px-4 py-5 text-sm text-[var(--ink-muted)] sm:px-5">
+          No agents registered. Register an agent, then grant it a scoped delegation to quote and
+          bind within your limits.
+        </p>
+      ) : (
+        <WorkList label="Agents">
+          {agents.map((agent) => {
+            const grants = delegations.filter((d) => d.agentId === agent.id);
+            const current = grants.find((d) => d.validity === 'active') ?? grants[0];
+            const validity = current
+              ? (VALIDITY[current.validity.toLowerCase()] ?? { label: current.validity, tone: 'pending' as const })
+              : { label: 'No delegation', tone: 'neutral' as const };
+            return (
+              <WorkRow
+                key={agent.id}
+                href="/agent"
+                icon={<Robot size={18} weight="duotone" />}
+                iconTone="accent"
+                title={agent.label}
+                meta={
+                  <span className="font-mono text-xs">{agent.id.slice(0, 8)}…{agent.id.slice(-4)}</span>
+                }
+                status={<StatusBadge label={validity.label} tone={validity.tone} />}
+              />
+            );
+          })}
+        </WorkList>
+      )}
     </Panel>
   );
 }

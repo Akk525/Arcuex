@@ -1,53 +1,61 @@
 import Link from 'next/link';
-import type { DashboardOverview } from '@/lib/server/dashboard-overview';
+import { ShieldCheck } from '@phosphor-icons/react/ssr';
+import type { DashboardOverview } from '@/lib/dashboard-overview-types';
 import { Panel } from '@/components/panel';
-import { EmptyState } from '@/components/ui/empty-state';
+import { StatusBadge } from '@/components/status-badge';
 import { TruthBadge } from '@/components/ui/truth-badge';
-import { ButtonLink } from '@/components/ui/button';
+import { WorkList, WorkRow } from '@/components/ui/work-row';
+import { policyStatusPill } from '@/components/dashboard/dashboard-presentation';
 
 export function PortfolioSummary({ portfolio }: { portfolio: DashboardOverview['portfolio'] }) {
-  if (portfolio.total === 0) {
-    return (
-      <Panel title="Policy portfolio">
-        <EmptyState
-          title="No coverage yet"
-          description="Quote and bind a policy to populate this portfolio. Status stays literal until reconciliation confirms eligibility."
-          action={<ButtonLink href="/coverage">Obtain coverage</ButtonLink>}
-        />
-      </Panel>
-    );
-  }
-
   return (
     <Panel
-      title="Policy portfolio"
-      action={<span className="text-xs text-[var(--ink-muted)]">{portfolio.total} total</span>}
+      title="Policies"
+      action={
+        portfolio.total > 0 ? (
+          <Link href="/policies" className="text-[0.8125rem] font-medium text-[var(--accent-signal)] hover:text-[var(--accent)]">
+            View all
+          </Link>
+        ) : null
+      }
+      flush
     >
-      <ul className="divide-y divide-[var(--line)]">
-        {portfolio.items.map((item) => (
-          <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-            <div className="min-w-0 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <Link
-                  href={`/policies/${item.id}`}
-                  className="text-sm font-medium text-[var(--ink)] underline-offset-2 hover:underline"
-                >
-                  {item.label}
-                </Link>
-                {item.synthetic ? <TruthBadge label="Synthetic" tone="synthetic" /> : null}
-                {item.claimsEligible ? (
-                  <TruthBadge label="Claims eligible" tone="ok" />
-                ) : (
-                  <TruthBadge label="Not claims-eligible yet" tone="pending" />
-                )}
-              </div>
-              <p className="font-mono text-xs text-[var(--ink-faint)]">
-                {item.status} · {item.id.slice(0, 8)}
-              </p>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {portfolio.total === 0 ? (
+        <div className="border-t border-[var(--line)] px-4 py-5 sm:px-5">
+          <p className="text-sm text-[var(--ink-muted)]">
+            No coverage yet. A policy appears here once it is bound, and becomes claims-eligible
+            after on-chain reconciliation.
+          </p>
+          <Link
+            href="/coverage"
+            className="mt-3 inline-flex text-[0.8125rem] font-semibold text-[var(--accent-signal)] hover:text-[var(--accent)]"
+          >
+            Buy coverage
+          </Link>
+        </div>
+      ) : (
+        <WorkList label="Policies">
+          {portfolio.items.slice(0, 5).map((item) => {
+            const pill = policyStatusPill(item.status);
+            return (
+              <WorkRow
+                key={item.id}
+                href={`/policies/${item.id}`}
+                icon={<ShieldCheck size={18} weight="duotone" />}
+                iconTone={item.claimsEligible ? 'accent' : 'neutral'}
+                title={
+                  <span className="flex items-center gap-2">
+                    <span className="truncate">{item.label}</span>
+                    {item.synthetic ? <TruthBadge label="Synthetic" tone="synthetic" /> : null}
+                  </span>
+                }
+                meta={item.claimsEligible ? 'Claims eligible' : 'Not claims-eligible until reconciled'}
+                status={<StatusBadge label={pill.label} tone={pill.tone} />}
+              />
+            );
+          })}
+        </WorkList>
+      )}
     </Panel>
   );
 }
