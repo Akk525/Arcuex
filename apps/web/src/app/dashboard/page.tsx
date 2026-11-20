@@ -1,10 +1,10 @@
 import { AppShell } from '@/components/app-shell';
-import { ProtectOverview } from '@/components/protect/protect-overview';
+import { DashboardOverview } from '@/components/dashboard/dashboard-overview';
 
 export default function DashboardPage() {
   return (
     <AppShell>
-      <ProtectOverview />
+      <DashboardOverview />
     </AppShell>
   );
 }
