@@ -6,8 +6,9 @@ import { createWagmiConfig } from '@/lib/wagmi';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Arcuex — Arc Testnet',
-  description: 'Programmable financial protection for humans and autonomous agents on Arc Testnet.',
+  title: 'Arcuex — Insurance for autonomous agents',
+  description:
+    'Procurement, delegated authority, evidence-backed claims, human adjudication, and controlled Arc settlement.',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
